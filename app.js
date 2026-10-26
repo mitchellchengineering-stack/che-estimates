@@ -170,7 +170,7 @@
 
   /* ---------- Start-up ---------- */
   const signInScreen = (msg = '') => {
-    document.getElementById('main').innerHTML = `<div class="signin"><img src="assets/logo.png" alt="CH Engineering"><h1>Estimates</h1>
+    document.getElementById('main').innerHTML = `<div class="signin"><img src="logo.png" alt="CH Engineering"><h1>Estimates</h1>
       ${msg ? `<p class="err">${e(msg)}</p>` : '<p>Sign in with your CH Engineering Google account.</p>'}
       <button class="btn primary big" id="signin-btn">Sign in with Google</button></div>`;
     document.getElementById('signin-btn').onclick = async () => {
@@ -182,7 +182,7 @@
     await st.load();
     const me = st.me();
     if (st.mode === 'drive' && me.unknown && S().users.length) {
-      document.getElementById('main').innerHTML = `<div class="signin"><img src="assets/logo.png" alt=""><h1>No access</h1><p>${e(App.G.user.email)} isn't on the list of people who can use this app. Ask an admin to add you in Settings.</p><button class="btn" onclick="App.G.signOut()">Sign out</button></div>`;
+      document.getElementById('main').innerHTML = `<div class="signin"><img src="logo.png" alt=""><h1>No access</h1><p>${e(App.G.user.email)} isn't on the list of people who can use this app. Ask an admin to add you in Settings.</p><button class="btn" onclick="App.G.signOut()">Sign out</button></div>`;
       return;
     }
     document.body.classList.add('ready');

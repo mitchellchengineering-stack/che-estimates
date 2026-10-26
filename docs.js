@@ -26,14 +26,14 @@ App.Docs = {
   head(est, title, metaRows) {
     const s = App.store.s();
     return `<div class="doc-head">
-      <div class="doc-brand"><img src="assets/logo.png" alt="CH Engineering"><div class="doc-addr">${this.e(s.company.name)}<br>${this.e(s.company.address)}</div></div>
+      <div class="doc-brand"><img src="logo.png" alt="CH Engineering"><div class="doc-addr">${this.e(s.company.name)}<br>${this.e(s.company.address)}</div></div>
       <div class="doc-titlebox"><h1>${this.e(title)}</h1>${this.kv(metaRows, 'meta')}</div>
     </div>`;
   },
   footer() {
     const c = App.store.s().company;
     return `<div class="doc-foot avoid">
-      <div class="partners"><img src="assets/axxis.png" alt="Axxis steel for framing"><img src="assets/nash.png" alt="NASH member"></div>
+      <div class="partners"><img src="axxis.png" alt="Axxis steel for framing"><img src="nash.png" alt="NASH member"></div>
       <div class="contact">${this.e(c.phone)}<br>${this.e(c.email)}<br>${this.e(c.website)}</div>
       <div class="cca">${this.e(c.ccaLine)}</div>
     </div>`;
@@ -211,7 +211,7 @@ App.Docs = {
   },
 
   /* Output */
-  async wmData() { if (this._wm !== undefined) return this._wm; try { this._wm = await App.imgToDataUrl('assets/logo.png'); } catch (e) { this._wm = null; } return this._wm; },
+  async wmData() { if (this._wm !== undefined) return this._wm; try { this._wm = await App.imgToDataUrl('logo.png'); } catch (e) { this._wm = null; } return this._wm; },
   async toPdf(html, { number = '' } = {}) {
     const host = document.createElement('div'); host.className = 'pdf-host'; host.innerHTML = html; document.body.appendChild(host);
     await Promise.all([...host.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
@@ -236,7 +236,7 @@ App.Docs = {
   },
   print(html) {
     const root = document.getElementById('print-root');
-    root.innerHTML = `<img class="print-wm" src="assets/logo.png" alt="">${html}`;
+    root.innerHTML = `<img class="print-wm" src="logo.png" alt="">${html}`;
     document.body.classList.add('printing');
     const done = () => { document.body.classList.remove('printing'); root.innerHTML = ''; window.removeEventListener('afterprint', done); };
     window.addEventListener('afterprint', done);
