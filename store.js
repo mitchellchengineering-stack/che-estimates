@@ -31,7 +31,7 @@ App.defaultSettings = () => ({
   ],
   numbering: { prefix: 'CHE', startSeq: { '26': 130 } },
   estimate: {
-    expiryMonths: 1, depositPct: 25, leadTime: '', showAcceptanceGeneral: true, attachBrochure: true,
+    expiryMonths: 1, depositPct: 25, leadTime: '', showAcceptanceGeneral: false, attachBrochure: true,
     shutdown: { showFrom: '', closedFrom: '', closedTo: '', message: 'Please note we are closed from {closed_from} to {closed_to}. Orders confirmed after {show_from} may be scheduled for manufacture after the break.' },
     steelSpec: 'GS550 galvanised steel (Axxis, NZ Steel)',
     notListed: 'Please note anything not listed in this estimate is not included in this estimate or pricing.',
@@ -122,6 +122,7 @@ App.store = {
     const deep = (target, src) => { Object.keys(src).forEach(k => { if (target[k] === undefined) target[k] = src[k]; else if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k]) && target[k] && typeof target[k] === 'object' && !Array.isArray(target[k])) deep(target[k], src[k]); }); };
     deep(d.settings, ds);
     ['estimates', 'customers', 'templates', 'events'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
+    if (!d.settings.v2) { d.settings.v2 = true; d.settings.estimate.showAcceptanceGeneral = false; }
     return d;
   },
 
@@ -273,9 +274,9 @@ App.store = {
       createdAt: Date.now(), createdBy: me.email, preparedBy: me.name, date: today, expiry: App.addMonths(today, s.estimate.expiryMonths || 1),
       client: { name: '', company: '', email: '', phone: '' }, siteAddress: '', heading: '', description: '', leadSource: '',
       sections: [{ size: '89x41', gauges: ['0.75'] }],
-      building: { width: '', depth: '', studHeight: '2.4', roofPitch: '', floorArea: '' },
+      building: { width: '', depth: '', studHeight: '2.4', roofPitch: '', floorArea: '', floorAreaManual: false },
       ft: type === 'ft' ? this.newFt() : null,
-      inclusions: [], options: [], extras: [], notes: '',
+      inclusions: [], options: [], extras: [], extrasMode: 'lump', notes: '',
       delivery: { on: false }, gst: false, price: 0, image: null,
       showAcceptance: type === 'ft' ? true : !!s.estimate.showAcceptanceGeneral,
       followups: { paused: false }, activity: [], revisions: [],
@@ -313,12 +314,19 @@ App.store = {
   /* Money maths */
   lineCost(l) { return App.num(l.qty) * App.num(l.cost); },
   steelCost(r) { return App.num(r.lm) * App.num(r.rate); },
+  defPct(est) { return App.round(((App.num(est.workings.markup) || 1) - 1) * 100, 2); },
+  /* Markup multiplier for a line: its own % if set, otherwise the job default */
+  lineMk(l, est) {
+    if (l.markupPct !== undefined && l.markupPct !== null && l.markupPct !== '') return 1 + App.num(l.markupPct) / 100;
+    if (l.markup) return App.num(l.markup);
+    return App.num(est.workings.markup) || 1;
+  },
   calc(est) {
-    const w = est.workings || {}; const mk = App.num(w.markup) || 1;
+    const w = est.workings || {};
     let cost = 0, main = 0, extra = 0, option = 0, mainCost = 0, extraCost = 0;
-    (w.steel || []).forEach(r => { const c = this.steelCost(r); const s = c * (r.markup ? App.num(r.markup) : mk); cost += c; mainCost += c; main += s; });
+    (w.steel || []).forEach(r => { const c = this.steelCost(r); const s = c * this.lineMk(r, est); cost += c; mainCost += c; main += s; });
     (w.lines || []).forEach(l => {
-      const c = this.lineCost(l); const s = c * (l.markup ? App.num(l.markup) : mk);
+      const c = this.lineCost(l); const s = c * this.lineMk(l, est);
       if (l.bucket === 'option') { option += s; return; }
       cost += c;
       if (l.bucket === 'extra') { extra += s; extraCost += c; } else { main += s; mainCost += c; }

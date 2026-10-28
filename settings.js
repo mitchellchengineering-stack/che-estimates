@@ -63,7 +63,7 @@
   App.Set.pricing = s => {
     const p = s.pricing; const gauges = ['0.55', '0.75', '0.95', '1.15'];
     return `<section class="card"><h3>Markup and labour</h3><div class="grid3">
-      ${App.field('Default markup (cost x)', `<input data-bind="pricing.markup" data-type="num" value="${e(p.markup)}">`)}
+      ${App.field('Default markup (%)', `<input data-act-change="setMarkupPct" value="${e(App.round((App.num(p.markup) - 1) * 100, 2))}" inputmode="decimal">`)}
       ${App.field('Minimum margin (%)', `<input data-act-change="minMargin" value="${e(App.round(p.minMargin * 100, 1))}">`)}
       ${App.field('Labour rate ($/hr cost)', `<input data-bind="pricing.labourRate" data-type="num" value="${e(p.labourRate)}">`)}</div></section>
     <section class="card"><h3>Steel cost per lineal metre</h3><p class="hint">Your cost, before markup. When you change these, estimates priced on the old rates get flagged.</p>
@@ -117,6 +117,7 @@
   const save = () => { S().updatedAt = Date.now(); st.save(); App.refresh(); };
   A.rowMove = el => { const arr = App.getPath(App.cur, el.dataset.path); const i = +el.dataset.i, j = i + (+el.dataset.d); if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; st.touch(App.cur); st.save(); App.refresh(); };
   A.rateSet = el => { const p = S().pricing; const v = el.value === '' ? '' : App.num(el.value); if (p.rates[el.dataset.k] !== v) { p.rates[el.dataset.k] = v; p.ratesUpdatedAt = Date.now(); } save(); };
+  A.setMarkupPct = el => { S().pricing.markup = App.round(1 + App.num(el.value) / 100, 4); save(); };
   A.minMargin = el => { S().pricing.minMargin = App.num(el.value) / 100; save(); };
   A.itemAdd = () => { S().pricing.items.push({ id: App.uid(), name: '', unit: 'ea', cost: '', supplier: '', supplierEmail: '' }); save(); };
   A.zoneAdd = () => { const d = S().delivery; d.zones.push(`Zone ${d.zones.length + 1}`); d.prices.push(Array(d.bands.length + 1).fill(0)); save(); };

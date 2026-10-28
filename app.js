@@ -24,19 +24,27 @@
     const active = r.name === 'e' || r.name === 'new' ? (r.name === 'new' ? '' : 'tracker') : r.name === 'job' ? 'production' : r.name;
     document.getElementById('nav').innerHTML = NAV.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg><span>${l}</span>${k === 'followups' && due ? `<em class="badge">${due}</em>` : ''}</a>`).join('');
     const me = st.data ? st.me() : null;
-    document.getElementById('side-foot').innerHTML = me ? `<span>${e(me.name)}</span><small>${st.mode === 'drive' ? 'Saving to Google Drive' : 'Saving in this browser'}</small>` : '';
+    document.getElementById('side-foot').innerHTML = me ? `<span class="av" aria-hidden="true">${e((me.name || '?')[0].toUpperCase())}</span><span><b>${e(me.name)}</b><small>${st.mode === 'drive' ? 'Saved to Google Drive' : 'Saving in this browser'}</small></span>` : '';
   };
   App.renderTop = () => {
     const t = document.getElementById('topbar'); if (!st.data) { t.innerHTML = ''; return; }
+    const q = (App.state.trk && App.state.trk.search) || '';
     t.innerHTML = `<button class="icon-btn menu-btn" data-act="toggleMenu" aria-label="Menu">☰</button>
-      ${App.state.practice ? '<div class="practice-flag">Practice mode: new estimates use TEST numbers and stay out of the stats</div>' : '<div></div>'}
+      <label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="position:absolute;left:-9999px">Search estimates</span><input id="top-q" type="search" placeholder="Search estimates, clients or addresses" value="${e(q)}" data-act-input="topSearch"></label>
+      ${App.state.practice ? '<div class="practice-flag">Practice mode: TEST numbers, kept out of the stats</div>' : ''}
       <div class="top-right">
         ${App.state.needsReconnect ? '<button class="btn small primary" data-act="reconnect">Reconnect Google</button>' : ''}
-        <span id="sync" class="sync">${st.mode === 'drive' ? 'Saved' : 'This browser only'}</span>
+        <span id="sync" class="sync">${st.mode === 'drive' ? 'All saved' : 'This browser only'}</span>
         <label class="switch" title="Practice mode"><input type="checkbox" data-act-change="togglePractice" ${App.state.practice ? 'checked' : ''}><span></span>Practice</label>
       </div>`;
   };
-  App.renderSync = txt => { const s = document.getElementById('sync'); if (s) { s.textContent = txt; s.className = 'sync ' + (txt === 'Not saved' ? 'bad' : ''); } };
+  App.renderSync = txt => { const s = document.getElementById('sync'); if (s) { s.textContent = txt === 'Saved' ? (st.mode === 'drive' ? 'All saved' : 'Saved in this browser') : txt; s.className = 'sync ' + (txt === 'Not saved' ? 'bad' : txt === 'Saving…' ? 'busy' : ''); } };
+  A.topSearch = App.debounce(el => {
+    App.state.trk = App.state.trk || { year: st.yy(), search: '', status: '', type: '', who: '', archived: false, practice: false };
+    App.state.trk.search = el.value;
+    if (App.route().name !== 'tracker') location.hash = '#/tracker'; else App.refresh();
+    setTimeout(() => { const i = document.getElementById('top-q'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 30);
+  }, 250);
 
   App.render = (keepScroll = false) => {
     if (!st.data) return;
@@ -78,10 +86,11 @@
     if (el.dataset.type === 'num' && typeof v === 'string') v = v.trim() === '' ? '' : (isNaN(+v) ? v : +v);
     App.setPath(target, el.dataset.bind, v);
     if (target === S()) S().updatedAt = Date.now();
+    if (App.Est && App.Est.afterBind && target.building) App.Est.afterBind(target, el.dataset.bind, el);
     st.touch(target); st.save();
     if (isChange && (el.dataset.rerender || el.dataset.rerenderBlur)) { App.refreshKeepFocus(); return; }
     if (App.cur && App.cur.workings) {
-      const tot = document.querySelector('[data-live="totals"]'); if (tot) tot.innerHTML = App.Est.totalsHtml(App.cur);
+      App.Est.livePrice(App.cur);
       if (App.state.estTab === 'workings') App.Est.liveWorkings(App.cur);
     }
   };
@@ -128,30 +137,49 @@
     const overdue = [];
     jobs.forEach(j => {
       if (j.job.manufactureDate && j.job.manufactureDate < today && ['accepted', 'detailing', 'scheduled'].includes(j.job.stage)) overdue.push({ j, text: `was due to start manufacture ${App.fmtShort(j.job.manufactureDate)}` });
-      (j.job.loads || []).forEach(l => { if (l.date && l.date < today && !l.delivered) overdue.push({ j, text: `delivery ${l.n} was booked for ${App.fmtShort(l.date)} but isn't marked delivered` }); });
+      (j.job.loads || []).forEach(l => { if (l.date && l.date < today && !l.delivered) overdue.push({ j, text: `delivery ${l.n} was booked for ${App.fmtShort(l.date)}` }); });
     });
     const recent = st.live().filter(x => !x.archived).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6);
     const templates = st.data.templates.filter(t => !t.deleted);
-    const jobLine = j => `<a href="#/job/${j.id}"><b>${e(j.number)}</b> ${e(j.client.company || j.client.name)}<span class="hint">${e(j.heading)}</span></a>`;
-    const panel = (title, items, empty, link) => `<section class="snap"><h3>${title}${items.length ? ` <em>${items.length}</em>` : ''}</h3>${items.length ? `<div class="snap-list">${items.join('')}</div>` : `<p class="hint">${empty}</p>`}${link || ''}</section>`;
-    const next = st.nextSeq(st.yy());
+    const month = today.slice(0, 7);
+    const real = st.live().filter(x => !x.practice && x.status !== 'cancelled');
+    const sentM = real.filter(x => x.sentDate && x.sentDate.startsWith(month));
+    const wonM = real.filter(x => x.status === 'accepted' && (x.acceptedAt || '').startsWith(month));
+    const decided = real.filter(x => x.yy === st.yy() && ['accepted', 'rejected', 'expired'].includes(x.status));
+    const wonY = decided.filter(x => x.status === 'accepted');
+    const sum = a => a.reduce((t, x) => t + st.totals(x).sub, 0);
+    const target = App.num(S().production.monthlyTarget);
+    const hr = new Date().getHours(); const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+    const me = st.me();
+    const dateChip = (d, dark) => { const dt = App.parseDate(d); return `<span class="date-chip ${dark ? 'dark' : ''}">${dt.toLocaleDateString('en-NZ', { weekday: 'short' })}<b>${dt.getDate()}</b></span>`; };
+    const item = (href, title, sub, extra = '', cls = '') => `<a class="snap-item ${cls}" href="${href}">${extra}<span class="txt"><span><b>${title}</b></span><span class="hint">${sub}</span></span></a>`;
+    const panel = (title, count, body, link = '') => `<section class="snap"><h3>${title}<em>${count || ''}</em></h3>${body}${link}</section>`;
     return `<section class="hero">
-      <div class="hero-text"><h1>Create an estimate</h1><p>${App.state.practice ? 'Practice mode is on, so this will be a TEST estimate.' : `The next number is <b>${e(st.numberFor(st.yy(), next))}</b>.`}</p></div>
+      <svg class="roof" viewBox="0 0 600 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 110 L300 18 L600 110" fill="none" stroke="#15171a" stroke-width="14"></path><rect x="420" y="0" width="22" height="46" fill="#15171a"></rect></svg>
+      <div class="hero-text"><p class="hi">${greet}, ${e(me.name)}</p><h1>Create an estimate</h1>
+        <p class="next">${App.state.practice ? 'Practice mode is on, so this will be a <b>TEST</b> estimate' : `Next number <b>${e(st.numberFor(st.yy(), st.nextSeq(st.yy())))}</b>`}</p></div>
       <div class="hero-choices">
-        <a class="choice" href="#/new/general"><span class="choice-t">General</span><span>Garages, sheds, cabins and smaller jobs. Size, stud height, sections and what's included.</span></a>
-        <a class="choice" href="#/new/ft"><span class="choice-t">Full frame and truss</span><span>Houses and bigger jobs. Design criteria, scope, exclusions, extras and sign-off.</span></a>
+        <a class="choice" href="#/new/general"><span class="ct"><b>General</b><span class="arrow" aria-hidden="true">→</span></span><span>Garages, sheds, cabins and smaller jobs</span></a>
+        <a class="choice dark" href="#/new/ft"><span class="ct"><b>Full frame and truss</b><span class="arrow" aria-hidden="true">→</span></span><span>Houses and bigger jobs, with full detail</span></a>
       </div>
       ${templates.length ? `<label class="fld inline tpl-pick"><span>Or start from a template</span><select data-act-change="startTemplate"><option value="">Choose a template…</option>${templates.map(t => `<option value="${e(t.id)}">${e(t.name)} (${t.type === 'ft' ? 'F&T' : 'General'})</option>`).join('')}</select></label>` : ''}
     </section>
-    <div class="snaps">
-      ${panel('In manufacturing', making.map(j => { const c = App.Jobs.checkDone(j); return jobLine(j).replace('</a>', `${c.total ? `<span class="tag">${c.done} of ${c.total} frames</span>` : ''}</a>`); }), 'Nothing being made right now.', '<a class="more" href="#/production">Production board</a>')}
-      ${panel('In the yard, ready to go', yard.map(jobLine), 'The yard is clear.')}
-      ${panel('Deliveries in the next 7 days', deliveries.map(({ j, l }) => `<a href="#/job/${j.id}/deliveries"><b>${App.fmtDate(l.date, { weekday: 'short', day: 'numeric', month: 'short' })}</b> ${e(j.number)} delivery ${l.n}/${j.job.loads.length}<span class="hint">${e(j.siteAddress)}</span></a>`), 'No deliveries booked this week.', '<a class="more" href="#/calendar">Calendar</a>')}
-      ${panel('Follow-ups ready', due.map(d => `<a href="#/followups"><b>${e(d.est.number)}</b> ${e(d.est.client.company || d.est.client.name)}<span class="hint">${{ fu1: 'First follow-up', fu2: 'Second follow-up', expiry: 'Expiry reminder', review: 'Review request' }[d.kind]}</span></a>`), 'No follow-ups waiting.')}
-      ${panel('Expiring this week', expiring.map(x => `<a href="#/e/${x.id}"><b>${e(x.number)}</b> ${e(x.client.company || x.client.name)}<span class="hint">Expires ${App.fmtShort(x.expiry)}</span></a>`), 'Nothing expiring this week.')}
-      ${panel('Overdue', overdue.map(o => `<a href="#/job/${o.j.id}" class="bad"><b>${e(o.j.number)}</b> ${e(o.text)}</a>`), 'Nothing overdue.')}
+    <div class="statcards">
+      <div class="statcard"><p class="l">Quoted this month</p><p class="v">${App.money(sum(sentM), 0)}</p><p class="s">${sentM.length} estimate${sentM.length === 1 ? '' : 's'} sent</p></div>
+      <div class="statcard"><p class="l">Accepted this month</p><p class="v">${App.money(sum(wonM), 0)}</p>${target ? `<div class="bar"><i style="width:${Math.min(100, sum(wonM) / target * 100)}%"></i></div><p class="s">of ${App.money(target, 0)} target</p>` : `<p class="s">${wonM.length} job${wonM.length === 1 ? '' : 's'} won</p>`}</div>
+      <div class="statcard"><p class="l">Win rate this year</p><p class="v">${decided.length ? Math.round(wonY.length / decided.length * 100) + '%' : '-'}</p><p class="s">${wonY.length} of ${decided.length} decided</p></div>
+      <div class="statcard"><p class="l">In production</p><p class="v">${jobs.filter(j => !['delivered', 'complete'].includes(j.job.stage)).length} job${jobs.length === 1 ? '' : 's'}</p><p class="s">${making.length} making, ${yard.length} in the yard</p></div>
     </div>
-    <section class="card recent"><h3>Recently worked on</h3>${recent.length ? `<div class="recent-list">${recent.map(x => `<a href="#/${x.job ? 'job' : 'e'}/${x.id}"><b>${e(st.displayNumber(x))}</b><span>${e(x.client.company || x.client.name || 'No client yet')}</span><span class="hint">${e(x.heading)}</span><span class="pill ${x.status}">${x.status}</span></a>`).join('')}</div>` : '<p class="hint">Your estimates will show here.</p>'}</section>`;
+    <div class="snaps">
+      ${panel('In the factory', making.length, making.length ? making.map(j => { const c = App.Jobs.checkDone(j); return `<a class="snap-box" href="#/job/${j.id}/checklist"><b>${e(j.number)}</b> ${e(j.client.company || j.client.name)}<span class="hint" style="display:block">${e(j.heading)}</span>${c.total ? `<div class="bar dark"><i style="width:${c.done / c.total * 100}%"></i></div><span class="hint"><b style="color:var(--ink)">${c.done} of ${c.total}</b> frames done</span>` : ''}</a>`; }).join('') : '<p class="hint">Nothing being made right now.</p>', '<a class="more" href="#/production">Production board</a>')}
+      ${panel('Deliveries this week', deliveries.length, deliveries.length ? `<div class="snap-list">${deliveries.map(({ j, l }, i) => item(`#/job/${j.id}/deliveries`, `${e(j.number)} delivery ${l.n} of ${j.job.loads.length}`, e(j.siteAddress), dateChip(l.date, i === 0))).join('')}</div>` : '<p class="hint">No deliveries booked this week.</p>', '<a class="more" href="#/calendar">Calendar</a>')}
+      ${panel('Needs you', due.length + expiring.length + overdue.length, (due.length + expiring.length + overdue.length) ? `<div class="snap-list">
+        ${due.map(d => item('#/followups', `${e(d.est.number)} ${e(d.est.client.company || d.est.client.name)}`, { fu1: 'First follow-up ready', fu2: 'Second follow-up ready', expiry: 'Expiry reminder ready', review: 'Review request ready' }[d.kind])).join('')}
+        ${expiring.map(x => item(`#/e/${x.id}`, `${e(x.number)} ${e(x.client.company || x.client.name)}`, `Expires ${App.fmtDate(x.expiry, { weekday: 'long' })}`)).join('')}
+        ${overdue.map(o => item(`#/job/${o.j.id}`, e(o.j.number), e(o.text), '', 'bad')).join('')}</div>` : '<p class="hint">All caught up.</p>')}
+    </div>
+    <section class="card recent"><div class="row" style="justify-content:space-between;margin-bottom:6px"><h3 style="margin:0">Recently worked on</h3><a class="more" style="margin:0" href="#/tracker">Open the tracker</a></div>
+      ${recent.length ? `<div class="table-scroll"><table><thead><tr><th>Estimate</th><th>Client</th><th>Job</th><th class="r">Excl GST</th><th>Status</th></tr></thead><tbody>${recent.map(x => `<tr><td><a href="#/${x.job ? 'job' : 'e'}/${x.id}"><b>${e(st.displayNumber(x))}</b></a></td><td>${e(x.client.company || x.client.name || 'No client yet')}</td><td>${e(x.heading)}</td><td class="r">${App.money(st.totals(x).sub)}</td><td><span class="pill ${x.status}">${x.status}</span></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Your estimates will show here.</p>'}</section>`;
   };
 
   App.views.help = () => `<div class="page-head"><div><h1>Help</h1><p class="sub">How the app fits together.</p></div></div>

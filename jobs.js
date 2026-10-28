@@ -188,21 +188,21 @@
     if (!est || !est.job) return `<div class="empty"><h2>That job doesn't exist yet</h2><p>Jobs appear once an estimate is accepted.</p><a class="btn" href="#/production">Production board</a></div>`;
     App.cur = est;
     const tabs = [['overview', 'Overview'], ['estimate', 'Estimate'], ['workings', 'Workings'], ['files', 'Plans and files'], ['deliveries', 'Frames and deliveries'], ['checklist', 'Factory checklist'], ['backcost', 'Back-costing'], ['pos', 'Purchase orders']];
-    const body = { overview: App.Jobs.overview, estimate: x => `<div class="row-btns"><a class="btn" href="#/e/${x.id}/preview">Open estimate</a></div><div class="doc-preview">${App.Docs.estimate(x)}</div>`, workings: x => `<div class="row-btns"><a class="btn" href="#/e/${x.id}/workings">Open workings</a></div><div class="doc-preview">${App.Docs.workings(x)}</div>`, files: App.Jobs.filesTab, deliveries: App.Jobs.delTab, checklist: App.Jobs.checkTab, backcost: App.Jobs.backTab, pos: App.Jobs.poTab }[tab] || App.Jobs.overview;
+    const body = { overview: App.Jobs.overview, estimate: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/preview">Open estimate</a></div><div class="doc-preview" id="job-doc"></div>`, workings: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/workings">Open workings</a></div><div class="doc-preview" id="job-doc"></div>`, files: App.Jobs.filesTab, deliveries: App.Jobs.delTab, checklist: App.Jobs.checkTab, backcost: App.Jobs.backTab, pos: App.Jobs.poTab }[tab] || App.Jobs.overview;
     return `<div class="page-head"><div><div class="crumbs"><a href="#/production">Production</a></div>
       <h1>${e(st.displayNumber(est))} <span class="pill stage">${e(App.stageLabel(est.job.stage))}</span></h1>
       <p class="sub">${e(est.client.company || est.client.name)}, ${e(est.heading)}${est.siteAddress ? ', ' + e(est.siteAddress) : ''}</p></div></div>
       <div class="tabs">${tabs.map(([k, l]) => `<a href="#/job/${est.id}/${k}" class="${tab === k ? 'on' : ''}">${l}</a>`).join('')}</div>
       <div class="tab-body">${body(est)}</div>`;
   };
-  App.views.job.mount = (id, tab) => { const est = st.get(id); if (!est) return; if (tab === 'files') App.Jobs.loadFiles(est); if (tab === 'estimate' && est.image && !App.Docs.imgUrl(est)) App.Docs.ensureImage(est).then(u => { if (u) App.refresh(); }); };
+  App.views.job.mount = (id, tab) => { const est = st.get(id); if (!est) return; if (tab === 'files') App.Jobs.loadFiles(est); if (tab === 'estimate') App.Docs.ensureImage(est).then(() => App.Docs.fill(document.getElementById('job-doc'), App.Docs.estimate(est))); if (tab === 'workings') App.Docs.fill(document.getElementById('job-doc'), App.Docs.workings(est)); };
 
   App.Jobs.overview = est => {
     const j = est.job; const i = STAGE_IDX(j.stage); const ld = App.Jobs.loadsDone(est); const ck = App.Jobs.checkDone(est);
     const vars = st.live().filter(v => v.parentId === est.id);
     const t = st.totals(est);
     return `<section class="card"><h3>Where it's at</h3>
-      <ol class="stepper">${App.STAGES.map((s, k) => `<li class="${k < i ? 'past' : k === i ? 'now' : ''}"><button data-act="jobStage" data-s="${s.value}">${s.label}</button></li>`).join('')}</ol>
+      <ol class="stepper">${App.STAGES.map((s, k) => `<li class="${k < i ? 'past' : k === i ? 'now' : ''}"><button data-act="jobStage" data-s="${s.value}"><span class="n">${k + 1}</span>${s.label}</button></li>`).join('')}</ol>
       <ul class="activity small">${j.stageLog.slice().reverse().map(l => `<li><time>${App.fmtStamp(l.at)}</time> ${e(App.stageLabel(l.stage))} <span class="hint">${e(l.by)}</span></li>`).join('')}</ul></section>
     <div class="grid2">
     <section class="card"><h3>Dates</h3>
@@ -280,7 +280,7 @@
     if (est.job.frames.length && !(await App.confirm('Replace the frame list?', `This job already has ${est.job.frames.length} frame types. Replace them with the ${fc.frames.length} from ${name}? Any delivery split and checklist ticks will be reset.`, 'Replace'))) return;
     est.job.frames = fc.frames; est.job.loads = []; est.job.checklist.ticks = {}; est.job.framesFrom = name;
     st.log(est, `Frames read from ${name}: ${App.FC.summaryText(fc)}`); st.touch(est); st.save();
-    App.toast(`Read ${App.FC.summaryText(fc)}`); location.hash = `#/job/${est.id}/deliveries`;
+    App.toast(`Read ${App.FC.summaryText(fc)}`); const h = `#/job/${est.id}/deliveries`; if (location.hash === h) App.refresh(); else location.hash = h;
   };
   A.jobFramesFromDrive = async el => { try { App.toast('Reading the drawings…'); const b = await App.G.getBlob(el.dataset.fid); await applyFrames(App.cur, await b.arrayBuffer(), el.dataset.name); } catch (er) { App.toast(er.message, 'err', 6000); } };
   A.jobReadFrames = async el => { const f = el.files[0]; if (!f) return; try { await applyFrames(App.cur, await App.readFile(f, 'buffer'), f.name); if (st.mode === 'drive') { const folder = await st.subFolder(App.cur, 'Plans and detailing'); await App.G.uploadOrReplace({ name: f.name, parent: folder, blob: f, mime: 'application/pdf' }); } } catch (er) { App.toast(er.message, 'err', 6000); } };
@@ -361,9 +361,9 @@
   };
   A.docket = el => {
     const est = App.cur; const l = est.job.loads[+el.dataset.i]; const c = el.dataset.c;
-    const html = c === 'both' ? App.Docs.docket(est, l, 'ours') + '<div class="page-break"></div>' + App.Docs.docket(est, l, 'customer') : App.Docs.docket(est, l, c);
-    App.Docs.preview(`Delivery ${l.n} docket`, html, { pdfName: `${est.number} Delivery ${l.n} docket.pdf`, number: est.number,
-      onDrive: st.mode === 'drive' ? async () => { const f = await st.subFolder(est, 'Dockets and checklists'); await App.G.uploadOrReplace({ name: `${est.number} Delivery ${l.n} docket.pdf`, parent: f, blob: await App.Docs.toPdf(html, { number: est.number }), mime: 'application/pdf' }); } : null });
+    const html = c === 'both' ? [App.Docs.docket(est, l, 'ours'), App.Docs.docket(est, l, 'customer')] : App.Docs.docket(est, l, c);
+    App.Docs.preview(`Delivery ${l.n} docket`, html, { pdfName: `${est.number} Delivery ${l.n} docket.pdf`,
+      onDrive: st.mode === 'drive' ? async () => { const f = await st.subFolder(est, 'Dockets and checklists'); await App.G.uploadOrReplace({ name: `${est.number} Delivery ${l.n} docket.pdf`, parent: f, blob: await App.Docs.toPdf(html), mime: 'application/pdf' }); } : null });
   };
   A.loadEmail = el => {
     const est = App.cur; const l = est.job.loads[+el.dataset.i];
@@ -389,7 +389,7 @@
     const ck = App.Jobs.checkDone(est); if (ck.total && ck.done === ck.total && STAGE_IDX(est.job.stage) < 4) { App.Jobs.setStage(est, 'yard'); App.toast('All frames done. Moved to "In yard".'); }
     jsave();
   };
-  A.checkPrint = () => { const est = App.cur; const html = App.Docs.checklist(est); App.Docs.preview('Factory checklist', html, { pdfName: `${est.number} Factory checklist.pdf`, number: est.number, onDrive: st.mode === 'drive' ? async () => { const f = await st.subFolder(est, 'Dockets and checklists'); await App.G.uploadOrReplace({ name: `${est.number} Factory checklist.pdf`, parent: f, blob: await App.Docs.toPdf(html, { number: est.number }), mime: 'application/pdf' }); } : null }); };
+  A.checkPrint = () => { const est = App.cur; const html = App.Docs.checklist(est); App.Docs.preview('Factory checklist', html, { pdfName: `${est.number} Factory checklist.pdf`, onDrive: st.mode === 'drive' ? async () => { const f = await st.subFolder(est, 'Dockets and checklists'); await App.G.uploadOrReplace({ name: `${est.number} Factory checklist.pdf`, parent: f, blob: await App.Docs.toPdf(html), mime: 'application/pdf' }); } : null }); };
 
   /* Back-costing */
   App.Jobs.backTab = est => {
@@ -452,11 +452,11 @@
   };
   A.poView = el => {
     const est = App.cur; const po = est.job.pos[+el.dataset.i]; const html = App.Docs.po(est, po);
-    App.Docs.preview(po.number, html, { pdfName: `${po.number}.pdf`, number: po.number, onDrive: st.mode === 'drive' ? async () => { const f = await st.subFolder(est, 'Purchase orders'); await App.G.uploadOrReplace({ name: `${po.number}.pdf`, parent: f, blob: await App.Docs.toPdf(html, { number: po.number }), mime: 'application/pdf' }); } : null });
+    App.Docs.preview(po.number, html, { pdfName: `${po.number}.pdf`, onDrive: st.mode === 'drive' ? async () => { const f = await st.subFolder(est, 'Purchase orders'); await App.G.uploadOrReplace({ name: `${po.number}.pdf`, parent: f, blob: await App.Docs.toPdf(html), mime: 'application/pdf' }); } : null });
   };
   A.poEmail = async el => {
     const est = App.cur; const po = est.job.pos[+el.dataset.i];
-    const blob = await App.Docs.toPdf(App.Docs.po(est, po), { number: po.number });
+    const blob = await App.Docs.toPdf(App.Docs.po(est, po));
     const t = App.mail.tpl('po', est, { po_number: po.number });
     App.mail.compose({ title: `Email ${po.number}`, est, kind: 'po', to: po.supplierEmail, subject: t.subject, body: t.body, extra: [{ name: `${po.number}.pdf`, mime: 'application/pdf', base64: await App.blobToBase64(blob) }], onSent: () => { po.sentAt = Date.now(); st.log(est, `${po.number} emailed to ${po.supplier}`); jsave(); } });
   };
