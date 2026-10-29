@@ -165,6 +165,15 @@
       ${kpi('Deposits outstanding', App.money(depOut.reduce((t, j) => t + st.totals(j).deposit, 0), 0), `${depOut.length} job${depOut.length === 1 ? '' : 's'}`)}
       ${kpi('Coils in stock', cs ? cs.ins.length : '-', cs ? C.kg(cs.ins.reduce((t, c) => t + c.weight, 0)) : '<a href="#/coils">Sign in to coils</a>')}
     </div>
+    <section class="hero hero-sm">
+      <svg class="roof" viewBox="0 0 600 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 110 L300 18 L600 110" fill="none" stroke="#15171a" stroke-width="14"></path><rect x="420" y="0" width="22" height="46" fill="#15171a"></rect></svg>
+      <div class="hero-text"><h2>Create an estimate</h2><p class="next">${App.state.practice ? 'Practice mode is on, so this will be a <b>TEST</b> estimate' : `Next number <b>${e(st.numberFor(st.yy(), st.nextSeq(st.yy())))}</b>`}</p></div>
+      <div class="hero-choices">
+        <a class="choice" href="#/new/general"><span class="ct"><b>General</b><span class="arrow" aria-hidden="true">→</span></span><span>Garages, sheds, cabins</span></a>
+        <a class="choice dark" href="#/new/ft"><span class="ct"><b>Full frame and truss</b><span class="arrow" aria-hidden="true">→</span></span><span>Houses and bigger jobs</span></a>
+      </div>
+      ${templates.length ? `<label class="fld inline tpl-pick"><span>Or start from a template</span><select data-act-change="startTemplate"><option value="">Choose a template…</option>${templates.map(t => `<option value="${e(t.id)}">${e(t.name)} (${t.type === 'ft' ? 'F&T' : 'General'})</option>`).join('')}</select></label>` : ''}
+    </section>
     <div class="hub2">
       <section class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Needs you</h3>${needs.length ? `<span class="tag bad">${needs.length}</span>` : ''}</div>
         ${needs.length ? needs.slice(0, 7).map(App.Track.alertHtml).join('') : '<p class="hint">All caught up. Nothing needs you right now.</p>'}</section>
@@ -183,15 +192,7 @@
       <section class="snap"><h3>Waiting on a reply<em>${App.money(sum(waiting), 0)}</em></h3>
         ${waiting.slice(0, 4).map(x => `<a class="kvr2" href="#/e/${x.id}"><span><b>${e(x.number)}</b> ${e(x.client.company || x.client.name)}<span class="hint" style="display:block">${x.sentDate ? `Sent ${App.daysBetween(x.sentDate, today)} days ago` : ''}${x.openedAt ? ', opened' : ''}</span></span><b>${App.money(st.totals(x).sub, 0)}</b></a>`).join('') || '<p class="hint">Nothing waiting.</p>'}<a class="more" href="#/followups">Follow-ups</a></section>
     </div>
-    <section class="hero hero-sm">
-      <svg class="roof" viewBox="0 0 600 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 110 L300 18 L600 110" fill="none" stroke="#15171a" stroke-width="14"></path><rect x="420" y="0" width="22" height="46" fill="#15171a"></rect></svg>
-      <div class="hero-text"><h2>Create an estimate</h2><p class="next">${App.state.practice ? 'Practice mode is on, so this will be a <b>TEST</b> estimate' : `Next number <b>${e(st.numberFor(st.yy(), st.nextSeq(st.yy())))}</b>`}</p></div>
-      <div class="hero-choices">
-        <a class="choice" href="#/new/general"><span class="ct"><b>General</b><span class="arrow" aria-hidden="true">→</span></span><span>Garages, sheds, cabins</span></a>
-        <a class="choice dark" href="#/new/ft"><span class="ct"><b>Full frame and truss</b><span class="arrow" aria-hidden="true">→</span></span><span>Houses and bigger jobs</span></a>
-      </div>
-      ${templates.length ? `<label class="fld inline tpl-pick"><span>Or start from a template</span><select data-act-change="startTemplate"><option value="">Choose a template…</option>${templates.map(t => `<option value="${e(t.id)}">${e(t.name)} (${t.type === 'ft' ? 'F&T' : 'General'})</option>`).join('')}</select></label>` : ''}
-    </section>`;
+`;
   };
   App.views.home.mount = () => {
     const jobs = [];
