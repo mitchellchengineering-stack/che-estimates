@@ -58,7 +58,7 @@ App.defaultSettings = () => ({
     'Late payment: Overdue amounts may incur interest and reasonable debt recovery costs.'
   ],
   ft: {
-    scopeItems: ['LGS wall framing', 'LGS roof trusses', 'LGS floor joists', 'Lintels and lintel plating', 'Strap bracing', 'Truss to truss connections', 'Truss to wall connections', 'Material box (fixings)', 'LGS engineering', 'Foundation design', 'LGS detailing', 'Producer statement (PS1)'],
+    scopeItems: ['LGS wall framing', 'LGS roof trusses', 'LGS roof panels', 'LGS floor joists', 'LGS floor panels', 'Lintels and lintel plating', 'Strap bracing', 'Truss to truss connections', 'Truss to wall connections', 'Material box (fixings)', 'LGS engineering', 'Foundation design', 'LGS detailing', 'Producer statement (PS1)'],
     exclusions: [
       { text: 'Timber of any kind', on: true },
       { text: 'Structural steel', on: true },
@@ -85,6 +85,14 @@ App.defaultSettings = () => ({
     truckMaxKg: 0
   },
   production: { capacityPerWeek: 0, reviewDelayDays: 10, monthlyTarget: 0 },
+  coils: {
+    apiUrl: 'https://script.google.com/macros/s/AKfycbzKxrxXmeAQnY5EG9Bc0JfEHbbwfdVNDDephiEn8mM9i-JaJup9XU98INJNBMphojjHIQ/exec',
+    widths: [92, 135, 166, 188], thicknesses: [0.55, 0.75, 0.95, 1.15], defaultGrade: 'G550', lowPerGauge: 1
+  },
+  fasteners: {
+    sheetId: '1wljKchKFiSzcOzHFh150yRn41T4XYOWZImUG_csJGIw',
+    appUrl: 'https://script.google.com/macros/s/AKfycbzFSHtrG7MBAqq85qQna3gLCfi7u5qma0gENtZYylT-OVGSeN2iAhTpS7xY2Cg9E9jggA/exec'
+  },
   google: { calendarId: 'primary', calendarSync: true },
   emails: {
     accountsEmail: '', trackingUrl: '', brochureId: '', brochureName: '',
@@ -123,6 +131,11 @@ App.store = {
     deep(d.settings, ds);
     ['estimates', 'customers', 'templates', 'events'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
     if (!d.settings.v2) { d.settings.v2 = true; d.settings.estimate.showAcceptanceGeneral = false; }
+    if (!d.settings.v3) {
+      d.settings.v3 = true; const si = d.settings.ft.scopeItems;
+      if (!si.includes('LGS roof panels')) si.splice(Math.max(0, si.indexOf('LGS roof trusses') + 1), 0, 'LGS roof panels');
+      if (!si.includes('LGS floor panels')) si.splice(Math.max(0, si.indexOf('LGS floor joists') + 1), 0, 'LGS floor panels');
+    }
     return d;
   },
 
@@ -295,7 +308,7 @@ App.store = {
     criteria.studCentres.v = '600crs'; criteria.nogCentres.v = '1200crs'; criteria.frameHeight.v = '2400';
     const scope = {}; s.ft.scopeItems.forEach(i => scope[i] = ['LGS wall framing', 'LGS roof trusses', 'Material box (fixings)', 'LGS detailing'].includes(i) ? 'inc' : 'exc');
     return {
-      projectName: '', plansStage: 'Concept', plansDate: '', plansRev: '', criteria, scope,
+      projectName: '', plansStage: 'Concept', plansDate: '', plansRev: '', criteria, scope, customScope: [],
       materialBox: s.ft.materialBox, notes: [], exclusions: s.ft.exclusions.map(x => ({ text: x.text, on: x.on })), conditions: s.ft.conditions.slice()
     };
   },

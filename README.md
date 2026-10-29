@@ -1,5 +1,18 @@
 # CH Engineering Estimates
 
+## Latest update: dashboard, coils, fasteners and production
+
+Do these steps once after uploading the new files.
+
+1. **Upload the new files to GitHub.** Drag every file from the update folder into your repository (Add file > Upload files) and commit. Your `config.js` isn't included, so your Client ID stays as it is.
+2. **Turn on Google Sheets in Google Cloud.** Go to console.cloud.google.com, make sure the CH Engineering Estimates project is selected, open **APIs & Services > Library**, search for **Google Sheets API** and click **Enable**.
+3. **Sign in again.** Open the app and sign in. Google will ask you to approve one new permission ("See your Google Sheets") so the dashboard can read the fastener sheet. Davin does the same next time he signs in.
+4. **Update the coil tracker script.** Open the coil tracker's Apps Script, select everything in `Code.gs`, and replace it with the contents of **Code-coils.gs** from this update. Click Save. Then go to **Deploy > Manage deployments**, click the pencil, set **Version** to **New version**, and click **Deploy**. The web app link stays the same. (Nothing about your coils, PINs or labels changes. It just adds a "Coil jobs" tab for coils on jobs, and an "Active jobs" tab so the crew can pick a job when scanning.)
+5. **Sign in to coils.** In the app, open **Coils** and sign in with your coil tracker name and PIN. You only do this once on each computer or phone.
+6. **Set up the crew's phones.** On each phone, open `https://mitchellchengineering-stack.github.io/che-estimates/crew.html`, sign in with their name and PIN, then use **Add to Home Screen**. Your old coil tracker app still works too, because it uses the same sheet, so you can switch over whenever suits.
+
+---
+
 Estimating, tracking and production app for CH Engineering Ltd. It runs on GitHub Pages (free) and keeps everything in your own Google Drive. There's no other server.
 
 ## What's in this folder

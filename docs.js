@@ -88,7 +88,7 @@ App.Docs = {
       flow.push(this.blk(`${this.h2('The building')}${stats.length ? `<div class="stats" style="grid-template-columns:repeat(${stats.length},minmax(0,1fr))">${stats.map(x => `<div class="stat"><p class="l">${x[0]}</p><p class="v">${this.e(x[1])}</p></div>`).join('')}</div>` : ''}
         <div class="chips">${this.sectionsChips(est).map(c => this.chip(c)).join('')}<span class="chip-note">${this.e(s.estimate.steelSpec)}</span></div>`));
       const incl = (est.inclusions || []).filter(Boolean); if (deliveryLine) incl.push(deliveryLine);
-      if (incl.length) flow.push(this.blk(`${this.h2('What\'s included')}${this.ticks(incl)}`));
+      if (incl.length) flow.push(this.blk(`${this.h2('What\'s included')}<div class="inclist" data-items>${incl.map(t => `<div class="inc"><span class="b">✓</span>${this.e(t)}</div>`).join('')}</div>`));
       if (est.notes) flow.push(this.blk(`<div class="note"><p class="t">Notes</p><p>${App.textToHtml(est.notes)}</p></div>`));
       const sd = this.shutdownNote(); if (sd) flow.push(sd);
       bottom = `<div class="bottom"><div class="left">${optBox}${notListed}</div>${this.priceBox(est)}</div>${est.showAcceptance ? this.signRow([['Signed', '2fr'], ['Name', '2fr'], ['Date', '1fr']]) : ''}`;
@@ -97,20 +97,26 @@ App.Docs = {
       const plans = [ft.plansStage, ft.plansRev ? 'Rev ' + ft.plansRev : ''].filter(Boolean).join(', ');
       flow.push(this.blk(`<div class="cards3">${this.card('Customer', who, est.client.company ? est.client.name : (est.client.email || est.client.phone))}${this.card('Project', ft.projectName || est.heading, est.siteAddress)}${this.card('Plans', plans || 'As supplied', ft.plansDate ? 'Received ' + App.fmtLong(ft.plansDate) : '')}</div>`));
       if (img) flow.push(img);
-      const STAR = { 'LGS wall framing': ['LGS wall frames', 'Detailed, manufactured and labelled'], 'LGS roof trusses': ['LGS trusses', 'Engineered roof trusses'], 'LGS floor joists': ['LGS floor joists', 'Manufactured to the detailing'] };
-      const secTxt = (est.sections || []).filter(x => /^\d/.test(x.size)).map(x => x.size).join(' and ');
-      const stars = Object.keys(STAR).filter(k => ft.scope[k] === 'inc');
-      if (stars.length) {
-        flow.push(this.blk(`${this.h2('Your frame and truss package')}<div class="stars" style="grid-template-columns:repeat(${stars.length},minmax(0,1fr))">${stars.map(k => `<div class="star"><span class="top"><span class="ck">✓</span><span class="inc">INCLUDED</span></span><span class="t">${STAR[k][0]}</span><span class="s">${this.e(k === 'LGS wall framing' && secTxt ? secTxt + ', ' + STAR[k][1].toLowerCase() : STAR[k][1])}</span></div>`).join('')}</div>
+      const SUB = 'As per engineer\'s final design and detailing';
+      const on = k => ft.scope[k] === 'inc';
+      const tiles = [];
+      if (on('LGS wall framing')) tiles.push('LGS wall frames');
+      if (on('LGS roof trusses') || on('LGS roof panels')) tiles.push(on('LGS roof trusses') && on('LGS roof panels') ? 'LGS roof trusses and roof panels' : on('LGS roof trusses') ? 'LGS roof trusses' : 'LGS roof panels');
+      if (on('LGS floor joists') || on('LGS floor panels')) tiles.push(on('LGS floor joists') && on('LGS floor panels') ? 'LGS floor joists and floor panels' : on('LGS floor joists') ? 'LGS floor joists' : 'LGS floor panels');
+      const STAR = ['LGS wall framing', 'LGS roof trusses', 'LGS roof panels', 'LGS floor joists', 'LGS floor panels'];
+      const stars = tiles;
+      if (tiles.length) {
+        flow.push(this.blk(`${this.h2('Your frame and truss package')}<div class="stars" style="grid-template-columns:repeat(${tiles.length},minmax(0,1fr))">${tiles.map(t => `<div class="star"><span class="top"><span class="ck">✓</span><span class="inc">INCLUDED</span></span><span class="t">${t}</span><span class="s">${SUB}</span></div>`).join('')}</div>
           <p class="cap">${deliveryLine ? 'Delivered to site. ' : ''}Everything else that's included is listed below.</p>`));
       }
       const crit = App.CRITERIA.filter(([k]) => c[k] && c[k].v);
       if (crit.length) flow.push(this.blk(`${this.h2('Frame and truss details')}<div class="kv2" data-items>${crit.map(([k, l]) => `<div class="kvr"><span>${l}</span><b>${this.e(c[k].v)}${c[k].a ? '<i class="assumed">ASSUMED</i>' : ''}</b></div>`).join('')}</div>`));
       flow.push(this.blk(`${this.h2('Steel specification')}<div class="chips">${this.sectionsChips(est).map(x => this.chip(x)).join('')}<span class="chip-note">${this.e(s.estimate.steelSpec)}</span></div>`));
-      const also = s.ft.scopeItems.filter(i => ft.scope[i] === 'inc' && !STAR[i]).concat((est.inclusions || []).filter(Boolean));
+      const custom = (ft.customScope || []).filter(x => x.text);
+      const also = s.ft.scopeItems.filter(i => ft.scope[i] === 'inc' && !STAR.includes(i)).concat(custom.filter(x => x.state === 'inc').map(x => x.text)).concat((est.inclusions || []).filter(Boolean));
       if (deliveryLine) also.push(deliveryLine);
       if (also.length) flow.push(this.blk(`${this.h2(stars.length ? 'Also included' : 'What\'s included')}${this.ticks(also)}`));
-      const exc = s.ft.scopeItems.filter(i => ft.scope[i] === 'exc');
+      const exc = s.ft.scopeItems.filter(i => ft.scope[i] === 'exc').concat(custom.filter(x => x.state === 'exc').map(x => x.text));
       if (!deliveryLine) exc.push('Delivery');
       ft.exclusions.filter(x => x.on).forEach(x => exc.push(x.text));
       if (exc.length) flow.push(this.blk(`${this.h2('Not included')}${this.ticks(exc, true)}`));
@@ -226,7 +232,7 @@ App.Docs = {
     const pages = [];
     const toEl = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
     const newPage = first => {
-      const p = toEl(`<div class="pg"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
+      const p = toEl(`<div class="pg${spec.landscape ? ' land' : ''}"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
       host.appendChild(p); pages.push(p); return p.querySelector('.pg-body');
     };
     const over = b => b.scrollHeight > b.clientHeight + 1;
@@ -286,11 +292,13 @@ App.Docs = {
     await App.loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
     const { host, pages } = await this.paginate(spec);
     try {
-      const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+      const land = !Array.isArray(spec) && spec.landscape;
+      const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: land ? 'landscape' : 'portrait', compress: true });
       for (let i = 0; i < pages.length; i++) {
-        const canvas = await window.html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: this.W, height: this.H, windowWidth: this.W, logging: false });
-        if (i) pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
+        const L = pages[i].classList.contains('land'); const w = L ? this.H : this.W, h = L ? this.W : this.H;
+        const canvas = await window.html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: w, height: h, windowWidth: w, logging: false });
+        if (i) pdf.addPage('a4', L ? 'landscape' : 'portrait');
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, L ? 297 : 210, L ? 210 : 297);
       }
       return pdf.output('blob');
     } finally { host.remove(); }
@@ -310,7 +318,7 @@ App.Docs = {
     const html = await this.pagesHtml(spec);
     if (!el.isConnected) return;
     el.innerHTML = `<div class="pg-stack">${html}</div>`;
-    const fit = () => { const s = el.querySelector('.pg-stack'); if (!s) return; s.style.zoom = Math.min(1, (el.clientWidth - 24) / this.W); };
+    const fit = () => { const s = el.querySelector('.pg-stack'); if (!s) return; const wide = s.querySelector('.pg.land') ? this.H : this.W; s.style.zoom = Math.min(1, (el.clientWidth - 24) / wide); };
     fit(); window.addEventListener('resize', fit);
   },
   preview(title, spec, { pdfName, onDrive } = {}) {

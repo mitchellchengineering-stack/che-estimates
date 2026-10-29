@@ -103,24 +103,62 @@
 
   /* ---------- Follow-ups ---------- */
   App.views.followups = () => {
-    const due = App.Track.due(); const me = st.me();
-    const history = st.live().filter(x => x.followups && ['fu1', 'fu2', 'expiry'].some(k => x.followups[k] && x.followups[k].status === 'sent')).sort((a, b) => b.updatedAt - a.updatedAt);
+    const tab = App.state.fuTab = App.state.fuTab || 'clients';
+    const due = App.Track.due(); const me = st.me(); const today = App.today();
     const meUser = S().users.find(u => u.email === me.email);
-    return `<div class="page-head"><div><h1>Follow-ups</h1><p class="sub">Follow-ups go out one and two weeks after an estimate is sent, from whoever sent it. After the second one, the estimate is left alone.</p></div></div>
+    const waiting = st.live().filter(x => x.status === 'sent' && !x.practice && !x.archived).sort((a, b) => (a.sentDate || '') < (b.sentDate || '') ? -1 : 1);
+    const val = waiting.reduce((t, x) => t + App.Track.estValue(x), 0);
+    const real = st.live().filter(x => !x.practice && x.sentDate);
+    const answered = real.filter(x => ['accepted', 'rejected'].includes(x.status));
+    const waits = answered.map(x => { const end = x.acceptedAt || (x.activity || []).filter(a => /Rejected/.test(a.text)).map(a => App.iso(new Date(a.at)))[0]; return end ? App.daysBetween(x.sentDate, end) : null; }).filter(n => n != null && n >= 0);
+    const decided = real.filter(x => ['accepted', 'rejected', 'expired'].includes(x.status));
+    const opened = waiting.filter(x => x.openedAt).length;
+    const track = x => { const f = App.Track.fu(x) || {}; const stg = (k) => f[k] && f[k].status && f[k].status !== 'queued'; const st2 = stg('fu2') ? 3 : stg('fu1') ? 2 : 1; return `<span class="track">${['Sent', 'FU1', 'FU2'].map((l, i) => `<span class="${i < st2 ? 'done' : i === st2 ? 'next' : ''}">${l}</span>`).join('')}</span>`; };
+    const nextTxt = x => { const f = App.Track.fu(x); if (!f) return ''; if (f.paused) return 'Follow-ups paused'; const done = k => f[k] && f[k].status && f[k].status !== 'queued'; if (!done('fu1')) return today >= f.fu1Due ? 'FU1 ready now' : `FU1 due ${App.fmtShort(f.fu1Due)}`; if (!done('fu2')) return today >= f.fu2Due ? 'FU2 ready now' : `FU2 due ${App.fmtShort(f.fu2Due)}`; return `Expires ${App.fmtShort(x.expiry)}`; };
+    const head = `<div class="page-head"><div><h1>Follow-ups</h1><p class="sub">Follow-ups go out one and two weeks after an estimate is sent, from whoever sent it. After the second one, the estimate is left alone.</p></div>
+      <div class="head-actions"><div class="seg">${[['clients', 'Clients'], ['suppliers', 'Suppliers']].map(([k, l]) => `<label><input type="radio" name="fut" value="${k}" data-act-change="fuTab" ${tab === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div></div>`;
+    const kpis = `<div class="statcards"><div class="statcard dark"><p class="l">Waiting on a reply</p><p class="v">${App.money(val, 0)}</p><p class="s">${waiting.length} estimate${waiting.length === 1 ? '' : 's'}</p></div>
+      <div class="statcard"><p class="l">Average wait</p><p class="v">${waits.length ? Math.round(waits.reduce((a, b) => a + b, 0) / waits.length) + ' days' : '-'}</p><p class="s">from sent to an answer</p></div>
+      <div class="statcard"><p class="l">Reply rate</p><p class="v">${decided.length ? Math.round(answered.length / decided.length * 100) + '%' : '-'}</p><p class="s">accepted or declined, not left to expire</p></div>
+      <div class="statcard"><p class="l">Opened</p><p class="v">${waiting.length ? `${opened} of ${waiting.length}` : '-'}</p><p class="s">${S().emails.trackingUrl ? 'estimate emails opened' : 'set up open tracking in Settings'}</p></div></div>`;
+    if (tab === 'suppliers') return head + kpis + App.Track.supplierFollowups();
+    return head + kpis + `
     ${meUser ? `<section class="card"><h3>My follow-up setting</h3>
       <div class="seg wide">${[['auto', 'Send them automatically, then tell me'], ['ask', 'Ask me before sending']].map(([v, l]) => `<label><input type="radio" name="fumode" value="${v}" data-act-change="fuMode" ${meUser.followupMode === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>
       <p class="hint">Automatic sending is done each morning by the Google helper script (see the setup guide). Anything due shows below too, so you can send it early.</p></section>` : ''}
-    <section class="card"><h3>Ready to go</h3>
-      ${due.length ? `<table class="wtable"><thead><tr><th>Estimate</th><th>Client</th><th>What</th><th>Due</th><th></th></tr></thead><tbody>
-      ${due.map((d, i) => `<tr><td><a href="#/e/${d.est.id}">${e(st.displayNumber(d.est))}</a></td><td>${e(d.est.client.company || d.est.client.name)}</td><td>${KIND_LABEL[d.kind]}${d.queued ? ' <span class="tag">Waiting for approval</span>' : ''}</td><td>${App.fmtShort(d.due)}</td>
-        <td class="row-btns"><button class="btn small primary" data-act="fuSend" data-id="${d.est.id}" data-k="${d.kind}">Review and send</button><button class="btn small ghost" data-act="fuSkip" data-id="${d.est.id}" data-k="${d.kind}">Skip</button></td></tr>`).join('')}</tbody></table>`
-        : '<p class="hint">Nothing waiting right now.</p>'}
-    </section>
-    <section class="card"><h3>Estimates that have had a follow-up</h3>
-      ${history.length ? `<table class="wtable"><thead><tr><th>Estimate</th><th>Client</th><th>Follow-ups</th><th>Status</th></tr></thead><tbody>
-      ${history.map(x => `<tr><td><a href="#/e/${x.id}">${e(st.displayNumber(x))}</a></td><td>${e(x.client.company || x.client.name)}</td><td>${App.Track.fuText(x)}${x.followups.expiry && x.followups.expiry.status === 'sent' ? ', expiry reminder sent' : ''}</td><td><span class="pill ${x.status}">${x.status}</span></td></tr>`).join('')}</tbody></table>` : '<p class="hint">None yet.</p>'}
-    </section>`;
+    <div class="grid2" style="gap:16px">
+      <section class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Ready to send</h3>${due.length ? `<span class="tag yel">${due.length}</span>` : ''}</div>
+        ${due.length ? due.map(d => `<div class="alert"><span class="txt"><b>${e(st.displayNumber(d.est))} ${e(d.est.client.company || d.est.client.name)}, ${App.money(App.Track.estValue(d.est), 0)}</b><span>${KIND_LABEL[d.kind]}${d.est.sentDate ? `, sent ${App.daysBetween(d.est.sentDate, today)} days ago` : ''}${d.est.openedAt ? ', opened' : ''}${d.queued ? ', waiting for approval' : ''}</span></span>
+          <span class="row" style="flex:none"><button class="btn small ghost" data-act="fuSkip" data-id="${d.est.id}" data-k="${d.kind}">Skip</button><button class="btn small primary" data-act="fuSend" data-id="${d.est.id}" data-k="${d.kind}">Review and send</button></span></div>`).join('') : '<p class="hint">Nothing waiting right now.</p>'}</section>
+      <section class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Supplier follow-ups</h3><a class="btn small" href="#" data-act="fuTabGo">See all</a></div>${App.Track.supplierList().slice(0, 4).map(App.Track.alertHtml).join('') || '<p class="hint">Nothing waiting on suppliers.</p>'}</section>
+    </div>
+    <section class="card" style="margin-top:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Waiting on a reply</h3><span class="hint">${App.money(val, 0)} across ${waiting.length} estimate${waiting.length === 1 ? '' : 's'}</span></div>
+      ${waiting.length ? `<div class="table-scroll"><table class="wtable"><thead><tr><th>Estimate</th><th class="r">Value</th><th>Waiting</th><th>Email</th><th>Progress</th><th>Next</th></tr></thead><tbody>
+      ${waiting.map(x => `<tr><td><a href="#/e/${x.id}"><b>${e(st.displayNumber(x))}</b></a><div class="hint">${e(x.client.company || x.client.name)}</div></td><td class="r"><b>${App.money(App.Track.estValue(x), 0)}</b></td><td>${x.sentDate ? App.daysBetween(x.sentDate, today) + ' days' : '-'}</td><td>${x.openedAt ? `<span class="tag ok">Opened ${App.fmtShort(App.iso(new Date(x.openedAt)))}</span>` : '<span class="tag">Not opened</span>'}</td><td>${track(x)}</td><td class="small">${nextTxt(x)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Nothing out waiting.</p>'}</section>`;
   };
+  App.Track.supplierList = () => {
+    const out = []; const today = App.today();
+    (App.Jobs ? App.Jobs.list() : []).forEach(j => (j.job.pos || []).forEach(p => {
+      if (p.sentAt && !p.confirmed && App.daysBetween(App.iso(new Date(p.sentAt)), today) >= 2) out.push({ lvl: 'blue', t: `${p.number}, ${p.supplier}`, s: `Sent ${App.daysBetween(App.iso(new Date(p.sentAt)), today)} days ago, not confirmed yet`, b: 'Open', href: `#/job/${j.id}/pos` });
+      if (p.requiredBy && !p.received && p.requiredBy < today) out.push({ lvl: 'red', t: `${p.number} is overdue`, s: `${p.supplier}, was due ${App.fmtShort(p.requiredBy)}`, b: 'Open', href: `#/job/${j.id}/pos` });
+    }));
+    if (App.Fast && App.Fast.S.loadedAt && !App.Fast.S.error) { const low = App.Fast.low(); if (low.length) out.push({ lvl: 'red', t: `${low.length} fastener${low.length === 1 ? '' : 's'} to reorder`, s: low.map(i => i.name).join(', '), b: 'Fasteners', href: '#/fasteners' }); }
+    if (App.Coil && App.Coil.ready() && App.Coil.S.loadedAt) App.Coil.summary().low.forEach(x => out.push({ lvl: 'amber', t: `${App.Coil.bmt(x.t)} BMT coils low`, s: `${x.n} coil${x.n === 1 ? '' : 's'} left in stock`, b: 'Coils', href: '#/coils' }));
+    return out;
+  };
+  App.Track.alertHtml = a => `<div class="alert"><span class="dotbar ${a.lvl}"></span><span class="txt"><b>${e(a.t)}</b><span>${e(a.s)}</span></span><a class="btn small" href="${a.href}">${a.b}</a></div>`;
+  App.Track.supplierFollowups = () => {
+    const list = App.Track.supplierList();
+    return `<section class="card"><h3>Waiting on suppliers</h3>${list.map(App.Track.alertHtml).join('') || '<p class="hint">Nothing waiting on suppliers. Purchase orders show here once they\'ve been emailed and not confirmed after 2 days, or go past their due date.</p>'}</section>`;
+  };
+  App.views.followups.mount = () => {
+    const jobs = [];
+    if (App.Fast && App.Fast.ready() && !App.Fast.S.loadedAt) jobs.push(App.Fast.load());
+    if (App.Coil && App.Coil.ready() && !App.Coil.S.loadedAt) jobs.push(App.Coil.load());
+    if (jobs.length) Promise.all(jobs).then(r => { if (r.some(Boolean) && App.route().name === 'followups') App.refresh(); }).catch(() => {});
+  };
+  A.fuTab = el => { App.state.fuTab = el.value; App.refresh(); };
+  A.fuTabGo = (el, ev) => { ev.preventDefault(); App.state.fuTab = 'suppliers'; App.refresh(); };
   A.fuMode = el => { const u = S().users.find(x => x.email === st.me().email); if (u) { u.followupMode = el.value; S().updatedAt = Date.now(); st.save(); App.toast('Saved'); } };
   A.fuSend = el => {
     const est = st.get(el.dataset.id); const k = el.dataset.k;

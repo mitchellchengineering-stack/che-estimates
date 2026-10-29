@@ -3,11 +3,13 @@
   const e = App.esc, st = App.store, S = () => App.store.s(), A = App.actions;
 
   const NAV = [
-    ['', 'Create estimate', '<path d="M12 5v14M5 12h14"/>'],
+    ['', 'Home', '<path d="M3 11l9-7 9 7v9H3z"/>'],
     ['tracker', 'Estimate tracker', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
     ['followups', 'Follow-ups', '<path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/>'],
     ['production', 'Production', '<path d="M3 20V9l6 4V9l6 4V5h6v15z"/>'],
     ['calendar', 'Calendar', '<rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
+    ['coils', 'Coils', '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>'],
+    ['fasteners', 'Fasteners', '<path d="M12 3v14M8 7h8M10 21h4"/>'],
     ['dashboard', 'Dashboard', '<path d="M5 20V12M12 20V5M19 20v-9"/>'],
     ['map', 'Map of jobs', '<path d="M12 21s-6-6.2-6-11a6 6 0 0 1 12 0c0 4.8-6 11-6 11z"/><circle cx="12" cy="10" r="2"/>'],
     ['settings', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>'],
@@ -21,7 +23,7 @@
 
   App.renderNav = () => {
     const r = App.route(); const due = st.data ? App.Track.due().length : 0;
-    const active = r.name === 'e' || r.name === 'new' ? (r.name === 'new' ? '' : 'tracker') : r.name === 'job' ? 'production' : r.name;
+    const active = r.name === 'e' ? 'tracker' : r.name === 'new' ? '' : r.name === 'job' ? 'production' : r.name;
     document.getElementById('nav').innerHTML = NAV.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg><span>${l}</span>${k === 'followups' && due ? `<em class="badge">${due}</em>` : ''}</a>`).join('');
     const me = st.data ? st.me() : null;
     document.getElementById('side-foot').innerHTML = me ? `<span class="av" aria-hidden="true">${e((me.name || '?')[0].toUpperCase())}</span><span><b>${e(me.name)}</b><small>${st.mode === 'drive' ? 'Saved to Google Drive' : 'Saving in this browser'}</small></span>` : '';
@@ -31,11 +33,10 @@
     const q = (App.state.trk && App.state.trk.search) || '';
     t.innerHTML = `<button class="icon-btn menu-btn" data-act="toggleMenu" aria-label="Menu">☰</button>
       <label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="position:absolute;left:-9999px">Search estimates</span><input id="top-q" type="search" placeholder="Search estimates, clients or addresses" value="${e(q)}" data-act-input="topSearch"></label>
-      ${App.state.practice ? '<div class="practice-flag">Practice mode: TEST numbers, kept out of the stats</div>' : ''}
+      ${App.state.practice ? '<a class="practice-flag" href="#/settings/estimates">Practice mode is on: TEST numbers, kept out of the stats</a>' : ''}
       <div class="top-right">
         ${App.state.needsReconnect ? '<button class="btn small primary" data-act="reconnect">Reconnect Google</button>' : ''}
         <span id="sync" class="sync">${st.mode === 'drive' ? 'All saved' : 'This browser only'}</span>
-        <label class="switch" title="Practice mode"><input type="checkbox" data-act-change="togglePractice" ${App.state.practice ? 'checked' : ''}><span></span>Practice</label>
       </div>`;
   };
   App.renderSync = txt => { const s = document.getElementById('sync'); if (s) { s.textContent = txt === 'Saved' ? (st.mode === 'drive' ? 'All saved' : 'Saved in this browser') : txt; s.className = 'sync ' + (txt === 'Not saved' ? 'bad' : txt === 'Saving…' ? 'busy' : ''); } };
@@ -55,8 +56,8 @@
       const est = st.newEstimate(r.a === 'ft' ? 'ft' : 'general', !!App.state.practice);
       location.replace(`#/e/${est.id}`); return;
     }
-    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'] }[r.name] || ['home'];
-    if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home'].includes(v[0])) App.cur = null;
+    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'] }[r.name] || ['home'];
+    if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home', 'coils', 'fasteners'].includes(v[0])) App.cur = null;
     try { html = App.views[v[0]](...v.slice(1)); mount = App.views[v[0]].mount; }
     catch (er) { console.error(er); html = `<div class="empty"><h2>Something went wrong on this page</h2><p>${e(er.message)}</p><a class="btn" href="#/">Go home</a></div>`; }
     main.innerHTML = html;
@@ -127,60 +128,79 @@
 
   /* ---------- Home ---------- */
   App.views.home = () => {
-    const jobs = App.Jobs.list(); const today = App.today(); const wkEnd = App.addDays(today, 7);
-    const making = jobs.filter(j => j.job.stage === 'manufacturing');
-    const yard = jobs.filter(j => j.job.stage === 'yard');
-    const deliveries = []; jobs.forEach(j => (j.job.loads || []).forEach(l => { if (l.date && !l.delivered && l.date >= today && l.date <= wkEnd) deliveries.push({ j, l }); }));
-    deliveries.sort((a, b) => a.l.date < b.l.date ? -1 : 1);
-    const due = App.Track.due();
-    const expiring = st.live().filter(x => x.status === 'sent' && !x.practice && !x.archived && x.expiry >= today && x.expiry <= wkEnd);
-    const overdue = [];
-    jobs.forEach(j => {
-      if (j.job.manufactureDate && j.job.manufactureDate < today && ['accepted', 'detailing', 'scheduled'].includes(j.job.stage)) overdue.push({ j, text: `was due to start manufacture ${App.fmtShort(j.job.manufactureDate)}` });
-      (j.job.loads || []).forEach(l => { if (l.date && l.date < today && !l.delivered) overdue.push({ j, text: `delivery ${l.n} was booked for ${App.fmtShort(l.date)}` }); });
-    });
-    const recent = st.live().filter(x => !x.archived).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6);
-    const templates = st.data.templates.filter(t => !t.deleted);
+    const jobs = App.Jobs.list(); const today = App.today(); const wk = App.weekStart(today);
+    const me = st.me(); const hr = new Date().getHours(); const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
     const month = today.slice(0, 7);
     const real = st.live().filter(x => !x.practice && x.status !== 'cancelled');
+    const sum = a => a.reduce((t, x) => t + st.totals(x).sub, 0);
     const sentM = real.filter(x => x.sentDate && x.sentDate.startsWith(month));
     const wonM = real.filter(x => x.status === 'accepted' && (x.acceptedAt || '').startsWith(month));
-    const decided = real.filter(x => x.yy === st.yy() && ['accepted', 'rejected', 'expired'].includes(x.status));
-    const wonY = decided.filter(x => x.status === 'accepted');
-    const sum = a => a.reduce((t, x) => t + st.totals(x).sub, 0);
+    const waiting = real.filter(x => x.status === 'sent' && !x.archived).sort((a, b) => (a.sentDate || '') < (b.sentDate || '') ? -1 : 1);
     const target = App.num(S().production.monthlyTarget);
-    const hr = new Date().getHours(); const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
-    const me = st.me();
-    const dateChip = (d, dark) => { const dt = App.parseDate(d); return `<span class="date-chip ${dark ? 'dark' : ''}">${dt.toLocaleDateString('en-NZ', { weekday: 'short' })}<b>${dt.getDate()}</b></span>`; };
-    const item = (href, title, sub, extra = '', cls = '') => `<a class="snap-item ${cls}" href="${href}">${extra}<span class="txt"><span><b>${title}</b></span><span class="hint">${sub}</span></span></a>`;
-    const panel = (title, count, body, link = '') => `<section class="snap"><h3>${title}<em>${count || ''}</em></h3>${body}${link}</section>`;
-    return `<section class="hero">
-      <svg class="roof" viewBox="0 0 600 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 110 L300 18 L600 110" fill="none" stroke="#15171a" stroke-width="14"></path><rect x="420" y="0" width="22" height="46" fill="#15171a"></rect></svg>
-      <div class="hero-text"><p class="hi">${greet}, ${e(me.name)}</p><h1>Create an estimate</h1>
-        <p class="next">${App.state.practice ? 'Practice mode is on, so this will be a <b>TEST</b> estimate' : `Next number <b>${e(st.numberFor(st.yy(), st.nextSeq(st.yy())))}</b>`}</p></div>
-      <div class="hero-choices">
-        <a class="choice" href="#/new/general"><span class="ct"><b>General</b><span class="arrow" aria-hidden="true">→</span></span><span>Garages, sheds, cabins and smaller jobs</span></a>
-        <a class="choice dark" href="#/new/ft"><span class="ct"><b>Full frame and truss</b><span class="arrow" aria-hidden="true">→</span></span><span>Houses and bigger jobs, with full detail</span></a>
-      </div>
-      ${templates.length ? `<label class="fld inline tpl-pick"><span>Or start from a template</span><select data-act-change="startTemplate"><option value="">Choose a template…</option>${templates.map(t => `<option value="${e(t.id)}">${e(t.name)} (${t.type === 'ft' ? 'F&T' : 'General'})</option>`).join('')}</select></label>` : ''}
-    </section>
-    <div class="statcards">
-      <div class="statcard"><p class="l">Quoted this month</p><p class="v">${App.money(sum(sentM), 0)}</p><p class="s">${sentM.length} estimate${sentM.length === 1 ? '' : 's'} sent</p></div>
-      <div class="statcard"><p class="l">Accepted this month</p><p class="v">${App.money(sum(wonM), 0)}</p>${target ? `<div class="bar"><i style="width:${Math.min(100, sum(wonM) / target * 100)}%"></i></div><p class="s">of ${App.money(target, 0)} target</p>` : `<p class="s">${wonM.length} job${wonM.length === 1 ? '' : 's'} won</p>`}</div>
-      <div class="statcard"><p class="l">Win rate this year</p><p class="v">${decided.length ? Math.round(wonY.length / decided.length * 100) + '%' : '-'}</p><p class="s">${wonY.length} of ${decided.length} decided</p></div>
-      <div class="statcard"><p class="l">In production</p><p class="v">${jobs.filter(j => !['delivered', 'complete'].includes(j.job.stage)).length} job${jobs.length === 1 ? '' : 's'}</p><p class="s">${making.length} making, ${yard.length} in the yard</p></div>
+    const live = jobs.filter(j => !['delivered', 'complete'].includes(j.job.stage));
+    const dels = []; jobs.forEach(j => (j.job.loads || []).forEach(l => { if (l.date && !l.delivered && l.date >= today && l.date <= App.addDays(today, 6)) dels.push({ j, l }); }));
+    const kgOf = (j, ids) => j.job.frames.filter(f => !ids || ids.includes(f.id)).reduce((a, f) => a + (f.weight || 0) * f.qty, 0);
+    const depOut = jobs.filter(j => !j.job.deposit.received && STAGE_ORDER(j) <= 6);
+    const C = App.Coil; const coilsOn = C && C.ready() && C.S.loadedAt; const cs = coilsOn ? C.summary() : null;
+    const F = App.Fast; const fastOn = F && F.ready() && F.S.loadedAt && !F.S.error; const low = fastOn ? F.low() : [];
+    const due = App.Track.due();
+    const expiring = real.filter(x => x.status === 'sent' && !x.archived && x.expiry >= today && x.expiry <= App.addDays(today, 7));
+    const needs = [];
+    App.Jobs.attention().forEach(a => needs.push(a));
+    if (low.length) needs.splice(1, 0, { lvl: 'red', t: `${low.length} fastener${low.length === 1 ? '' : 's'} below minimum`, s: low.map(i => i.name).join(', '), b: 'Fasteners', href: '#/fasteners' });
+    if (cs) cs.low.forEach(x => needs.push({ lvl: 'amber', t: `${C.bmt(x.t)} BMT coils running low`, s: `${x.n} coil${x.n === 1 ? '' : 's'} left in stock`, b: 'Coils', href: '#/coils' }));
+    if (due.length) needs.push({ lvl: 'amber', t: `${due.length} follow-up${due.length === 1 ? '' : 's'} ready to send`, s: due.map(d => `${d.est.number} ${d.est.client.company || d.est.client.name}`).slice(0, 3).join(', '), b: 'Review', href: '#/followups' });
+    expiring.forEach(x => needs.push({ lvl: 'blue', t: `${x.number} expires ${App.fmtDate(x.expiry, { weekday: 'long' })}`, s: `${x.client.company || x.client.name}, ${App.money(st.totals(x).sub, 0)}`, b: 'Open', href: `#/e/${x.id}` }));
+    const days = []; for (let i = 0; i < 5; i++) days.push(App.addDays(wk, i));
+    const rows = App.Jobs.timelineRows(days);
+    const kpi = (l, v, sub, dark) => `<div class="statcard ${dark ? 'dark' : ''}"><p class="l">${l}</p><p class="v">${v}</p><p class="s">${sub}</p></div>`;
+    const templates = st.data.templates.filter(t => !t.deleted);
+    return `<div class="page-head"><div><p class="sub" style="margin:0 0 6px;font-weight:700">${greet}, ${e(me.name)}. ${App.fmtDate(today, { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>Dashboard</h1></div>
+      <div class="head-actions"><a class="btn primary" href="#/new/general">+ General estimate</a><a class="btn dark" href="#/new/ft">+ Full F&amp;T estimate</a><button class="btn" data-act="homeScan">Scan a coil</button><a class="btn" href="#/calendar">Open calendar</a></div></div>
+    <div class="statcards six">
+      ${kpi('Quoted this month', App.money(sum(sentM), 0), `${sentM.length} sent, ${App.money(sum(waiting), 0)} waiting`, true)}
+      ${kpi('Accepted this month', App.money(sum(wonM), 0), target ? `${Math.round(sum(wonM) / target * 100)}% of ${App.money(target, 0)} target` : `${wonM.length} job${wonM.length === 1 ? '' : 's'} won`)}
+      ${kpi('In production', `${live.length} job${live.length === 1 ? '' : 's'}`, `${App.money(live.reduce((t, j) => t + st.totals(j).sub, 0), 0)} of work`)}
+      ${kpi('Deliveries this week', dels.length, `${new Set(dels.map(d => d.j.id)).size} job(s), ${(dels.reduce((t, d) => t + kgOf(d.j, d.l.frameIds), 0) / 1000).toFixed(1)} t`)}
+      ${kpi('Deposits outstanding', App.money(depOut.reduce((t, j) => t + st.totals(j).deposit, 0), 0), `${depOut.length} job${depOut.length === 1 ? '' : 's'}`)}
+      ${kpi('Coils in stock', cs ? cs.ins.length : '-', cs ? C.kg(cs.ins.reduce((t, c) => t + c.weight, 0)) : '<a href="#/coils">Sign in to coils</a>')}
+    </div>
+    <div class="hub2">
+      <section class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Needs you</h3>${needs.length ? `<span class="tag bad">${needs.length}</span>` : ''}</div>
+        ${needs.length ? needs.slice(0, 7).map(App.Track.alertHtml).join('') : '<p class="hint">All caught up. Nothing needs you right now.</p>'}</section>
+      <section class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h3 style="margin:0">This week in the factory</h3><a class="more" style="margin:0" href="#/production">Production</a></div>
+        <div class="table-scroll" style="margin-top:10px">${App.Jobs.timelineHtml(days, rows)}</div></section>
     </div>
     <div class="snaps">
-      ${panel('In the factory', making.length, making.length ? making.map(j => { const c = App.Jobs.checkDone(j); return `<a class="snap-box" href="#/job/${j.id}/checklist"><b>${e(j.number)}</b> ${e(j.client.company || j.client.name)}<span class="hint" style="display:block">${e(j.heading)}</span>${c.total ? `<div class="bar dark"><i style="width:${c.done / c.total * 100}%"></i></div><span class="hint"><b style="color:var(--ink)">${c.done} of ${c.total}</b> frames done</span>` : ''}</a>`; }).join('') : '<p class="hint">Nothing being made right now.</p>', '<a class="more" href="#/production">Production board</a>')}
-      ${panel('Deliveries this week', deliveries.length, deliveries.length ? `<div class="snap-list">${deliveries.map(({ j, l }, i) => item(`#/job/${j.id}/deliveries`, `${e(j.number)} delivery ${l.n} of ${j.job.loads.length}`, e(j.siteAddress), dateChip(l.date, i === 0))).join('')}</div>` : '<p class="hint">No deliveries booked this week.</p>', '<a class="more" href="#/calendar">Calendar</a>')}
-      ${panel('Needs you', due.length + expiring.length + overdue.length, (due.length + expiring.length + overdue.length) ? `<div class="snap-list">
-        ${due.map(d => item('#/followups', `${e(d.est.number)} ${e(d.est.client.company || d.est.client.name)}`, { fu1: 'First follow-up ready', fu2: 'Second follow-up ready', expiry: 'Expiry reminder ready', review: 'Review request ready' }[d.kind])).join('')}
-        ${expiring.map(x => item(`#/e/${x.id}`, `${e(x.number)} ${e(x.client.company || x.client.name)}`, `Expires ${App.fmtDate(x.expiry, { weekday: 'long' })}`)).join('')}
-        ${overdue.map(o => item(`#/job/${o.j.id}`, e(o.j.number), e(o.text), '', 'bad')).join('')}</div>` : '<p class="hint">All caught up.</p>')}
+      <section class="snap"><h3>Coils<em>${cs ? cs.ins.length + ' in stock' : ''}</em></h3>
+        ${cs ? `<div class="gauge-cells">${cs.byT.map(x => `<a class="gcell ${cs.low.includes(x) ? 'low' : ''}" href="#/coils"><span>${C.bmt(x.t)} BMT</span><b>${x.n}</b><span>${C.kg(x.kg)}</span></a>`).join('')}</div>
+          <div class="kv-list small"><div><span>Scanned out this month</span><b>${cs.used.length} coil${cs.used.length === 1 ? '' : 's'}, ${C.kg(cs.used.reduce((t, c) => t + c.weight, 0))}</b></div><div><span>Waiting for labels</span><b>${cs.unlabelled.length}</b></div><div><span>On jobs in production</span><b>${cs.onJobs.length} coil${cs.onJobs.length === 1 ? '' : 's'}, ${cs.jobsWith} job${cs.jobsWith === 1 ? '' : 's'}</b></div></div>`
+          : `<p class="hint">${C && C.cfg().apiUrl ? (C.S.token ? 'Loading coils…' : 'Sign in to the coil tracker once to see coils here.') : 'Connect the coil tracker in Settings.'}</p><a class="more" href="#/coils">Coils</a>`}</section>
+      <section class="snap"><h3>Fasteners<em>${fastOn ? (low.length ? `<span class="tag bad">${low.length} low</span>` : '<span class="tag ok">All OK</span>') : ''}</em></h3>
+        ${fastOn ? `${low.slice(0, 5).map(i => `<div class="kvr2"><span>${e(i.name)}</span><span><b class="neg">${i.qty}</b> <span class="hint">min ${i.min}</span></span></div>`).join('') || '<p class="hint">Everything is above its minimum.</p>'}
+          <p class="hint" style="margin-top:10px">Live from the stock app, updated ${F.ago()}.${F.S.log[0] ? ` Last: ${e(F.S.log[0].person || '')} ${F.S.log[0].action === 'Sign out' ? 'took' : 'added'} ${F.S.log[0].qty} x ${e(F.S.log[0].item)}, ${e(F.when(F.S.log[0].time))}` : ''}</p>`
+          : `<p class="hint">${F && F.S.error ? e(F.S.error) : st.mode === 'drive' ? 'Loading fastener stock…' : 'Connect Google to see fastener stock.'}</p>`}<a class="more" href="#/fasteners">Fasteners</a></section>
+      <section class="snap"><h3>Waiting on a reply<em>${App.money(sum(waiting), 0)}</em></h3>
+        ${waiting.slice(0, 4).map(x => `<a class="kvr2" href="#/e/${x.id}"><span><b>${e(x.number)}</b> ${e(x.client.company || x.client.name)}<span class="hint" style="display:block">${x.sentDate ? `Sent ${App.daysBetween(x.sentDate, today)} days ago` : ''}${x.openedAt ? ', opened' : ''}</span></span><b>${App.money(st.totals(x).sub, 0)}</b></a>`).join('') || '<p class="hint">Nothing waiting.</p>'}<a class="more" href="#/followups">Follow-ups</a></section>
     </div>
-    <section class="card recent"><div class="row" style="justify-content:space-between;margin-bottom:6px"><h3 style="margin:0">Recently worked on</h3><a class="more" style="margin:0" href="#/tracker">Open the tracker</a></div>
-      ${recent.length ? `<div class="table-scroll"><table><thead><tr><th>Estimate</th><th>Client</th><th>Job</th><th class="r">Excl GST</th><th>Status</th></tr></thead><tbody>${recent.map(x => `<tr><td><a href="#/${x.job ? 'job' : 'e'}/${x.id}"><b>${e(st.displayNumber(x))}</b></a></td><td>${e(x.client.company || x.client.name || 'No client yet')}</td><td>${e(x.heading)}</td><td class="r">${App.money(st.totals(x).sub)}</td><td><span class="pill ${x.status}">${x.status}</span></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Your estimates will show here.</p>'}</section>`;
+    <section class="hero hero-sm">
+      <svg class="roof" viewBox="0 0 600 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 110 L300 18 L600 110" fill="none" stroke="#15171a" stroke-width="14"></path><rect x="420" y="0" width="22" height="46" fill="#15171a"></rect></svg>
+      <div class="hero-text"><h2>Create an estimate</h2><p class="next">${App.state.practice ? 'Practice mode is on, so this will be a <b>TEST</b> estimate' : `Next number <b>${e(st.numberFor(st.yy(), st.nextSeq(st.yy())))}</b>`}</p></div>
+      <div class="hero-choices">
+        <a class="choice" href="#/new/general"><span class="ct"><b>General</b><span class="arrow" aria-hidden="true">→</span></span><span>Garages, sheds, cabins</span></a>
+        <a class="choice dark" href="#/new/ft"><span class="ct"><b>Full frame and truss</b><span class="arrow" aria-hidden="true">→</span></span><span>Houses and bigger jobs</span></a>
+      </div>
+      ${templates.length ? `<label class="fld inline tpl-pick"><span>Or start from a template</span><select data-act-change="startTemplate"><option value="">Choose a template…</option>${templates.map(t => `<option value="${e(t.id)}">${e(t.name)} (${t.type === 'ft' ? 'F&T' : 'General'})</option>`).join('')}</select></label>` : ''}
+    </section>`;
   };
+  App.views.home.mount = () => {
+    const jobs = [];
+    if (App.Coil && App.Coil.ready()) jobs.push(App.Coil.load().catch(() => false));
+    if (App.Fast && App.Fast.ready()) jobs.push(App.Fast.load().catch(() => false));
+    if (jobs.length) Promise.all(jobs).then(r => { if (r.some(Boolean) && App.route().name === '') App.refresh(); });
+  };
+  const STAGE_ORDER = j => App.STAGES.findIndex(s => s.value === j.job.stage);
+  A.homeScan = () => { if (App.Coil && App.Coil.ready()) App.Coil.openScan('out'); else location.hash = '#/coils'; };
 
   App.views.help = () => `<div class="page-head"><div><h1>Help</h1><p class="sub">How the app fits together.</p></div></div>
     <div class="help">

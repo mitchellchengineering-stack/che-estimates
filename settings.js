@@ -1,7 +1,7 @@
 /* Settings */
 (() => {
   const e = App.esc, S = () => App.store.s(), st = App.store, A = App.actions;
-  const SECTIONS = [['company', 'Company and users'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['emails', 'Emails'], ['google', 'Google and data']];
+  const SECTIONS = [['company', 'Company and users'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
   const inp = (path, val, attrs = '') => `<input data-bind="${path}" value="${e(val ?? '')}" ${attrs}>`;
   const list = (path, items, ph, rows = 1) => `<div class="list-ed">${items.map((it, i) => `<div class="row">${rows > 1 ? `<textarea data-bind="${path}.${i}" rows="${rows}" placeholder="${e(ph)}">${e(it)}</textarea>` : `<input data-bind="${path}.${i}" value="${e(it)}" placeholder="${e(ph)}">`}
     <span class="move"><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="-1" aria-label="Move up">↑</button><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="1" aria-label="Move down">↓</button></span>
@@ -28,7 +28,9 @@
 
   App.Set.estimates = s => {
     const yy = st.yy(); const es = s.estimate;
-    return `<section class="card"><h3>Numbering</h3>
+    return `<section class="card"><h3>Practice mode</h3><p class="hint">Practice estimates get TEST numbers, don't use up real numbers, and stay out of the stats. A small banner shows at the top while it's on. This is set for this computer only.</p>
+      <label class="switch"><input type="checkbox" data-act-change="togglePractice" ${App.state.practice ? 'checked' : ''}><span></span>Practice mode</label></section>
+    <section class="card"><h3>Numbering</h3>
       <div class="grid3">${App.field('Prefix', inp('numbering.prefix', s.numbering.prefix))}
       ${App.field(`First number for 20${yy}`, `<input data-bind="numbering.startSeq.${yy}" data-type="num" value="${e(s.numbering.startSeq[yy] || 1)}" data-rerender-blur="1">`)}
       <div class="fld"><span>Next estimate will be</span><div class="calc-val">${e(st.numberFor(yy, st.nextSeq(yy)))}</div></div></div>
@@ -92,6 +94,18 @@
     ${App.field('Monthly sales target ($ excl GST)', `<input data-bind="production.monthlyTarget" data-type="num" value="${e(s.production.monthlyTarget || '')}">`)}</div>
     <p class="hint">When you book a job into a week that's already full, the app warns you.</p></section>`;
 
+  App.Set.stock = s => {
+    const c = s.coils, f = s.fasteners; const C = App.Coil;
+    return `<section class="card"><h3>Coil tracker</h3><p class="hint">The Coils page uses your existing coil tracker script and Coil Register sheet, so all coils, PINs and QR labels carry over.</p>
+      ${App.field('Coil tracker web app link', inp('coils.apiUrl', c.apiUrl, 'placeholder="https://script.google.com/macros/s/…/exec"'))}
+      <div class="grid3">${App.field('Widths (mm, comma separated)', `<input data-act-change="numList" data-path="coils.widths" value="${e((c.widths || []).join(', '))}">`)}${App.field('Thicknesses (BMT, comma separated)', `<input data-act-change="numList" data-path="coils.thicknesses" value="${e((c.thicknesses || []).join(', '))}">`)}${App.field('Default grade', inp('coils.defaultGrade', c.defaultGrade))}</div>
+      ${App.field('Warn when a gauge is down to this many coils', `<input data-bind="coils.lowPerGauge" data-type="num" value="${e(c.lowPerGauge ?? 1)}" style="max-width:120px">`)}
+      <p>${C && C.S.user ? `Signed in to the coil tracker as <b>${e(C.S.user.name)}</b> on this computer. <button class="btn small ghost" data-act="coilSignOut">Sign out</button>` : 'Not signed in to the coil tracker on this computer. <a href="#/coils">Sign in on the Coils page</a>.'}</p></section>
+    <section class="card"><h3>Fasteners</h3><p class="hint">The Fasteners page reads the stock app's Google Sheet. Everyone who uses the estimates app needs to be able to open that sheet (Viewer is enough).</p>
+      ${App.field('Fastener Google Sheet ID', inp('fasteners.sheetId', f.sheetId, 'placeholder="the long code between /d/ and /edit in the sheet\'s address"'))}
+      ${App.field('Stock app link (for the "Open the stock app" button)', inp('fasteners.appUrl', f.appUrl))}</section>`;
+  };
+
   App.Set.emails = s => {
     const em = s.emails; const names = { estimate: 'Sending an estimate', fu1: 'First follow-up (1 week)', fu2: 'Second follow-up (2 weeks)', expiry: 'Expiry reminder (3 days before)', thanks: 'Thank you on acceptance', accounts: 'To accounts on acceptance', delivery: 'Delivery booked', review: 'Review request', po: 'Purchase order' };
     return `<section class="card"><h3>Email settings</h3><div class="grid2">
@@ -117,6 +131,7 @@
   const save = () => { S().updatedAt = Date.now(); st.save(); App.refresh(); };
   A.rowMove = el => { const arr = App.getPath(App.cur, el.dataset.path); const i = +el.dataset.i, j = i + (+el.dataset.d); if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; st.touch(App.cur); st.save(); App.refresh(); };
   A.rateSet = el => { const p = S().pricing; const v = el.value === '' ? '' : App.num(el.value); if (p.rates[el.dataset.k] !== v) { p.rates[el.dataset.k] = v; p.ratesUpdatedAt = Date.now(); } save(); };
+  A.numList = el => { App.setPath(S(), el.dataset.path, el.value.split(/[,\s]+/).map(Number).filter(n => n > 0)); save(); };
   A.setMarkupPct = el => { S().pricing.markup = App.round(1 + App.num(el.value) / 100, 4); save(); };
   A.minMargin = el => { S().pricing.minMargin = App.num(el.value) / 100; save(); };
   A.itemAdd = () => { S().pricing.items.push({ id: App.uid(), name: '', unit: 'ea', cost: '', supplier: '', supplierEmail: '' }); save(); };

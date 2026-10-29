@@ -6,7 +6,8 @@ App.G = {
     'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/gmail.send',
     'https://www.googleapis.com/auth/gmail.settings.basic',
-    'https://www.googleapis.com/auth/calendar.events'
+    'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/spreadsheets.readonly'
   ].join(' '),
   FOLDER: 'application/vnd.google-apps.folder',
 
@@ -116,6 +117,13 @@ App.G = {
     mime += `--${boundary}--`;
     const raw = btoa(unescape(encodeURIComponent(mime))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     return this.api('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw }) });
+  },
+
+  /* ---------- Sheets (read only) ---------- */
+  async sheetValues(sheetId, ranges) {
+    const q = ranges.map(r => 'ranges=' + encodeURIComponent(r)).join('&');
+    const r = await this.api(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchGet?${q}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`);
+    return (r.valueRanges || []).map(v => v.values || []);
   },
 
   /* ---------- Calendar ---------- */

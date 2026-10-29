@@ -154,7 +154,7 @@
   const priceRows = (path, items, ph) => `
     <div class="list-ed">${items.map((it, i) => `<div class="row"><input data-bind="${path}.${i}.desc" value="${e(it.desc)}" placeholder="${e(ph)}"><input class="money" style="max-width:150px" data-bind="${path}.${i}.price" data-type="num" value="${e(it.price)}" placeholder="$ excl GST" data-rerender-blur="1"><button class="icon-btn" data-act="rowDel" data-path="${path}" data-i="${i}" aria-label="Remove">✕</button></div>`).join('')}
     <button class="btn small dashed" data-act="rowAdd" data-path="${path}" data-tpl='{"desc":"","price":""}'>+ Add line</button></div>`;
-  const STAR_ITEMS = ['LGS wall framing', 'LGS roof trusses', 'LGS floor joists'];
+  const STAR_ITEMS = ['LGS wall framing', 'LGS roof trusses', 'LGS roof panels', 'LGS floor joists', 'LGS floor panels'];
 
   App.Est.detailsTab = (est, locked) => {
     const s = S();
@@ -207,9 +207,14 @@
     </section>
     <section class="card">
       <h3>Scope</h3>
-      <p class="hint">Wall frames, trusses and joists are the stars of the estimate. When they're included they get their own big tiles at the top.</p>
+      <p class="hint">Wall frames, trusses and joists are the stars of the estimate. When they're included they get their own big tiles at the top. Roof panels join the trusses tile, and floor panels join the joists tile.</p>
       <div class="scope-grid">${s.ft.scopeItems.map(i => `<div class="scope-row ${STAR_ITEMS.includes(i) ? 'star' : ''}"><span>${e(i)}${STAR_ITEMS.includes(i) ? ' <span class="tag dark">Star</span>' : ''}</span>
         <div class="seg">${[['inc', 'Included'], ['exc', 'Not included'], ['', 'Leave off']].map(([v, l]) => `<label><input type="radio" name="sc-${e(i)}" data-bind="ft.scope.${i.replace(/\./g, '')}" value="${v}" ${(ft.scope[i] || '') === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>`).join('')}</div>
+      <h4>Your own lines</h4>
+      <div class="scope-grid">${(ft.customScope = ft.customScope || []).map((x, i) => `<div class="scope-row"><input data-bind="ft.customScope.${i}.text" value="${e(x.text)}" placeholder="e.g. Steel portal frames" style="max-width:360px;background:#fff">
+        <div class="row"><div class="seg">${[['inc', 'Included'], ['exc', 'Not included'], ['', 'Leave off']].map(([v, l]) => `<label><input type="radio" name="cs-${i}" data-bind="ft.customScope.${i}.state" value="${v}" ${(x.state || '') === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>
+        <button class="icon-btn" data-act="rowDel" data-path="ft.customScope" data-i="${i}" aria-label="Remove">✕</button></div></div>`).join('')}</div>
+      <button class="btn small dashed" data-act="rowAdd" data-path="ft.customScope" data-tpl='{"text":"","state":"inc"}'>+ Add your own line</button>
       ${App.field('Material box includes', `<textarea data-bind="ft.materialBox" rows="2">${e(ft.materialBox)}</textarea>`)}
       <h4>Not included</h4>
       <div class="checks">${ft.exclusions.map((x, i) => `<label class="check"><input type="checkbox" data-bind="ft.exclusions.${i}.on" ${x.on ? 'checked' : ''}> ${e(x.text)}</label>`).join('')}</div>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5c400">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Coil scan">
+<title>CH Engineering coil scan</title>
+<link rel="manifest" href="crew.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+:root { --ink: #15171a; --ink-2: #4a5158; --ink-3: #5c636b; --y: #f5c400; --bg: #f3f4f1; --line: #e3e6e8; --green: #1e6b31; --red: #b3261e;
+  color-scheme: light; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+*, *::before, *::after { box-sizing: inherit; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Archivo', Arial, sans-serif; font-size: 16px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); background: #fff; z-index: 30; }
+#app { max-width: 520px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.bar { height: 8px; background: var(--y); }
+header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+header img { width: 150px; display: block; }
+.who { text-align: right; font-size: 14px; } .who span { color: var(--ink-3); font-size: 12px; display: block; }
+.who button { font: inherit; font-size: 12px; border: 0; background: none; text-decoration: underline; color: var(--ink-2); padding: 0; cursor: pointer; }
+main { flex: 1; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+h1 { font-size: 30px; font-stretch: 115%; margin: 0; line-height: 1.1; }
+h2 { font-size: 26px; font-stretch: 112%; margin: 4px 0 2px; word-break: break-word; }
+.card { background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 6px 20px rgba(21,23,26,.08); }
+label.f { display: flex; flex-direction: column; gap: 6px; font-weight: 650; font-size: 14px; color: var(--ink-2); margin-bottom: 14px; }
+select, input { font: inherit; font-size: 18px; color: var(--ink); height: 56px; border: 1px solid #d9dde0; border-radius: 14px; padding: 0 14px; background: #fbfbfa; width: 100%; }
+input:focus, select:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 4px rgba(245,196,0,.35); }
+.btn { font: inherit; font-weight: 800; font-size: 18px; height: 58px; border-radius: 16px; border: 0; width: 100%; cursor: pointer; background: var(--y); color: var(--ink); display: flex; align-items: center; justify-content: center; gap: 10px; }
+.btn.dark { background: var(--ink); color: #fff; } .btn.light { background: #fff; border: 1px solid #d9dde0; font-weight: 700; }
+.btn:disabled { opacity: .5; }
+.dock { position: sticky; bottom: 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom, 0px)); background: #fff; border-top: 1px solid var(--line); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+.chip { font: inherit; font-weight: 700; height: 48px; padding: 0 16px; border-radius: 24px; border: 1px solid #d9dde0; background: #fff; cursor: pointer; }
+.chip.on { background: var(--ink); color: var(--y); border-color: var(--ink); }
+.ok { color: var(--green); font-weight: 800; margin: 0; } .err { color: var(--red); font-weight: 650; }
+.hint { color: var(--ink-3); font-size: 14px; }
+.item { background: #fff; border-radius: 14px; padding: 12px 14px; font-size: 15px; }
+#reader { width: 100%; border-radius: 16px; overflow: hidden; background: #000; min-height: 60px; margin-bottom: 12px; }
+.row { display: flex; gap: 8px; } .row input { flex: 1; } .row .btn { width: auto; padding: 0 20px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(100px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 14px; font-weight: 600; z-index: 50; max-width: 90%; }
+.toast.err { background: var(--red); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="crew-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+(() => {
+  const API = (window.CREW_CONFIG || {}).API_URL;
+  const QR = 'CHE|';
+  const S = Object.assign({ token: '', user: null, coils: [], jobs: [] }, JSON.parse(localStorage.getItem('che-crew') || '{}'));
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const bmt = t => Number(t).toFixed(2);
+  const kg = n => Math.round(Number(n) || 0).toLocaleString('en-NZ') + ' kg';
+  const normKey = k => String(k || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  const normId = s => String(s || '').replace(/\s+/g, '').toUpperCase();
+  const save = () => localStorage.setItem('che-crew', JSON.stringify({ token: S.token, user: S.user }));
+  let cam = null;
+  const toast = (m, err) => { const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 3500); };
+  async function api(action, data = {}) {
+    let out;
+    try { const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ action, token: S.token }, data)) }); out = await r.json(); }
+    catch (e) { throw new Error('Can\'t reach the server. Check your signal and try again.'); }
+    if (!out.ok) { if (out.code === 'signed_out') { S.token = ''; S.user = null; save(); renderLogin(); } throw new Error(out.error || 'Something went wrong.'); }
+    return out.data;
+  }
+  const shell = (inner, dock = '') => `<div class="bar"></div><header><img src="logo.png" alt="CH Engineering">${S.user ? `<div class="who"><b>${esc(S.user.name)}</b><span>${esc(S.user.role === 'Admin' ? 'Admin' : 'Crew')}</span><button id="out">Sign out</button></div>` : ''}</header><main>${inner}</main>${dock}`;
+
+  async function renderLogin(msg) {
+    $('#app').innerHTML = shell(`<h1>Coil scan</h1><p class="hint">Sign in with your name and PIN.</p>
+      <div class="card"><label class="f">Your name<select id="nm"><option>Loading…</option></select></label>
+      <label class="f">PIN<input id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off"></label>
+      ${msg ? `<p class="err">${esc(msg)}</p>` : ''}<button class="btn dark" id="go">Sign in</button></div>`);
+    try { const names = await api('crewNames'); $('#nm').innerHTML = '<option value="">Choose your name…</option>' + names.map(n => `<option>${esc(n)}</option>`).join(''); } catch (e) { $('#nm').innerHTML = '<option value="">Couldn\'t load names</option>'; }
+    $('#go').onclick = async () => {
+      const name = $('#nm').value, pin = $('#pin').value; if (!name || !pin) return toast('Choose your name and enter your PIN', true);
+      $('#go').disabled = true;
+      try { const r = await api('login', { name, pin }); S.token = r.token; S.user = r.user; save(); load(); } catch (e) { renderLogin(e.message); }
+    };
+  }
+  async function load() {
+    try { const d = await api('bootstrap'); S.user = d.user; S.coils = d.coils; S.jobs = d.activeJobs || []; save(); } catch (e) { if (!S.token) return; toast(e.message, true); }
+    renderHome();
+  }
+  function today() { const d = new Date(); return d.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' }); }
+  function renderHome(result) {
+    const mine = S.coils.filter(c => c.status === 'Used' && c.scannedOutAt && new Date(c.scannedOutAt).toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' }) === today() && c.scannedOutBy === S.user.name);
+    $('#app').innerHTML = shell(`${result || `<h1>Hi ${esc(S.user.name.split(' ')[0])}</h1><p class="hint">Tap Scan a coil at the bottom, then point your camera at the QR label.</p>`}
+      <p class="hint" style="margin:6px 0 0;font-weight:700">Scanned out today</p>
+      ${mine.map(c => `<div class="item"><b>${esc(c.coilId)}</b> ${new Date(c.scannedOutAt).toLocaleTimeString('en-NZ', { hour: 'numeric', minute: '2-digit' })}<br><span class="hint">${c.width} × ${bmt(c.thickness)}${(c.jobs || []).length ? ', ' + esc(c.jobs.join(', ')) : ''}</span></div>`).join('') || '<p class="hint">Nothing yet today.</p>'}`,
+      `<div class="dock"><button class="btn dark" id="scan"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f5c400" stroke-width="2.2" aria-hidden="true"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4M4 12h16"/></svg>Scan a coil</button></div>`);
+    $('#out').onclick = () => { if (confirm('Sign out? You\'ll need your PIN to sign back in.')) { S.token = ''; S.user = null; save(); renderLogin(); } };
+    $('#scan').onclick = openScan;
+    const again = $('#again'); if (again) again.onclick = openScan;
+  }
+  async function stopCam() { if (cam) { try { if (cam.isScanning) await cam.stop(); cam.clear(); } catch (e) {} cam = null; } }
+  async function openScan() {
+    $('#app').innerHTML = shell(`<h1>Scan a coil</h1><div id="reader"></div>
+      <label class="f">Camera not working? Type the coil ID<div class="row"><input id="mid" autocapitalize="characters" spellcheck="false" placeholder="Coil ID"><button class="btn" id="find">Find</button></div></label>
+      <div id="res"></div><button class="btn light" id="back">Back</button>`);
+    $('#back').onclick = async () => { await stopCam(); renderHome(); };
+    $('#find').onclick = () => { const v = $('#mid').value.trim(); if (v) lookup(v); };
+    if (typeof Html5Qrcode === 'undefined') { $('#reader').innerHTML = '<p class="hint" style="color:#fff;padding:14px">The camera scanner didn\'t load. Type the coil ID instead.</p>'; return; }
+    cam = new Html5Qrcode('reader', { verbose: false }); let busy = false;
+    try { await cam.start({ facingMode: 'environment' }, { fps: 10, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.72); return { width: s, height: s }; } }, t => { if (busy) return; busy = true; try { cam.pause(true); } catch (e) {} lookup(t); }, () => {}); }
+    catch (e) { $('#reader').innerHTML = '<p class="hint" style="color:#fff;padding:14px">The camera isn\'t available. Check camera permission, or type the coil ID below.</p>'; cam = null; }
+    async function lookup(raw) {
+      const res = $('#res'); res.innerHTML = '<p class="hint">Looking up coil…</p>';
+      const t = String(raw).trim();
+      let m = t.toUpperCase().indexOf(QR) === 0 ? S.coils.filter(c => c.key === normKey(t.slice(QR.length))) : S.coils.filter(c => normId(c.coilId) === normId(t));
+      if (!m.length) { try { m = (await api('findCoil', { query: t })).matches; } catch (e) { res.innerHTML = `<p class="err">${esc(e.message)}</p>`; return retry(); } }
+      const shown = t.indexOf(QR) === 0 ? t.split('|').pop() : t;
+      if (!m.length) { res.innerHTML = `<p class="err">No coil with ID "${esc(shown)}" is in the system. Check the number, or ask an admin to sign it in.</p>`; return retry(); }
+      const live = m.filter(c => c.status === 'In stock');
+      if (!live.length) { res.innerHTML = `<p class="err">Coil ${esc(m[0].coilId)} was already scanned out by ${esc(m[0].scannedOutBy)}.</p>`; return retry(); }
+      if (live.length > 1) { res.innerHTML = `<p>More than one coil has this ID. Which one?</p>${live.map(c => `<button class="btn light" style="margin-bottom:8px" data-k="${esc(c.key)}">${esc(c.supplier)}: ${c.width} × ${bmt(c.thickness)}, ${kg(c.weight)}</button>`).join('')}`; res.querySelectorAll('[data-k]').forEach(b => b.onclick = () => confirmOut(live.find(c => c.key === b.dataset.k))); return; }
+      confirmOut(live[0]);
+    }
+    function retry() { const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Try again'; b.onclick = () => { $('#res').innerHTML = ''; $('#mid').value = ''; if (cam) { try { cam.resume(); } catch (e) {} } openScan(); }; $('#res').appendChild(b); }
+    function confirmOut(c) {
+      let job = '';
+      $('#res').innerHTML = `<div class="card"><p class="ok">Found</p><h2>${esc(c.coilId)}</h2><p>${esc(c.grade)}, ${c.width} × ${bmt(c.thickness)} BMT, ${kg(c.weight)}</p>
+        ${S.jobs.length ? `<p style="margin:0"><b>Which job is it for?</b> <span class="hint">(optional)</span></p><div class="chips">${S.jobs.map(j => `<button class="chip" data-j="${esc(j.job)}">${esc(j.job)}</button>`).join('')}<button class="chip on" data-j="">Not sure</button></div>` : ''}
+        <button class="btn" id="do">Scan out this coil</button></div>`;
+      $('#res').querySelectorAll('[data-j]').forEach(b => b.onclick = () => { job = b.dataset.j; $('#res').querySelectorAll('[data-j]').forEach(x => x.classList.toggle('on', x === b)); });
+      $('#res').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('#do').onclick = async () => {
+        $('#do').disabled = true; $('#do').textContent = 'Scanning out…';
+        try {
+          const upd = await api('scanOut', { key: c.key, job });
+          const i = S.coils.findIndex(x => x.key === upd.key); if (i >= 0) S.coils[i] = upd; else S.coils.push(upd);
+          if (navigator.vibrate) navigator.vibrate(60);
+          await stopCam();
+          renderHome(`<div class="card"><p class="ok">Scanned out</p><h2>${esc(upd.coilId)}</h2><p>${upd.width} × ${bmt(upd.thickness)} BMT, ${kg(upd.weight)}${job ? ', for ' + esc(job) : ''}.</p><button class="btn" id="again">Scan another</button></div>`);
+        } catch (e) { toast(e.message, true); $('#do').disabled = false; $('#do').textContent = 'Scan out this coil'; }
+      };
+    }
+  }
+  if (!API) $('#app').innerHTML = shell('<h1>Not set up yet</h1><p>Add the coil tracker link to crew-config.js.</p>');
+  else if (!S.token) renderLogin(); else { renderHome(); load(); }
+})();
+</script>
+</body>
+</html>
