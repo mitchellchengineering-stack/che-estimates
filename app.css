@@ -774,3 +774,9 @@ a.practice-flag { text-decoration: none; }
   .loadbars { gap: 8px; }
   .cal-grid.wk .cal-dow, .cal-grid.wk .cal-days { grid-template-columns: 52px repeat(7, 1fr); }
 }
+
+/* Coil statements */
+.pg .dt tr.grp td { background: #f5f6f4 !important; font-weight: 800; border-top: 1.5px solid #15171a; }
+.pg .dt tr.sub td { font-weight: 700; color: #4a5158; border-bottom: 2px solid #e6e9e6; background: #fff !important; }
+.pg .dt tr.sum td { font-weight: 800; background: #fff4c7 !important; }
+.pg .stat.dark { background: #15171a; color: #fff; } .pg .stat.dark .v { color: #f5c400; } .pg .stat.dark .l { color: #c9ced3; }

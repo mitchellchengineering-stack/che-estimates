@@ -146,6 +146,7 @@ const ACTIONS = {
   unassignJob: unassignJob_,
   setActiveJobs: setActiveJobs_,
   activeJobs: req => { auth_(req, false); return activeJobs_(); },
+  storeAppPdf: storeAppPdf_,
 };
 
 // ───────────────────────── Sign in / sessions ─────────────────────────
@@ -451,7 +452,7 @@ function buildReport_(mk) {
   });
 
   const files = readRows_('reports').filter(r => String(r.v[0]) === mk).map(r => ({
-    report: String(r.v[1]), supplier: String(r.v[2]), name: String(r.v[3]), url: String(r.v[4]), created: iso_(r.v[5]),
+    report: String(r.v[1]), supplier: String(r.v[2]), name: String(r.v[3]), url: String(r.v[4]), created: iso_(r.v[5]), trigger: String(r.v[6] || ''),
   }));
 
   return {
@@ -559,29 +560,34 @@ function storePdf_(folder, name, blob, mk, report, supplier, trigger) {
 
 function pdfShell_(title, body) {
   return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc_(title) + '</title><style>' +
-    '@page{size:A4;margin:14mm 14mm 16mm}' +
-    'body{font-family:Arial,Helvetica,sans-serif;color:#17191b;font-size:9.5pt;margin:0}' +
-    'table.head{width:100%;border-collapse:collapse;border-bottom:3px solid #fee300;margin-bottom:14px}' +
-    'table.head td{border:0;padding:0 0 8px;vertical-align:bottom}' +
-    'table.head img{height:46px}' +
-    'table.head td.meta{text-align:right;font-size:8.5pt;color:#555}' +
-    'h1{font-size:17pt;margin:0 0 2px}' +
-    'h2{font-size:11.5pt;margin:20px 0 6px;padding-bottom:3px;border-bottom:1px solid #ccc}' +
-    'p.note{margin:0 0 10px;color:#444}' +
-    'table.totals{width:auto;border-collapse:separate;border-spacing:0 0;margin:8px 0 4px}' +
-    'table.totals td{border:1px solid #d5dadd;border-left:4px solid #fee300;padding:6px 12px;min-width:130px}' +
-    'table.totals td.gap{border:0;min-width:10px;padding:0}' +
-    '.tot b{display:block;font-size:14pt}' +
+    '@page{size:A4;margin:12mm 14mm 16mm}' +
+    'body{font-family:Arial,Helvetica,sans-serif;color:#15171a;font-size:9.5pt;margin:0}' +
+    'div.bar{height:8px;background:#f5c400;margin-bottom:14px}' +
+    'table.head{width:100%;border-collapse:collapse;margin-bottom:16px}' +
+    'table.head td{border:0;padding:0 0 10px;vertical-align:bottom}' +
+    'table.head img{height:58px}' +
+    'table.head td.meta{text-align:right;font-size:9pt;color:#4a5158}' +
+    'h1{font-size:20pt;margin:0 0 2px;color:#15171a}' +
+    'h2{font-size:12pt;margin:22px 0 8px;padding:0 0 0 10px;border-left:6px solid #f5c400}' +
+    'p.note{margin:0 0 10px;color:#4a5158}' +
+    'table.totals{width:auto;border-collapse:separate;border-spacing:8px 0;margin:4px -8px 4px}' +
+    'table.totals td{background:#15171a;color:#ffffff;padding:10px 16px;min-width:140px;font-size:8.5pt}' +
+    'table.totals td.light{background:#f5f6f4;color:#15171a}' +
+    'table.totals td.gap{display:none}' +
+    '.tot b{display:block;font-size:16pt;color:#f5c400}' +
+    '.tot.light b{color:#15171a}' +
     'table{width:100%;border-collapse:collapse;margin-top:4px}' +
-    'th{text-align:left;font-size:8pt;color:#555;border-bottom:1.5px solid #17191b;padding:4px 5px}' +
-    'td{border-bottom:1px solid #e3e6e8;padding:4px 5px}' +
+    'th{text-align:left;font-size:8.5pt;color:#ffffff;background:#15171a;padding:6px 8px}' +
+    'td{border-bottom:1px solid #e6e9e6;padding:6px 8px}' +
     'td.n,th.n{text-align:right}' +
-    'tr.sum td{font-weight:bold;border-top:1.5px solid #17191b;border-bottom:none}' +
-    '.empty{color:#777;font-style:italic;padding:6px 0}' +
-    'tr.grp td{background:#f2f3f4;font-weight:bold;border-top:1.5px solid #17191b;border-bottom:1px solid #d5dadd;padding-top:6px}' +
-    'tr.sub td{font-weight:bold;border-bottom:none;padding-bottom:10px}' +
-    'tr.sub td.lbl{color:#555;font-weight:normal}' +
-    '</style></head><body>' + body +
+    'tr.sum td{font-weight:bold;background:#f5f6f4;border-bottom:none}' +
+    '.empty{color:#5c636b;font-style:italic;padding:6px 0}' +
+    'tr.grp td{background:#f5f6f4;font-weight:bold;border-bottom:1px solid #d9dde0;padding-top:8px}' +
+    'tr.sub td{font-weight:bold;border-bottom:none;padding-bottom:12px}' +
+    'tr.sub td.lbl{color:#4a5158;font-weight:normal}' +
+    'div.foot{margin-top:24px;padding-top:8px;border-top:1px solid #d9dde0;font-size:8pt;color:#5c636b;text-align:center}' +
+    '</style></head><body><div class="bar"></div>' + body +
+    '<div class="foot">022 609 0176 | operations.chengineering@gmail.com | www.chengineering.co.nz</div>' +
     '</body></html>';
 }
 
@@ -607,7 +613,7 @@ function logoData_() {
 
 function usageBody_(rep) {
   let h = header_(rep.label + ' coil usage', 'All coils scanned out of the steel shed');
-  h += '<table class="totals"><tr><td class="tot">Coils used<b>' + rep.used.length + '</b></td><td class="gap"></td><td class="tot">Total weight<b>' + kg_(rep.usedKg) + '</b></td></tr></table>';
+  h += '<table class="totals"><tr><td class="tot">Coils used<b>' + rep.used.length + '</b></td><td class="gap"></td><td class="tot light">Total weight<b>' + kg_(rep.usedKg) + '</b></td></tr></table>';
   h += '<h2>Summary by supplier and size</h2>';
   if (!rep.bySpec.length) {
     h += '<div class="empty">No coils were scanned out this month.</div>';
@@ -989,4 +995,18 @@ function setActiveJobs_(req) {
 }
 function activeJobs_() {
   return readRows_('activejobs').filter(r => String(r.v[0]).trim()).map(r => ({ job: String(r.v[0]), client: String(r.v[1]) }));
+}
+
+// The estimates app makes the watermarked statement and usage PDFs, and saves them here so they sit in the
+// same Drive folders (and Report log) as before. A file with the same name is replaced.
+function storeAppPdf_(req) {
+  auth_(req, true);
+  const mk = checkMonth_(req.month);
+  const name = String(req.name || '').trim();
+  if (!name || !req.base64) throw appError_('Nothing to save.');
+  const blob = Utilities.newBlob(Utilities.base64Decode(req.base64), 'application/pdf', name + '.pdf');
+  const consignment = req.type === 'consignment';
+  const folder = consignment ? consignmentFolder_(String(req.supplier || '')) : usageFolder_();
+  const saved = storePdf_(folder, name, blob, mk, consignment ? 'Consignment' : 'Coil usage', consignment ? String(req.supplier || '') : '', 'Estimates app (watermarked)');
+  return { name: saved.name, url: saved.url };
 }

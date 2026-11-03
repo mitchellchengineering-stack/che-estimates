@@ -383,10 +383,11 @@
       return rows.length ? `<table class="wtable"><thead><tr><th>Size</th><th class="r">Used, to invoice</th><th class="r">${isCurrent ? 'In stock now' : 'In stock at month end'}</th></tr></thead><tbody>${rows.map(x => `<tr><td><b>${x.width} × ${bmt(x.thickness)}</b></td><td class="r">${cell(x.usedN, x.usedKg)}</td><td class="r">${cell(x.stockN, x.stockKg)}</td></tr>`).join('')}</tbody></table>` : '<p class="hint">No consignment coils this month.</p>';
     };
     const moveBtn = c => c.countsIn ? `<button class="btn small" data-act="coilMonth" data-key="${e(c.key)}" data-push="">Move back</button>` : isCurrent ? `<button class="btn small" data-act="coilMonth" data-key="${e(c.key)}" data-push="1">Push to next month</button>` : '';
-    return `<div class="row" style="flex-wrap:wrap;margin-bottom:14px"><select data-act-change="coilMonthSel" style="width:auto">${S.months.map(m => App.opt(m.key, m.label, r.month)).join('')}</select><button class="btn dark" data-act="coilPdf" data-type="usage">Download usage PDF</button></div>
-      ${isCurrent ? '<p class="hint">This month is still running. The PDFs save to Drive automatically at 5pm on the last working day.</p>' : ''}
+    return `<div class="row" style="flex-wrap:wrap;margin-bottom:14px"><select data-act-change="coilMonthSel" style="width:auto">${S.months.map(m => App.opt(m.key, m.label, r.month)).join('')}</select><button class="btn dark" data-act="coilPdf" data-type="usage">Usage PDF</button></div>
+      ${!isCurrent && r.files.some(f => !/Estimates app/.test(f.trigger || '')) ? `<div class="banner">The PDFs saved for ${e(r.label)} are the old style, without the watermark. <button class="btn small primary" data-act="coilPdfAll">Replace them with the new-style PDFs</button></div>` : ''}
+      ${isCurrent ? '<p class="hint">This month is still running. Plain PDFs save to Drive automatically at 5pm on the last working day. Open this page after that and you can swap them for the watermarked versions in one click.</p>' : ''}
       <div class="statcards" style="grid-template-columns:repeat(2,minmax(0,1fr));max-width:620px"><div class="statcard dark"><p class="l">Coils used</p><p class="v">${r.used.length}</p></div><div class="statcard"><p class="l">Total weight</p><p class="v">${kg(r.usedKg)}</p></div></div>
-      ${r.consignment.map(b => `<section class="card"><h3>${e(b.supplier)} consignment</h3>${consTable(b)}<div class="row-btns"><button class="btn primary" data-act="coilPdf" data-type="consignment" data-sup="${e(b.supplier)}">Download ${e(b.supplier)} statement</button></div></section>`).join('')}
+      ${r.consignment.map(b => `<section class="card"><h3>${e(b.supplier)} consignment</h3>${consTable(b)}<div class="row-btns"><button class="btn primary" data-act="coilPdf" data-type="consignment" data-sup="${e(b.supplier)}">${e(b.supplier)} statement PDF</button></div></section>`).join('')}
       <section class="card"><h3>Usage by size</h3>${r.bySpec.length ? `<table class="wtable"><thead><tr><th>Supplier</th><th>Size</th><th class="r">Coils</th><th class="r">Weight</th></tr></thead><tbody>${r.bySpec.map(s => `<tr><td>${e(s.supplier)}</td><td>${s.width} × ${bmt(s.thickness)}</td><td class="r">${s.count}</td><td class="r">${kg(s.kg)}</td></tr>`).join('')}<tr><td colspan="2"><b>Total</b></td><td class="r"><b>${r.used.length}</b></td><td class="r"><b>${kg(r.usedKg)}</b></td></tr></tbody></table>` : '<p class="hint">No coils scanned out in this month.</p>'}</section>
       ${r.used.length ? `<section class="card"><h3>Coils used</h3><div class="table-scroll"><table class="wtable"><thead><tr><th>Coil</th><th>Size</th><th>Scanned out</th><th>Jobs</th><th class="r">Weight</th><th></th></tr></thead><tbody>${r.used.map(c => { const loc = C.S.coils.find(x => x.key === c.key) || c; return `<tr><td><b>${e(c.coilId)}</b><div class="hint">${e(c.supplier)}${c.consignment ? ', consignment' : ''}</div></td><td>${c.width} × ${bmt(c.thickness)}</td><td>${App.fmtShort(App.iso(new Date(c.scannedOutAt)))}<div class="hint">${e(c.scannedOutBy)}</div></td><td><div class="tags">${(loc.jobs || []).map(j => `<span class="tag job">${e(j)}</span>`).join('')}</div></td><td class="r">${kg(c.weight)}</td><td class="r">${moveBtn(c)}</td></tr>`; }).join('')}</tbody></table></div></section>` : ''}
       <section class="card"><h3>Saved in Google Drive</h3>${r.files.length ? `<ul class="activity">${r.files.slice().reverse().map(f => `<li><a href="${e(f.url)}" target="_blank" rel="noopener">${e(f.name)}</a> <span class="hint">${App.fmtStamp(f.created)}</span></li>`).join('')}</ul>` : '<p class="hint">No PDFs saved for this month yet.</p>'}</section>`;
@@ -397,15 +398,50 @@
     if (!(await App.confirm(push ? `Push coil ${c.coilId} to next month?` : `Move coil ${c.coilId} back?`, push ? 'It keeps its real scan-out date, but counts in next month\'s usage and statement instead.' : 'It goes back to counting in the month it was actually scanned out.', push ? 'Push to next month' : 'Move back'))) return;
     try { const upd = await C.api('setCountsIn', { key: c.key, push }); C.upsert(upd); C.S.months = null; C.S.report = null; App.refresh(); C.loadMonthly(); } catch (er) { App.toast(er.message, 'err'); }
   };
-  A.coilPdf = async el => {
-    const label = el.textContent; el.disabled = true; el.textContent = 'Making PDF…';
+  A.coilPdf = el => {
+    const r = C.S.report; const type = el.dataset.type;
+    const b = type === 'consignment' ? r.consignment.find(x => x.supplier === el.dataset.sup) : null;
+    const spec = b ? C.consSpec(r, b) : C.usageSpec(r);
+    App.Docs.preview(b ? `${b.supplier} consignment statement` : `${r.label} coil usage`, spec, { pdfName: spec.fileName + '.pdf',
+      onDrive: async () => { await C.saveToDrive(spec, type, b ? b.supplier : ''); C.S.report = null; C.loadMonthly(); } });
+  };
+  A.coilPdfAll = async el => {
+    const r = C.S.report; el.disabled = true; el.textContent = 'Making the PDFs…';
     try {
-      const r = await C.api('makePdf', { month: C.S.reportMonth, type: el.dataset.type, supplier: el.dataset.sup });
-      const bytes = Uint8Array.from(atob(r.base64), ch => ch.charCodeAt(0));
-      App.download(r.name, new Blob([bytes], { type: 'application/pdf' }));
-      App.toast('Downloaded and saved to Drive: ' + r.name); C.S.report = null; C.loadMonthly();
-    } catch (er) { App.toast(er.message, 'err'); }
-    el.disabled = false; el.textContent = label;
+      await C.saveToDrive(C.usageSpec(r), 'usage', '');
+      for (const b of r.consignment) await C.saveToDrive(C.consSpec(r, b), 'consignment', b.supplier);
+      App.toast('New-style PDFs saved to Drive'); C.S.report = null; C.loadMonthly();
+    } catch (er) { App.toast(er.message, 'err', 6000); el.disabled = false; el.textContent = 'Replace them with the new-style PDFs'; }
+  };
+
+  /* ---------- Statement and usage PDFs, in the same style as the estimates (watermark on every page) ---------- */
+  C.monthEnd = mk => { const [y, m] = mk.split('-').map(Number); return `${new Date(y, m, 0).getDate()} ${C.S.report.label}`; };
+  C.grouped = (list, received) => {
+    if (!list.length) return '<p class="hint">None.</p>';
+    const groups = {}; list.forEach(c => { const k = c.width + '|' + bmt(c.thickness); (groups[k] = groups[k] || []).push(c); });
+    const keys = Object.keys(groups).sort((a, b) => { const pa = a.split('|').map(Number), pb = b.split('|').map(Number); return pa[0] - pb[0] || pa[1] - pb[1]; });
+    const cols = received ? 4 : 3;
+    return `<table class="dt"><thead><tr><th>Coil ID</th><th>Grade</th>${received ? '<th>Received</th>' : ''}<th class="r">Weight</th></tr></thead><tbody data-items>${keys.map(k => { const g = groups[k]; const size = `${g[0].width} mm × ${bmt(g[0].thickness)} BMT`;
+      return `<tr class="grp"><td colspan="${cols}">${size}</td></tr>${g.map(c => `<tr><td><b>${e(c.coilId)}</b></td><td>${e(c.grade)}</td>${received ? `<td>${App.fmtDate(App.iso(new Date(c.signedInAt)))}</td>` : ''}<td class="r">${kg(c.weight)}</td></tr>`).join('')}<tr class="sub"><td colspan="${cols - 1}">${size} total (${g.length} coil${g.length === 1 ? '' : 's'})</td><td class="r">${kg(g.reduce((t, c) => t + c.weight, 0))}</td></tr>`; }).join('')}</tbody></table>`;
+  };
+  C.usageSpec = r => {
+    const D = App.Docs; const title = `${r.label} coil usage`;
+    const flow = [D.blk(`<div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="stat dark"><p class="l">Coils used</p><p class="v">${r.used.length}</p></div><div class="stat"><p class="l">Total weight</p><p class="v">${kg(r.usedKg)}</p></div><div class="stat"><p class="l">Suppliers</p><p class="v">${new Set(r.used.map(c => c.supplier)).size}</p></div></div><p class="cap">All coils scanned out of the steel shed in ${e(r.label)}.</p>`)];
+    flow.push(D.blk(`${D.h2('Summary by supplier and size')}${r.bySpec.length ? `<table class="dt"><thead><tr><th>Supplier</th><th>Size</th><th class="r">Coils</th><th class="r">Weight</th></tr></thead><tbody data-items>${r.bySpec.map(x => `<tr><td>${e(x.supplier)}</td><td>${x.width} mm × ${bmt(x.thickness)} BMT</td><td class="r">${x.count}</td><td class="r">${kg(x.kg)}</td></tr>`).join('')}<tr class="sum"><td colspan="2">Total</td><td class="r">${r.used.length}</td><td class="r">${kg(r.usedKg)}</td></tr></tbody></table>` : '<p class="hint">No coils were scanned out this month.</p>'}`));
+    if (r.used.length) flow.push(D.blk(`${D.h2('Coils used')}<table class="dt"><thead><tr><th>Coil ID</th><th>Supplier</th><th>Size</th><th>Opened</th><th>By</th><th>Jobs</th><th class="r">Weight</th></tr></thead><tbody data-items>${r.used.map(c => { const loc = C.S.coils.find(x => x.key === c.key) || c; return `<tr><td><b>${e(c.coilId)}</b></td><td>${e(c.supplier)}</td><td>${c.width} × ${bmt(c.thickness)}</td><td>${App.fmtDate(App.iso(new Date(c.scannedOutAt)))}</td><td>${e(c.scannedOutBy)}</td><td>${e((loc.jobs || []).join(', '))}</td><td class="r">${kg(c.weight)}</td></tr>`; }).join('')}</tbody></table>`));
+    return { head: D.fullHead('Coil usage', r.label, [['Printed', App.fmtLong(App.today())]]), run: D.runHead('Coil usage', r.label), foot: D.footFull(), flow, bottom: '', after: [], number: title, fileName: `${r.label} Coil Usage` };
+  };
+  C.consSpec = (r, b) => {
+    const D = App.Docs; const end = C.monthEnd(r.month);
+    const flow = [D.blk(`<div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat dark"><p class="l">Used in ${e(r.label)}, to invoice</p><p class="v">${kg(b.usedKg)}</p><p class="l">${b.used.length} coil${b.used.length === 1 ? '' : 's'}</p></div><div class="stat"><p class="l">Still in stock at ${e(end)}</p><p class="v">${kg(b.stockKg)}</p><p class="l">${b.stock.length} coil${b.stock.length === 1 ? '' : 's'}</p></div></div>`),
+      D.blk(`${D.h2(`Used in ${r.label} (to invoice)`)}${C.grouped(b.used, false)}`),
+      D.blk(`${D.h2(`Still in stock at ${end}`)}${C.grouped(b.stock, true)}`)];
+    return { head: D.fullHead('Consignment statement', b.supplier, [['Month', r.label], ['From', App.store.s().company.name]]), run: D.runHead(b.supplier + ' consignment', r.label), foot: D.footFull(), flow, bottom: '', after: [], number: `${b.supplier} ${r.label}`, fileName: `${r.label} ${b.supplier} Consignment` };
+  };
+  C.saveToDrive = async (spec, type, supplier) => {
+    const blob = await App.Docs.toPdf(spec);
+    const saved = await C.api('storeAppPdf', { month: C.S.reportMonth, type, supplier, name: spec.fileName, base64: await App.blobToBase64(blob) });
+    return { blob, saved };
   };
 
   /* ---------- Crew ---------- */
