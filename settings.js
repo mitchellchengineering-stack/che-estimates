@@ -1,7 +1,7 @@
 /* Settings */
 (() => {
   const e = App.esc, S = () => App.store.s(), st = App.store, A = App.actions;
-  const SECTIONS = [['company', 'Company and users'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
+  const SECTIONS = [['company', 'Company and users'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['sales', 'Sales'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
   const inp = (path, val, attrs = '') => `<input data-bind="${path}" value="${e(val ?? '')}" ${attrs}>`;
   const list = (path, items, ph, rows = 1) => `<div class="list-ed">${items.map((it, i) => `<div class="row">${rows > 1 ? `<textarea data-bind="${path}.${i}" rows="${rows}" placeholder="${e(ph)}">${e(it)}</textarea>` : `<input data-bind="${path}.${i}" value="${e(it)}" placeholder="${e(ph)}">`}
     <span class="move"><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="-1" aria-label="Move up">↑</button><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="1" aria-label="Move down">↓</button></span>
@@ -93,6 +93,22 @@
     ${App.field('Days after completion to ask for a review', `<input data-bind="production.reviewDelayDays" data-type="num" value="${e(s.production.reviewDelayDays)}">`)}
     ${App.field('Monthly sales target ($ excl GST)', `<input data-bind="production.monthlyTarget" data-type="num" value="${e(s.production.monthlyTarget || '')}">`)}</div>
     <p class="hint">When you book a job into a week that's already full, the app warns you.</p></section>`;
+
+  App.Set.sales = s => {
+    const c = s.sales || {}; const SL = App.Sales;
+    const team = SL ? SL.team() : [];
+    return `<section class="card"><h3>Sales tracker</h3><p class="hint">The Sales tab uses your existing sales tracker script and CH Sales Tracker sheet, so every contact, call, photo, template and the weekly emails carry on. The phone app can keep running alongside it.</p>
+      ${App.field('Sales tracker web app link', inp('sales.apiUrl', c.apiUrl, 'placeholder="https://script.google.com/macros/s/…/exec"'))}
+      ${App.field('Team passcode (the same one the phone app uses)', `<input type="password" data-bind="sales.passcode" value="${e(c.passcode || '')}" autocomplete="off" style="max-width:260px">`)}
+      <p class="hint">${c.sheetId ? `Connected to the sheet. Sales follow-up reminders in the morning helper email use it too.` : 'Once the passcode is in, open the Sales tab and the sheet links up automatically.'}</p>
+      <button class="btn" data-act="salesTest">Check the connection</button></section>
+    <section class="card"><h3>Your name in the sales tracker</h3><p class="hint">Follow-ups and calls you log are saved under this name, the same as when you tap your name in the phone app. This is set for this computer.</p>
+      <select data-act-change="salesMe" style="max-width:300px"><option value="">Match my hub name (${e(SL ? SL.me() : '')})</option>${team.map(n => App.opt(n, n, SL.S.meName)).join('')}</select>
+      ${!team.length ? '<p class="hint">Open the Sales tab once to load the team names.</p>' : ''}</section>
+    <section class="card soft"><h3>Follow-up emails to clients</h3><p>When a sales follow-up or review request is due for a contact who's happy to receive emails, the hub writes the email from the sheet's Email Templates tab. <b>Nothing is sent until someone approves it</b>, on the Sales tab, the contact page or the Follow-ups page. It shows on the home page under Needs you, and the morning helper emails you a reminder.</p></section>`;
+  };
+  A.salesMe = el => { App.Sales.S.meName = el.value; localStorage.setItem('che-sales', JSON.stringify({ meName: el.value })); App.toast(el.value ? `Logging sales as ${el.value}` : 'Matching your hub name'); };
+  A.salesTest = async () => { try { App.Sales.S.config = null; await App.Sales.load(true); if (App.Sales.S.error) throw new Error(App.Sales.S.error); App.toast(`Connected. ${App.Sales.S.contacts.length} contacts.`); App.refresh(); } catch (er) { App.toast(er.message, 'err', 6000); } };
 
   App.Set.stock = s => {
     const c = s.coils, f = s.fasteners; const C = App.Coil;

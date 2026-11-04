@@ -6,6 +6,7 @@
     ['', 'Home', '<path d="M3 11l9-7 9 7v9H3z"/>'],
     ['tracker', 'Estimate tracker', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
     ['followups', 'Follow-ups', '<path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/>'],
+    ['sales', 'Sales', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
     ['production', 'Production', '<path d="M3 20V9l6 4V9l6 4V5h6v15z"/>'],
     ['calendar', 'Calendar', '<rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
     ['coils', 'Coils', '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>'],
@@ -23,8 +24,9 @@
 
   App.renderNav = () => {
     const r = App.route(); const due = st.data ? App.Track.due().length : 0;
+    const sdue = st.data && App.Sales && App.Sales.S.loadedAt && !App.Sales.S.error ? (() => { const x = App.Sales.summary(); return x.overdue.length + x.today.length + App.Sales.waiting().length; })() : 0;
     const active = r.name === 'e' ? 'tracker' : r.name === 'new' ? '' : r.name === 'job' ? 'production' : r.name;
-    document.getElementById('nav').innerHTML = NAV.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg><span>${l}</span>${k === 'followups' && due ? `<em class="badge">${due}</em>` : ''}</a>`).join('');
+    document.getElementById('nav').innerHTML = NAV.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg><span>${l}</span>${k === 'followups' && due ? `<em class="badge">${due}</em>` : ''}${k === 'sales' && sdue ? `<em class="badge">${sdue}</em>` : ''}</a>`).join('');
     const me = st.data ? st.me() : null;
     document.getElementById('side-foot').innerHTML = me ? `<span class="av" aria-hidden="true">${e((me.name || '?')[0].toUpperCase())}</span><span><b>${e(me.name)}</b><small>${st.mode === 'drive' ? 'Saved to Google Drive' : 'Saving in this browser'}</small></span>` : '';
   };
@@ -56,8 +58,8 @@
       const est = st.newEstimate(r.a === 'ft' ? 'ft' : 'general', !!App.state.practice);
       location.replace(`#/e/${est.id}`); return;
     }
-    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'] }[r.name] || ['home'];
-    if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home', 'coils', 'fasteners'].includes(v[0])) App.cur = null;
+    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'], sales: ['sales', r.a, r.b] }[r.name] || ['home'];
+    if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home', 'coils', 'fasteners', 'sales'].includes(v[0])) App.cur = null;
     try { html = App.views[v[0]](...v.slice(1)); mount = App.views[v[0]].mount; }
     catch (er) { console.error(er); html = `<div class="empty"><h2>Something went wrong on this page</h2><p>${e(er.message)}</p><a class="btn" href="#/">Go home</a></div>`; }
     main.innerHTML = html;
@@ -145,7 +147,9 @@
     const F = App.Fast; const fastOn = F && F.ready() && F.S.loadedAt && !F.S.error; const low = fastOn ? F.low() : [];
     const due = App.Track.due();
     const expiring = real.filter(x => x.status === 'sent' && !x.archived && x.expiry >= today && x.expiry <= App.addDays(today, 7));
+    const SLs = App.Sales; const salesOn = SLs && SLs.ready() && SLs.S.loadedAt && !SLs.S.error; const ssm = salesOn ? SLs.summary() : null;
     const needs = [];
+    if (SLs) SLs.needs().forEach(a => needs.push(a));
     App.Jobs.attention().forEach(a => needs.push(a));
     if (low.length) needs.splice(1, 0, { lvl: 'red', t: `${low.length} fastener${low.length === 1 ? '' : 's'} below minimum`, s: low.map(i => i.name).join(', '), b: 'Fasteners', href: '#/fasteners' });
     if (cs) cs.low.forEach(x => needs.push({ lvl: 'amber', t: `${C.bmt(x.t)} BMT coils running low`, s: `${x.n} coil${x.n === 1 ? '' : 's'} left in stock`, b: 'Coils', href: '#/coils' }));
@@ -161,8 +165,8 @@
       ${kpi('Quoted this month', App.money(sum(sentM), 0), `${sentM.length} sent, ${App.money(sum(waiting), 0)} waiting`, true)}
       ${kpi('Accepted this month', App.money(sum(wonM), 0), target ? `${Math.round(sum(wonM) / target * 100)}% of ${App.money(target, 0)} target` : `${wonM.length} job${wonM.length === 1 ? '' : 's'} won`)}
       ${kpi('In production', `${live.length} job${live.length === 1 ? '' : 's'}`, `${App.money(live.reduce((t, j) => t + st.totals(j).sub, 0), 0)} of work`)}
-      ${kpi('Deliveries this week', dels.length, `${new Set(dels.map(d => d.j.id)).size} job(s), ${(dels.reduce((t, d) => t + kgOf(d.j, d.l.frameIds), 0) / 1000).toFixed(1)} t`)}
-      ${kpi('Deposits outstanding', App.money(depOut.reduce((t, j) => t + st.totals(j).deposit, 0), 0), `${depOut.length} job${depOut.length === 1 ? '' : 's'}`)}
+      ${salesOn ? kpi('Sales follow-ups due', ssm.today.length + ssm.overdue.length, ssm.overdue.length ? `${ssm.overdue.length} overdue` : 'none overdue') : kpi('Deliveries this week', dels.length, `${new Set(dels.map(d => d.j.id)).size} job(s), ${(dels.reduce((t, d) => t + kgOf(d.j, d.l.frameIds), 0) / 1000).toFixed(1)} t`)}
+      ${salesOn ? kpi('Hot leads', ssm.hot.length, `${ssm.newM.length} new this month`) : kpi('Deposits outstanding', App.money(depOut.reduce((t, j) => t + st.totals(j).deposit, 0), 0), `${depOut.length} job${depOut.length === 1 ? '' : 's'}`)}
       ${kpi('Coils in stock', cs ? cs.ins.length : '-', cs ? C.kg(cs.ins.reduce((t, c) => t + c.weight, 0)) : '<a href="#/coils">Sign in to coils</a>')}
     </div>
     <section class="hero hero-sm">
@@ -176,11 +180,12 @@
     </section>
     <div class="hub2">
       <section class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Needs you</h3>${needs.length ? `<span class="tag bad">${needs.length}</span>` : ''}</div>
-        ${needs.length ? needs.slice(0, 7).map(App.Track.alertHtml).join('') : '<p class="hint">All caught up. Nothing needs you right now.</p>'}</section>
+        ${needs.length ? needs.slice(0, 8).map(App.Track.alertHtml).join('') : '<p class="hint">All caught up. Nothing needs you right now.</p>'}</section>
       <section class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h3 style="margin:0">This week in the factory</h3><a class="more" style="margin:0" href="#/production">Production</a></div>
         <div class="table-scroll" style="margin-top:10px">${App.Jobs.timelineHtml(days, rows)}</div></section>
     </div>
-    <div class="snaps">
+    <div class="snaps four">
+      ${App.Sales ? App.Sales.panel() : ''}
       <section class="snap"><h3>Coils<em>${cs ? cs.ins.length + ' in stock' : ''}</em></h3>
         ${cs ? `<div class="gauge-cells">${cs.byT.map(x => `<a class="gcell ${cs.low.includes(x) ? 'low' : ''}" href="#/coils"><span>${C.bmt(x.t)} BMT</span><b>${x.n}</b><span>${C.kg(x.kg)}</span></a>`).join('')}</div>
           <div class="kv-list small"><div><span>Scanned out this month</span><b>${cs.used.length} coil${cs.used.length === 1 ? '' : 's'}, ${C.kg(cs.used.reduce((t, c) => t + c.weight, 0))}</b></div><div><span>Waiting for labels</span><b>${cs.unlabelled.length}</b></div><div><span>On jobs in production</span><b>${cs.onJobs.length} coil${cs.onJobs.length === 1 ? '' : 's'}, ${cs.jobsWith} job${cs.jobsWith === 1 ? '' : 's'}</b></div></div>`
@@ -190,7 +195,7 @@
           <p class="hint" style="margin-top:10px">Live from the stock app, updated ${F.ago()}.${F.S.log[0] ? ` Last: ${e(F.S.log[0].person || '')} ${F.S.log[0].action === 'Sign out' ? 'took' : 'added'} ${F.S.log[0].qty} x ${e(F.S.log[0].item)}, ${e(F.when(F.S.log[0].time))}` : ''}</p>`
           : `<p class="hint">${F && F.S.error ? e(F.S.error) : st.mode === 'drive' ? 'Loading fastener stock…' : 'Connect Google to see fastener stock.'}</p>`}<a class="more" href="#/fasteners">Fasteners</a></section>
       <section class="snap"><h3>Waiting on a reply<em>${App.money(sum(waiting), 0)}</em></h3>
-        ${waiting.slice(0, 4).map(x => `<a class="kvr2" href="#/e/${x.id}"><span><b>${e(x.number)}</b> ${e(x.client.company || x.client.name)}<span class="hint" style="display:block">${x.sentDate ? `Sent ${App.daysBetween(x.sentDate, today)} days ago` : ''}${x.openedAt ? ', opened' : ''}</span></span><b>${App.money(st.totals(x).sub, 0)}</b></a>`).join('') || '<p class="hint">Nothing waiting.</p>'}<a class="more" href="#/followups">Follow-ups</a></section>
+        ${waiting.slice(0, 4).map(x => `<a class="kvr2" href="#/e/${x.id}"><span><b>${e(x.number)}</b> ${e(x.client.company || x.client.name)}<span class="hint" style="display:block">${x.sentDate ? (App.daysBetween(x.sentDate, today) ? `Sent ${App.daysBetween(x.sentDate, today)} day${App.daysBetween(x.sentDate, today) === 1 ? '' : 's'} ago` : 'Sent today') : ''}${x.openedAt ? ', opened' : ''}</span></span><b>${App.money(st.totals(x).sub, 0)}</b></a>`).join('') || '<p class="hint">Nothing waiting.</p>'}<a class="more" href="#/followups">Follow-ups</a></section>
     </div>
 `;
   };
@@ -198,6 +203,7 @@
     const jobs = [];
     if (App.Coil && App.Coil.ready()) jobs.push(App.Coil.load().catch(() => false));
     if (App.Fast && App.Fast.ready()) jobs.push(App.Fast.load().catch(() => false));
+    if (App.Sales && App.Sales.ready()) jobs.push(App.Sales.load().catch(() => false));
     if (jobs.length) Promise.all(jobs).then(r => { if (r.some(Boolean) && App.route().name === '') App.refresh(); });
   };
   const STAGE_ORDER = j => App.STAGES.findIndex(s => s.value === j.job.stage);

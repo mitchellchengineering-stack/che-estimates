@@ -89,6 +89,7 @@ App.defaultSettings = () => ({
     apiUrl: 'https://script.google.com/macros/s/AKfycbzKxrxXmeAQnY5EG9Bc0JfEHbbwfdVNDDephiEn8mM9i-JaJup9XU98INJNBMphojjHIQ/exec',
     widths: [92, 135, 166, 188], thicknesses: [0.55, 0.75, 0.95, 1.15], defaultGrade: 'G550', lowPerGauge: 1
   },
+  sales: { apiUrl: 'https://script.google.com/macros/s/AKfycbwayHN0oCE9qnWFcYadC4uGoMexbirj-kqBCDp8bp8Zf_dTN5bwrMGs97eVzu5x6LRMYA/exec', passcode: '', sheetId: '' },
   fasteners: {
     sheetId: '1wljKchKFiSzcOzHFh150yRn41T4XYOWZImUG_csJGIw',
     appUrl: 'https://script.google.com/macros/s/AKfycbzFSHtrG7MBAqq85qQna3gLCfi7u5qma0gENtZYylT-OVGSeN2iAhTpS7xY2Cg9E9jggA/exec'
@@ -110,7 +111,7 @@ App.defaultSettings = () => ({
   }
 });
 
-App.defaultData = () => ({ v: 1, settings: App.defaultSettings(), counters: { practice: 0 }, estimates: [], customers: [], templates: [], events: [] });
+App.defaultData = () => ({ v: 1, settings: App.defaultSettings(), counters: { practice: 0 }, estimates: [], customers: [], templates: [], events: [], salesMail: [] });
 
 App.store = {
   data: null, mode: 'local', rootId: null, fileId: null, saving: false, pending: false, lastSync: 0, logs: [],
@@ -129,7 +130,7 @@ App.store = {
     const ds = App.defaultSettings();
     const deep = (target, src) => { Object.keys(src).forEach(k => { if (target[k] === undefined) target[k] = src[k]; else if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k]) && target[k] && typeof target[k] === 'object' && !Array.isArray(target[k])) deep(target[k], src[k]); }); };
     deep(d.settings, ds);
-    ['estimates', 'customers', 'templates', 'events'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
+    ['estimates', 'customers', 'templates', 'events', 'salesMail'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
     if (!d.settings.v2) { d.settings.v2 = true; d.settings.estimate.showAcceptanceGeneral = false; }
     if (!d.settings.v3) {
       d.settings.v3 = true; const si = d.settings.ft.scopeItems;
@@ -167,7 +168,7 @@ App.store = {
     let changed = false;
     if ((remote.settings.updatedAt || 0) > (local.settings.updatedAt || 0)) { local.settings = remote.settings; changed = true; }
     Object.keys(remote.counters || {}).forEach(k => { if ((remote.counters[k] || 0) > (local.counters[k] || 0)) { local.counters[k] = remote.counters[k]; changed = true; } });
-    ['estimates', 'customers', 'templates', 'events'].forEach(k => {
+    ['estimates', 'customers', 'templates', 'events', 'salesMail'].forEach(k => {
       const idx = new Map(local[k].map((r, i) => [r.id, i]));
       (remote[k] || []).forEach(r => {
         if (!idx.has(r.id)) { local[k].push(r); changed = true; }

@@ -5,6 +5,7 @@
  *  - Sends (or lines up for approval) the 1-week and 2-week follow-up emails for estimates YOU sent
  *  - Sends a reminder 3 days before an estimate's pricing expires
  *  - Sends review requests a set number of days after a job is marked complete
+ *  - Emails you your sales follow-ups due today, and any sales emails waiting for your approval
  *  - Skips a follow-up if the client has already replied to you
  * Every Monday (optional): emails the team a summary of the week ahead.
  * As a web app (optional): records when clients open estimate emails.
@@ -75,6 +76,7 @@ function daily() {
   });
 
   saveLog_(logRef);
+  try { salesReminder_(data, user, me); } catch (err) { Logger.log('Sales reminder skipped: ' + err); }
   if (sentNow.length || queuedNow.length) {
     let body = '';
     if (sentNow.length) body += 'These went out this morning:\n' + sentNow.map(x => ' - ' + x).join('\n') + '\n\n';
@@ -82,6 +84,35 @@ function daily() {
     body += APP_LINK + '#/followups';
     GmailApp.sendEmail(me, `Estimates: ${sentNow.length ? sentNow.length + ' follow-up' + (sentNow.length > 1 ? 's' : '') + ' sent' : ''}${sentNow.length && queuedNow.length ? ', ' : ''}${queuedNow.length ? queuedNow.length + ' waiting for you' : ''}`, body);
   }
+}
+
+/* ---------- Sales reminder ----------
+   Each morning, tells you which of your sales follow-ups are due and which follow-up emails are waiting for
+   your approval in the hub. It never emails clients itself. */
+function salesReminder_(data, user, me) {
+  const s = data.settings || {}; const sheetId = s.sales && s.sales.sheetId; if (!sheetId) return;
+  const first = String(user.name || '').toLowerCase().split(' ')[0]; if (!first) return;
+  const sh = SpreadsheetApp.openById(sheetId).getSheetByName('Contacts'); if (!sh) return;
+  const rows = sh.getDataRange().getValues(); const head = rows.shift().map(String);
+  const col = n => head.indexOf(n);
+  const iOwner = col('Contacted By'), iCo = col('Company'), iNext = col('Next Follow-up'), iType = col('Follow-up Type'), iArch = col('Archived'), iName = col('Primary Contact');
+  const today = today_(); const due = [];
+  const asDate = v => v instanceof Date ? Utilities.formatDate(v, TZ, 'yyyy-MM-dd') : String(v || '').slice(0, 10);
+  rows.forEach(r => {
+    if (String(r[iOwner] || '').toLowerCase().split(' ')[0] !== first) return;
+    if (r[iArch] === true || String(r[iArch]).toLowerCase() === 'yes' || String(r[iArch]).toLowerCase() === 'true') return;
+    const nx = asDate(r[iNext]); if (!/^\d{4}-\d\d-\d\d$/.test(nx) || nx > today) return;
+    if (String(r[iType]) === 'revisit' && nx < today) return;
+    due.push({ co: String(r[iCo] || r[iName] || 'No name'), late: daysBetween_(nx, today), type: String(r[iType] || 'followup') });
+  });
+  const waiting = (data.salesMail || []).filter(m => !m.deleted && m.status === 'waiting' && String(m.owner || '').toLowerCase().split(' ')[0] === first);
+  if (!due.length && !waiting.length) return;
+  const kind = { followup: 'follow up', callback: 'call back', review: 'ask for a review', revisit: 'revisit' };
+  let body = 'Morning ' + (user.name || '').split(' ')[0] + ',\n\n';
+  if (due.length) body += 'Sales follow-ups due:\n' + due.sort((a, b) => b.late - a.late).map(d => ' - ' + d.co + ': ' + (kind[d.type] || 'follow up') + (d.late > 0 ? ' (' + d.late + ' day' + (d.late === 1 ? '' : 's') + ' overdue)' : ' (today)')).join('\n') + '\n\n';
+  if (waiting.length) body += 'Follow-up emails written and waiting for you to approve:\n' + waiting.map(m => ' - ' + m.company + ': ' + m.subject).join('\n') + '\n\nNothing goes to a client until you approve it.\n\n';
+  body += APP_LINK + '#/sales';
+  GmailApp.sendEmail(me, 'Sales: ' + [due.length ? due.length + ' follow-up' + (due.length === 1 ? '' : 's') + ' due' : '', waiting.length ? waiting.length + ' email' + (waiting.length === 1 ? '' : 's') + ' to approve' : ''].filter(Boolean).join(', '), body);
 }
 
 /* ---------- Weekly summary ---------- */

@@ -94,6 +94,7 @@
     if (v === 'sent' && est.status === 'draft') { est.status = 'sent'; est.sentAt = Date.now(); est.sentDate = App.today(); est.sentBy = st.me().email; }
     else est.status = v;
     st.log(est, `Status changed to ${v}`); st.touch(est); st.save(); App.refresh();
+    if (App.Sales) App.Sales.syncFromEstimates();
   };
   A.exportCsv = () => {
     const rows = [['Estimate', 'Type', 'Date', 'Expiry', 'Client', 'Company', 'Email', 'Phone', 'Heading', 'Site address', 'Price excl GST', 'Status', 'Lost reason', 'Lead source', 'Prepared by', 'Production stage']];
@@ -130,6 +131,7 @@
       <section class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Ready to send</h3>${due.length ? `<span class="tag yel">${due.length}</span>` : ''}</div>
         ${due.length ? due.map(d => `<div class="alert"><span class="txt"><b>${e(st.displayNumber(d.est))} ${e(d.est.client.company || d.est.client.name)}, ${App.money(App.Track.estValue(d.est), 0)}</b><span>${KIND_LABEL[d.kind]}${d.est.sentDate ? `, sent ${App.daysBetween(d.est.sentDate, today)} days ago` : ''}${d.est.openedAt ? ', opened' : ''}${d.queued ? ', waiting for approval' : ''}</span></span>
           <span class="row" style="flex:none"><button class="btn small ghost" data-act="fuSkip" data-id="${d.est.id}" data-k="${d.kind}">Skip</button><button class="btn small primary" data-act="fuSend" data-id="${d.est.id}" data-k="${d.kind}">Review and send</button></span></div>`).join('') : '<p class="hint">Nothing waiting right now.</p>'}</section>
+      ${App.Sales && App.Sales.waiting().length ? `<section class="card" style="margin:0;grid-column:1 / -1"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Sales follow-up emails waiting for approval</h3><span class="tag yel">${App.Sales.waiting().length}</span></div>${App.Sales.waiting().slice(0, 6).map(x => `<div class="alert"><span class="txt"><b>${e(x.company)}</b><span>${e(x.subject)}, due ${App.fmtShort(x.due)}</span></span><span class="row" style="flex:none"><button class="btn small ghost" data-act="smSkip" data-id="${x.id}">Skip</button><button class="btn small" data-act="smEdit" data-id="${x.id}">Edit</button><button class="btn small primary" data-act="smSend" data-id="${x.id}">Approve and send</button></span></div>`).join('')}</section>` : ''}
       <section class="card" style="margin:0"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Supplier follow-ups</h3><a class="btn small" href="#" data-act="fuTabGo">See all</a></div>${App.Track.supplierList().slice(0, 4).map(App.Track.alertHtml).join('') || '<p class="hint">Nothing waiting on suppliers.</p>'}</section>
     </div>
     <section class="card" style="margin-top:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Waiting on a reply</h3><span class="hint">${App.money(val, 0)} across ${waiting.length} estimate${waiting.length === 1 ? '' : 's'}</span></div>
@@ -155,6 +157,7 @@
     const jobs = [];
     if (App.Fast && App.Fast.ready() && !App.Fast.S.loadedAt) jobs.push(App.Fast.load());
     if (App.Coil && App.Coil.ready() && !App.Coil.S.loadedAt) jobs.push(App.Coil.load());
+    if (App.Sales && App.Sales.ready() && !App.Sales.S.loadedAt) jobs.push(App.Sales.load());
     if (jobs.length) Promise.all(jobs).then(r => { if (r.some(Boolean) && App.route().name === 'followups') App.refresh(); }).catch(() => {});
   };
   A.fuTab = el => { App.state.fuTab = el.value; App.refresh(); };

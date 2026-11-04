@@ -1,6 +1,18 @@
 # CH Engineering Estimates
 
-## Latest update: dashboard, coils, fasteners and production
+## Latest update: Sales
+
+1. **Upload the new files to GitHub** (everything in the update folder) and commit. Your `config.js` isn't included.
+2. **Connect it.** In the app, go to **Settings > Sales**. The sales tracker link is already filled in. Type in the **team passcode** (the same one the phone app uses) and click **Check the connection**. You don't need to change anything in the sales tracker's own script or sheet.
+3. **Pick your name** in **Settings > Sales > Your name in the sales tracker** (once on each computer), so calls you log are saved under your name.
+4. **Share the CH Sales Tracker sheet** with everyone's Google account as a **Viewer** (or Editor). The hub itself doesn't need this, but the morning helper reads the sheet to send each person their sales reminder.
+5. **Update the morning helper.** Each person pastes the new **Code.gs** into their own helper Apps Script (keep their FOLDER_ID, SEND_HOUR and APP_LINK lines), clicks Save, then runs **setup** once and approves the new permission to read Google Sheets.
+
+How the sales emails work: when a follow-up or review request is due for a contact who's happy to receive emails, the hub writes it from the sheet's **Email Templates** tab. **Nothing goes to a client until someone clicks Approve and send.** Waiting emails show on the Sales tab, the contact's page, the Follow-ups page and under **Needs you**, and the helper emails a reminder each morning.
+
+---
+
+## Earlier update: dashboard, coils, fasteners and production
 
 Do these steps once after uploading the new files.
 

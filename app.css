@@ -777,6 +777,49 @@ a.practice-flag { text-decoration: none; }
 
 /* Coil statements */
 .pg .dt tr.grp td { background: #f5f6f4 !important; font-weight: 800; border-top: 1.5px solid #15171a; }
-.pg .dt tr.sub td { font-weight: 700; color: #4a5158; border-bottom: 2px solid #e6e9e6; background: #fff !important; }
+.pg .dt tr.sub td { font-weight: 700; font-size: 12px; color: #4a5158; border-bottom: 2px solid #e6e9e6; background: #fff !important; }
 .pg .dt tr.sum td { font-weight: 800; background: #fff4c7 !important; }
 .pg .stat.dark { background: #15171a; color: #fff; } .pg .stat.dark .v { color: #f5c400; } .pg .stat.dark .l { color: #c9ced3; }
+
+/* ================= Sales ================= */
+.snaps.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.approve-bar { background: var(--ink); color: #fff; border-radius: var(--r-lg, 18px); padding: 18px 22px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.approve-bar > span { display: flex; flex-direction: column; }
+.approve-bar b { color: var(--yellow); font-size: 1.05rem; }
+.approve-bar > span > span { color: #c9ced3; font-size: .9rem; }
+.seg.wrap { flex-wrap: wrap; height: auto; }
+.tabs-scroll { overflow-x: auto; }
+.sales-table tbody tr { cursor: pointer; }
+.sales-table tbody tr:hover td { background: var(--yellow-soft); }
+.sales-table td.stripe { width: 6px; padding: 0; }
+.sales-table .r .btn { margin-left: 4px; }
+.pchip { font-size: .72rem; font-weight: 750; padding: 3px 8px; border-radius: 6px; background: var(--ink); color: var(--yellow); white-space: nowrap; }
+.pchip.maybe { background: var(--yellow-soft); color: #6b5200; }
+.tag.warn { background: #fdf0d8; color: #8a4b00; }
+.prod-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp { font: inherit; font-weight: 700; height: 46px; padding: 0 18px; border-radius: 23px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+.pp.on { background: var(--ink); color: var(--yellow); border-color: var(--ink); }
+.pp.maybe { background: var(--yellow-soft); color: #6b5200; border-color: #f0dc8a; }
+.mail-wait { background: var(--ink); color: #fff; border-radius: var(--r-lg, 18px); padding: 20px 22px; margin-bottom: 16px; }
+.mail-wait .k { margin: 0; font-size: .74rem; font-weight: 800; color: var(--yellow); letter-spacing: .02em; text-transform: uppercase; }
+.mail-wait .t { margin: 6px 0 2px; font-size: 1.1rem; font-weight: 800; }
+.mail-wait .s { margin: 0 0 12px; color: #c9ced3; font-size: .9rem; }
+.mail-wait .pre { background: #22262a; border-radius: 12px; padding: 12px 14px; font-size: .9rem; color: #e6e9ec; margin-bottom: 12px; white-space: pre-wrap; }
+.mail-wait .btn:not(.primary) { background: #22262a; color: #fff; border-color: #3a4046; }
+.mail-row { padding: 12px 0; border-bottom: 1px solid var(--line-2); }
+.fu-line { display: flex; gap: 12px; align-items: center; }
+.est-link { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: var(--soft); border-radius: 12px; padding: 12px 14px; text-decoration: none; margin-bottom: 8px; }
+.act-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line-2); font-size: .9rem; }
+.act-item .ic { width: 32px; height: 32px; border-radius: 50%; background: var(--soft); display: flex; align-items: center; justify-content: center; flex: none; }
+.act-item > span:last-child { display: flex; flex-direction: column; }
+.people .person { background: var(--soft); border-radius: 12px; padding: 12px 14px 8px; margin-bottom: 10px; }
+.people .person input { background: #fff; }
+.photo-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.photo-row .ph { background: var(--soft); border-radius: 10px; padding: 10px 12px; text-decoration: none; display: flex; flex-direction: column; font-weight: 650; }
+.cheat details { border-bottom: 1px solid var(--line-2); padding: 10px 0; }
+.cheat summary { font-weight: 700; cursor: pointer; }
+.chip-ev.sale { background: #ffe1c7; color: #7a3d00; }
+.dot.sale { background: #f2a65a; }
+.nowrap { white-space: nowrap; }
+@media (max-width: 1180px) { .snaps.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .snaps.four { grid-template-columns: 1fr; } }

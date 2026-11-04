@@ -550,6 +550,7 @@
     est.status = 'sent'; est.sentAt = Date.now(); est.sentDate = App.today(); est.sentBy = st.me().email;
     est.followups = { paused: est.followups && est.followups.paused };
     st.upsertCustomer(est); st.log(est, 'Marked as sent'); save();
+    if (App.Sales) App.Sales.syncFromEstimates();
   };
   A.estMarkSent = async () => { const est = cur(); if (!est.client.name) return App.toast('Add the client name first', 'err'); if (await preSend()) markSent(est); };
   A.estEmail = async () => {
@@ -580,14 +581,14 @@
         if (accts) { const t = App.mail.tpl('accounts', est); await App.G.send({ to: s.emails.accountsEmail, subject: t.subject, html: await App.mail.html(t.body) }); st.log(est, 'Accounts emailed about the deposit'); }
         if (thanks) { const t = App.mail.tpl('thanks', est); await App.G.send({ to: est.client.email, subject: t.subject, html: await App.mail.html(t.body, est, 'thanks') }); st.log(est, 'Thank-you email sent'); }
       } catch (er) { App.toast(er.message, 'err', 6000); }
-      st.save(); App.toast('Accepted. It\'s now on the production board.'); location.hash = `#/job/${est.id}`;
+      st.save(); if (App.Sales) App.Sales.syncFromEstimates(); App.toast('Accepted. It\'s now on the production board.'); location.hash = `#/job/${est.id}`;
     };
   };
   A.estReject = () => {
     const est = cur();
     const m = App.modal(`Mark ${st.displayNumber(est)} rejected`, `${App.field('Why did we miss out?', `<select id="rej-r">${App.opts(S().estimate.lostReasons)}</select>`)}${App.field('Notes', '<input id="rej-n">')}`,
       { actions: `<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="rej-ok">Mark rejected</button>` });
-    m.querySelector('#rej-ok').onclick = () => { est.status = 'rejected'; est.lostReason = m.querySelector('#rej-r').value; st.log(est, `Rejected: ${est.lostReason}${m.querySelector('#rej-n').value ? ', ' + m.querySelector('#rej-n').value : ''}`); App.closeModal(); save(); };
+    m.querySelector('#rej-ok').onclick = () => { est.status = 'rejected'; est.lostReason = m.querySelector('#rej-r').value; st.log(est, `Rejected: ${est.lostReason}${m.querySelector('#rej-n').value ? ', ' + m.querySelector('#rej-n').value : ''}`); App.closeModal(); save(); if (App.Sales) App.Sales.syncFromEstimates(); };
   };
   A.estCancel = async () => { if (await App.confirm('Cancel this estimate?', 'The number stays in the tracker, marked as cancelled.', 'Cancel estimate')) { cur().status = 'cancelled'; st.log(cur(), 'Cancelled'); save(); } };
   A.estArchive = () => { cur().archived = !cur().archived; st.log(cur(), cur().archived ? 'Archived' : 'Unarchived'); save(); };

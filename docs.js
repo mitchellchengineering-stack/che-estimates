@@ -217,7 +217,9 @@ App.Docs = {
 
   /* ---------- page layout engine ---------- */
   preload() {
-    if (!this._pre) this._pre = Promise.all(['logo.png', 'axxis.png', 'nash.png'].map(src => new Promise(r => { const i = new Image(); i.onload = i.onerror = r; i.src = src; })));
+    /* load the logos and every font weight the pages use before measuring, so page breaks land in the right place */
+    const fonts = document.fonts && document.fonts.load ? ['400', '600', '700', '800'].map(w => document.fonts.load(`${w} 13px Archivo`).catch(() => {})) : [];
+    if (!this._pre) this._pre = Promise.all(fonts.concat(['logo.png', 'axxis.png', 'nash.png'].map(src => new Promise(r => { const i = new Image(); i.onload = i.onerror = r; i.src = src; }))));
     return this._pre;
   },
   async paginate(spec) {
@@ -254,6 +256,8 @@ App.Docs = {
         const shell = el.cloneNode(true); const sItems = shell.querySelector('[data-items]'); sItems.innerHTML = '';
         body.appendChild(shell); let moved = 0;
         for (const k of kids) { sItems.appendChild(k); if (over(body)) { sItems.removeChild(k); break; } moved++; }
+        /* don't leave a group heading row stranded at the bottom of a page */
+        while (moved > 0 && kids[moved - 1].classList && kids[moved - 1].classList.contains('grp')) { sItems.removeChild(kids[moved - 1]); moved--; }
         if (!moved) body.removeChild(shell);
         const rest = kids.slice(moved);
         if (!rest.length) return;

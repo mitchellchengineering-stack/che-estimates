@@ -230,7 +230,7 @@
   };
 
   /* ---------- Calendar ---------- */
-  App.Jobs.EVTYPES = [['mfg', 'Manufacture'], ['del', 'Delivery'], ['coil', 'Coils arriving'], ['po', 'Purchase order due'], ['fu', 'Follow-up due'], ['exp', 'Estimate expires'], ['ev', 'Other']];
+  App.Jobs.EVTYPES = [['mfg', 'Manufacture'], ['del', 'Delivery'], ['sale', 'Sales follow-up'], ['coil', 'Coils arriving'], ['po', 'Purchase order due'], ['fu', 'Follow-up due'], ['exp', 'Estimate expires'], ['ev', 'Other']];
   App.Jobs.events = () => {
     const out = [];
     App.Jobs.list().forEach(j => {
@@ -244,6 +244,7 @@
       if (f && !f.paused) { if (!(f.fu1 && f.fu1.status && f.fu1.status !== 'queued')) out.push({ type: 'fu', date: f.fu1Due, cls: 'fu', text: `FU1 ${x.number}`, title: `First follow-up for ${x.client.company || x.client.name}`, href: '#/followups' }); else if (!(f.fu2 && f.fu2.status && f.fu2.status !== 'queued')) out.push({ type: 'fu', date: f.fu2Due, cls: 'fu', text: `FU2 ${x.number}`, title: `Second follow-up for ${x.client.company || x.client.name}`, href: '#/followups' }); }
       if (x.expiry) out.push({ type: 'exp', date: x.expiry, cls: 'exp', text: `${x.number} expires`, title: `Estimate ${x.number} expires`, href: `#/e/${x.id}` });
     });
+    if (App.Sales) App.Sales.events().forEach(x => out.push(x));
     st.data.events.filter(x => !x.deleted).forEach(ev => out.push({ type: ev.type || 'ev', date: ev.date, cls: ev.type === 'coil' ? 'coil' : ev.type === 'po' ? 'po' : 'ev', text: ev.title, title: ev.notes || ev.title, drag: `ev:${ev.id}`, evId: ev.id }));
     const f = App.state.calFilters || {};
     return out.filter(x => f[x.type] !== false);
@@ -277,6 +278,7 @@
         <h4>Show on the calendar</h4>${App.Jobs.EVTYPES.map(([k, l]) => `<label class="check"><input type="checkbox" data-act-change="calFilter" data-k="${k}" ${f[k] === false ? '' : 'checked'}> ${l}</label>`).join('')}</aside></div>`;
   };
   App.views.calendar.mount = () => {
+    if (App.Sales && App.Sales.ready() && !App.Sales.S.loadedAt) App.Sales.load().then(ch => { if (ch && App.route().name === 'calendar') App.refresh(); }).catch(() => {});
     document.querySelectorAll('[data-drag-ev]').forEach(c => c.ondragstart = ev => { ev.stopPropagation(); ev.dataTransfer.setData('text/ev', c.dataset.dragEv); });
     document.querySelectorAll('[data-drop-date]').forEach(cell => {
       cell.ondragover = ev => { ev.preventDefault(); cell.classList.add('over'); };
