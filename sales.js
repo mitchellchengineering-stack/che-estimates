@@ -196,7 +196,7 @@
         await this.saveContact(n, { type: 'Note', outcome: 'Email address corrected', note: to });
       }
       m.to = to;
-      await App.G.send({ to, subject, html: await App.mail.html(body) });
+      await App.G.send({ to, subject, html: await App.mail.html(body, null, 'sales', 'sm:' + m.id) });
       m.status = 'sent'; m.sentAt = Date.now(); m.sentBy = st.me().email; m.subject = subject; m.body = body; st.touch(m); st.save();
       const c = this.get(m.contactId);
       if (c) {
@@ -260,7 +260,7 @@
     list.sort(SL.sortUrgent);
     const count = t => s.contacts.filter(c => SL.inTab(c, t)).length;
     const owners = [...new Set(s.contacts.map(c => c.owner).filter(Boolean))].sort();
-    return head(`<button class="btn" data-act="salesView" data-v="${s.view === 'map' ? 'list' : 'map'}">${s.view === 'map' ? 'List' : 'Map'}</button><button class="btn" data-act="salesCheat">Cheat sheet</button><button class="btn" data-act="salesRefresh">Refresh</button><button class="btn primary" data-act="salesAdd">+ Add contact</button>`) + `
+    return head(`<div class="seg">${[['list', 'Contacts'], ['emails', 'Emails'], ['map', 'Map']].map(([k, l]) => `<label><input type="radio" name="sview" value="${k}" data-act-change="salesView" ${(s.view || 'list') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div><button class="btn" data-act="salesCheat">Cheat sheet</button><button class="btn" data-act="salesRefresh">Refresh</button><button class="btn primary" data-act="salesAdd">+ Add contact</button>`) + `
     <div class="statcards six">
       <div class="statcard dark"><p class="l">Due today</p><p class="v">${sm.today.length}</p><p class="s">follow-ups</p></div>
       <div class="statcard"><p class="l">Overdue</p><p class="v ${sm.overdue.length ? 'neg' : ''}">${sm.overdue.length}</p><p class="s">follow-ups</p></div>
@@ -272,7 +272,7 @@
     ${wait.length ? `<section class="approve-bar"><span><b>${wait.length} sales follow-up email${wait.length === 1 ? ' is' : 's are'} waiting for your approval</b><span>${e(wait.slice(0, 3).map(m => m.company).join(', '))}${wait.length > 3 ? ` and ${wait.length - 3} more` : ''}. Written from your Email Templates.</span></span><button class="btn primary" data-act="salesApprove">Review and send</button></section>` : ''}
     ${(() => { const dueNo = s.contacts.filter(c => !c.archived && ['overdue', 'today'].includes(SL.fu(c).state) && ['followup', 'review'].includes(c.followUpType) && !SL.queue().some(m => m.contactId === c.id && m.due === c.nextFollowUp)); const noCons = dueNo.filter(c => !c.emailConsent).length, noEm = dueNo.filter(c => c.emailConsent && !SL.primary(c).email).length;
       return noCons || noEm ? `<p class="hint" style="margin:-6px 0 14px">${noCons ? `${noCons} due follow-up${noCons === 1 ? ' has' : 's have'} no email written because "Happy to receive emails" isn't ticked. ` : ''}${noEm ? `${noEm} ${noEm === 1 ? 'has' : 'have'} no email address.` : ''} Tick it on the contact if they're happy to get emails.</p>` : ''; })()}
-    ${s.view === 'map' ? '<section class="card"><div id="sales-map" style="height:560px;border-radius:14px"></div></section>' : `
+    ${s.view === 'emails' ? SL.emailsView() : s.view === 'map' ? '<section class="card"><div id="sales-map" style="height:560px;border-radius:14px"></div></section>' : `
     <section class="card">
       <div class="tabs-scroll"><div class="seg wrap">${TABS.map(([k, l]) => `<label><input type="radio" name="stab" value="${k}" data-act-change="salesTab" ${s.tab === k ? 'checked' : ''}><span>${l} (${count(k)})</span></label>`).join('')}</div></div>
       <div class="row" style="flex-wrap:wrap;margin:12px 0">
@@ -312,7 +312,36 @@
   A.salesRefresh = async () => { SL.S.config = null; await SL.load(true); App.refresh(); if (!SL.S.error) App.toast('Sales updated'); };
   A.salesTab = el => { SL.S.tab = el.value; App.refresh(); };
   A.salesFilter = el => { SL.S[el.dataset.k] = el.value; App.refresh(); };
-  A.salesView = el => { SL.S.view = el.dataset.v; App.refresh(); };
+  A.salesView = el => { SL.S.view = el.dataset.v || el.value; App.refresh(); };
+  A.salesMailFilter = el => { SL.S.mailFilter = el.value; App.refresh(); };
+  /* Every email sent to sales contacts: from the hub (tracked) and logged from the phone app (not tracked) */
+  SL.sentList = () => {
+    const hub = SL.queue().filter(m => m.status === 'sent').map(m => ({ at: m.sentAt, contactId: m.contactId, company: m.company, to: m.to, kind: m.kind, subject: m.subject, by: m.owner || m.sentBy, tracked: true, openedAt: m.openedAt, lastOpenAt: m.lastOpenAt, opens: m.opens || 0 }));
+    const day = x => App.iso(new Date(x));
+    const fromPhone = SL.S.activity.filter(x => x.type === 'Email' && !/^(Follow-up email sent|Review request sent|Email sent)$/.test(x.outcome || ''))
+      .filter(x => !hub.some(h => h.contactId === x.contactId && day(h.at) === day(x.at)))
+      .map(x => ({ at: Date.parse(x.at) || 0, contactId: x.contactId, company: x.company, to: '', kind: 'phone', subject: x.note || x.outcome || '', by: x.user, tracked: false }));
+    return hub.concat(fromPhone).sort((a, b) => b.at - a.at);
+  };
+  SL.emailsView = () => {
+    const f = SL.S.mailFilter || 'all'; const all = SL.sentList(); const since = Date.now() - 30 * 864e5;
+    const tracked = all.filter(x => x.tracked); const recent = all.filter(x => x.at >= since); const rt = recent.filter(x => x.tracked); const ro = rt.filter(x => x.openedAt);
+    let list = f === 'opened' ? tracked.filter(x => x.openedAt) : f === 'not' ? tracked.filter(x => !x.openedAt) : all;
+    const kindL = { followup: 'Follow-up', review: 'Review request', manual: 'Email', phone: 'Logged from the phone app' };
+    const noTrack = !S().emails.trackingUrl;
+    return `${noTrack ? '<div class="banner warn">Open tracking isn\'t switched on yet, so emails will show as not opened. Set it up in Settings, Emails (see the README, open tracking).</div>' : ''}
+      <div class="statcards" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="statcard dark"><p class="l">Emails sent, last 30 days</p><p class="v">${recent.length}</p><p class="s">${rt.length} sent from the hub</p></div>
+        <div class="statcard"><p class="l">Opened</p><p class="v">${rt.length ? Math.round(ro.length / rt.length * 100) + '%' : '-'}</p><p class="s">${ro.length} of ${rt.length} from the hub</p></div>
+        <div class="statcard"><p class="l">Not opened yet</p><p class="v">${rt.length - ro.length}</p><p class="s">worth a call?</p></div></div>
+      <section class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><h3 style="margin:0">Emails to sales contacts</h3>
+        <div class="seg">${[['all', 'All'], ['opened', 'Opened'], ['not', 'Not opened']].map(([k, l]) => `<label><input type="radio" name="smf" value="${k}" data-act-change="salesMailFilter" ${f === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
+        ${list.length ? `<div class="table-scroll" style="margin-top:12px"><table class="wtable sales-table"><thead><tr><th>Sent</th><th>Contact</th><th>Email</th><th>Sent by</th><th>Opened?</th></tr></thead><tbody>
+        ${list.slice(0, 100).map(x => `<tr data-act="salesOpen" data-id="${e(x.contactId)}" tabindex="0"><td class="small nowrap">${x.at ? App.fmtStamp(x.at) : ''}</td><td><b>${e(x.company || '')}</b>${x.to ? `<div class="hint">${e(x.to)}</div>` : ''}</td>
+          <td><span class="tag ${x.kind === 'followup' ? 'blue' : ''}">${kindL[x.kind] || 'Email'}</span><div class="small">${e(x.subject || '')}</div></td><td class="small">${e(x.by || '')}</td>
+          <td>${!x.tracked ? '<span class="hint">Not tracked</span>' : x.openedAt ? `<span class="tag ok">Opened ${App.fmtShort(App.iso(new Date(x.openedAt)))}</span>${x.opens > 1 ? `<div class="hint">${x.opens} times, last ${App.fmtStamp(x.lastOpenAt)}</div>` : ''}` : '<span class="tag">Not opened</span>'}</td></tr>`).join('')}</tbody></table></div>`
+        : `<p class="hint" style="margin-top:12px">${f === 'all' ? 'No emails sent yet.' : f === 'opened' ? 'None opened yet.' : 'Every tracked email has been opened.'}</p>`}
+        <p class="hint">Opens are tracked for emails sent from the hub. Some email apps block tracking, so "not opened" doesn't always mean they haven't read it.</p></section>`;
+  };
   A.salesSearch = App.debounce(el => { SL.S.search = el.value; App.refresh(); const i = document.getElementById('sales-q'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200);
   A.salesOpen = (el, ev) => { if (ev.target.closest('a,button')) return; location.hash = `#/sales/c/${el.dataset.id}`; };
   A.salesCheat = () => {
@@ -423,6 +452,7 @@
         <section class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Estimates</h3><span class="hint">Linked automatically</span></div>
           ${ests.map(x => `<a class="est-link" href="#/e/${x.id}"><span><b>${e(st.displayNumber(x))}</b> ${e(x.heading || '')}<span class="hint" style="display:block">${App.statusLabel ? App.statusLabel(x.status) : e(x.status)}${x.sentDate ? `, sent ${App.fmtShort(x.sentDate)}` : ''}${x.openedAt ? ', opened' : ''}</span></span><b>${App.money(st.totals(x).sub, 0)}</b></a>`).join('') || '<p class="hint">No estimates yet.</p>'}
           <button class="btn primary" data-act="scEstimate" style="margin-top:10px">+ Create estimate</button></section>
+        ${(() => { const ms = SL.sentList().filter(x => x.contactId === c.id && x.tracked); return ms.length ? `<section class="card"><h3>Emails from the hub</h3>${ms.slice(0, 8).map(x => `<div class="act-item"><span class="ic" aria-hidden="true">✉</span><span><b>${e(x.subject || 'Email')}</b><span class="hint">${App.fmtStamp(x.at)}${x.by ? ', ' + e(x.by) : ''}</span></span>${x.openedAt ? `<span class="tag ok" style="margin-left:auto;align-self:center">Opened${x.opens > 1 ? ' ' + x.opens + 'x' : ''}</span>` : '<span class="tag" style="margin-left:auto;align-self:center">Not opened</span>'}</div>`).join('')}</section>` : ''; })()}
         <section class="card"><h3>Activity</h3>${acts.length ? acts.slice(0, 30).map(a => `<div class="act-item"><span class="ic" aria-hidden="true">${icon(a.type)}</span><span><b>${e(a.type)}${a.outcome ? ': ' + e(a.outcome) : ''}</b>${a.note ? `<span>${e(a.note)}</span>` : ''}<span class="hint">${e(a.user || '')}, ${App.fmtStamp(a.at)}</span></span></div>`).join('') : '<p class="hint">Nothing logged yet.</p>'}</section>
       </aside>
     </div>`;
@@ -440,8 +470,10 @@
   A.scArchive = () => { const c = curC(); saveC(Object.assign({}, c, { archived: !c.archived })); };
   A.scEmail = () => {
     const c = curC(); const p = SL.primary(c); const t = SL.tpl('Follow-up') || { subject: '', body: '' }; const v = SL.vars(c);
-    App.mail.compose({ title: `Email ${c.company || p.name}`, to: p.email, subject: SL.fill(t.subject, v), body: SL.tidy(SL.fill(t.body, v).replace(/\n{3,}/g, '\n\n').trim(), v.sender),
-      onSent: () => { const n = Object.assign({}, c, { lastContacted: App.today() }); const a = SL.auto(n.status, n.stage); n.nextFollowUp = a.date; n.followUpType = a.type; saveC(n, { type: 'Email', outcome: 'Email sent', note: '' }); } });
+    const rec = { id: App.uid(), key: `manual|${c.id}|${Date.now()}`, contactId: c.id, company: c.company || p.name, to: p.email, toName: p.name || '', kind: 'manual', owner: SL.me(), subject: SL.fill(t.subject, v), status: 'draft', createdAt: Date.now() };
+    App.mail.compose({ title: `Email ${c.company || p.name}`, to: p.email, subject: rec.subject, body: SL.tidy(SL.fill(t.body, v).replace(/\n{3,}/g, '\n\n').trim(), v.sender), kind: 'sales', trackId: 'sm:' + rec.id,
+      onSent: () => {
+        st.data.salesMail = st.data.salesMail || []; Object.assign(rec, { status: 'sent', sentAt: Date.now(), sentBy: st.me().email }); st.data.salesMail.push(rec); st.touch(rec); st.save(); const n = Object.assign({}, c, { lastContacted: App.today() }); const a = SL.auto(n.status, n.stage); n.nextFollowUp = a.date; n.followUpType = a.type; saveC(n, { type: 'Email', outcome: 'Email sent', note: '' }); } });
   };
   A.scEstimate = async () => {
     const c = curC(); const p = SL.primary(c);

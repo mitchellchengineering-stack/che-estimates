@@ -262,7 +262,12 @@ App.store = {
   },
   applyLogs() {
     let changed = false;
+    /* sales emails: count opens per email (ids start with sm:) */
+    const so = {};
+    this.logs.filter(l => l.kind === 'open' && String(l.estId || '').startsWith('sm:')).forEach(l => { const k = l.estId.slice(3); const o = so[k] = so[k] || { first: l.at, last: l.at, n: 0 }; o.n++; o.first = Math.min(o.first, l.at); o.last = Math.max(o.last, l.at); });
+    (this.data.salesMail || []).forEach(m => { const o = so[m.id]; if (o && (m.opens !== o.n || m.openedAt !== o.first)) { m.openedAt = o.first; m.lastOpenAt = o.last; m.opens = o.n; this.touch(m); changed = true; } });
     this.logs.forEach(l => {
+      if (String(l.estId || '').startsWith('sm:')) return;
       const est = this.get(l.estId); if (!est) return;
       est.followups = est.followups || {};
       if (l.kind === 'open') { if (!est.openedAt || l.at < est.openedAt) { est.openedAt = l.at; } return; }

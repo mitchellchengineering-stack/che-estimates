@@ -4,9 +4,10 @@
 
   /* ---------- shared email sender ---------- */
   App.mail = {
-    async html(body, est, kind) {
+    async html(body, est, kind, trackId) {
       const sig = await App.G.signature();
-      const pixel = S().emails.trackingUrl && est ? `<img src="${e(S().emails.trackingUrl)}?e=${encodeURIComponent(est.id)}&k=${kind || 'mail'}&t=${Date.now()}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">` : '';
+      const tid = trackId || (est && est.id);
+      const pixel = S().emails.trackingUrl && tid ? `<img src="${e(S().emails.trackingUrl)}?e=${encodeURIComponent(tid)}&k=${kind || 'mail'}&t=${Date.now()}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">` : '';
       return `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#222">${App.textToHtml(body)}</div>${sig ? `<br><div>${sig}</div>` : ''}${pixel}`;
     },
     /* Opens a compose window. opts: {est, kind, to, cc, subject, body, attachEstimate, attachBrochure, extra:[{name,mime,base64}], onSent} */
@@ -37,7 +38,7 @@
           }
           const to = m.querySelector('#m-to').value.trim();
           if (!to) throw new Error('Add who the email is going to.');
-          await App.G.send({ to, cc: m.querySelector('#m-cc').value.trim(), subject: m.querySelector('#m-subj').value, html: await this.html(m.querySelector('#m-body').value, opts.est, opts.kind), attachments: atts });
+          await App.G.send({ to, cc: m.querySelector('#m-cc').value.trim(), subject: m.querySelector('#m-subj').value, html: await this.html(m.querySelector('#m-body').value, opts.est, opts.kind, opts.trackId), attachments: atts });
           App.closeModal(); App.toast('Email sent');
           opts.onSent && opts.onSent();
         } catch (er) { App.toast(er.message, 'err', 6000); b.disabled = false; b.textContent = 'Send email'; }
