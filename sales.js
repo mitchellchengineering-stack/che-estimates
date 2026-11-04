@@ -145,7 +145,26 @@
       const list = arr => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
       return { first_name: (p.name || '').split(' ')[0] || 'there', contact_name: p.name || '', company: c.company || '', company_name: this.setting('Company Name'), products: prods.length ? list(prods.map(x => x.label.toLowerCase())) : 'our steel framing products', product_paragraphs: paras, sender: sender || this.me(), review_link: this.setting('Google Review Link') || '' };
     },
-    queue() { return (st.data.salesMail || []).filter(m => !m.deleted); },
+    /* Emails from the hub end on "Cheers," with your Gmail signature underneath, like the estimate emails.
+       So the name and company lines after the sign-off come out, and anything else down there (like the
+       opt-out line) moves up above "Cheers,". */
+    tidy(body, sender, companyName) {
+      const lines = String(body || '').replace(/\r/g, '').split('\n');
+      let i = -1; lines.forEach((l, k) => { if (/^\s*(cheers|thanks|thanks again|thank you|kind regards|regards|warm regards|many thanks)[,!.]?\s*$/i.test(l)) i = k; });
+      const drop = [sender, companyName, this.setting('Company Name')].filter(Boolean).map(x => String(x).trim().toLowerCase());
+      if (i < 0) { while (lines.length && (!lines[lines.length - 1].trim() || drop.includes(lines[lines.length - 1].trim().toLowerCase()))) lines.pop(); return lines.join('\n').trim() + '\n\nCheers,'; }
+      const tail = lines.slice(i + 1).filter(l => l.trim() && !drop.includes(l.trim().toLowerCase()));
+      const head = lines.slice(0, i).join('\n').replace(/\s+$/, '');
+      return (tail.length ? head + '\n\n' + tail.join('\n') : head) + '\n\nCheers,';
+    },
+    /* Why a due follow-up has no email waiting, so it's clear what to fix */
+    whyNoEmail(c) {
+      if (!['followup', 'review'].includes(c.followUpType)) return c.followUpType === 'callback' ? 'This one is a call back, so no email is written for it.' : '';
+      if (!c.emailConsent) return 'No email was written because "Happy to receive emails" isn\'t ticked for this contact.';
+      if (!this.primary(c).email) return 'No email was written because the main contact has no email address.';
+      return '';
+    },
+    queue() { return (st.data.salesMail || []).filter(m => !m.deleted).map(m => { if (m.status === 'waiting' && !m.tidied) { m.body = this.tidy(m.body, m.owner); m.tidied = true; } return m; }); },
     waiting() { return this.queue().filter(m => m.status === 'waiting'); },
     draftEmails() {
       if (!st.data || !this.S.config) return;
@@ -158,14 +177,14 @@
         if (st.data.salesMail.some(m => m.key === key)) return;
         const t = this.tpl(c.followUpType === 'review' ? 'Review Request' : 'Follow-up'); if (!t) return;
         const v = this.vars(c, c.owner || this.me());
-        const m = { id: App.uid(), key, contactId: c.id, company: c.company, to: p.email, toName: p.name || '', kind: c.followUpType, due: c.nextFollowUp, owner: c.owner || '', subject: this.fill(t.subject, v), body: this.fill(t.body, v).replace(/\n{3,}/g, '\n\n').trim(), status: 'waiting', createdAt: Date.now() };
+        const m = { id: App.uid(), key, contactId: c.id, company: c.company, to: p.email, toName: p.name || '', kind: c.followUpType, due: c.nextFollowUp, owner: c.owner || '', subject: this.fill(t.subject, v), body: this.tidy(this.fill(t.body, v).replace(/\n{3,}/g, '\n\n').trim(), v.sender), status: 'waiting', createdAt: Date.now() };
         st.data.salesMail.push(m); st.touch(m); added++;
       });
       if (added) st.save();
     },
     async sendMail(m, subject, body) {
       if (st.mode !== 'drive') throw new Error('Connect Google to send emails from the hub.');
-      await App.G.send({ to: m.to, subject, html: `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#222">${App.textToHtml(body)}</div>` });
+      await App.G.send({ to: m.to, subject, html: await App.mail.html(body) });
       m.status = 'sent'; m.sentAt = Date.now(); m.sentBy = st.me().email; m.subject = subject; m.body = body; st.touch(m); st.save();
       const c = this.get(m.contactId);
       if (c) {
@@ -239,6 +258,8 @@
       <div class="statcard"><p class="l">Won this month</p><p class="v">${sm.won.length}</p><p class="s">${App.money(sm.wonVal, 0)}</p></div>
     </div>
     ${wait.length ? `<section class="approve-bar"><span><b>${wait.length} sales follow-up email${wait.length === 1 ? ' is' : 's are'} waiting for your approval</b><span>${e(wait.slice(0, 3).map(m => m.company).join(', '))}${wait.length > 3 ? ` and ${wait.length - 3} more` : ''}. Written from your Email Templates.</span></span><button class="btn primary" data-act="salesApprove">Review and send</button></section>` : ''}
+    ${(() => { const dueNo = s.contacts.filter(c => !c.archived && ['overdue', 'today'].includes(SL.fu(c).state) && ['followup', 'review'].includes(c.followUpType) && !SL.queue().some(m => m.contactId === c.id && m.due === c.nextFollowUp)); const noCons = dueNo.filter(c => !c.emailConsent).length, noEm = dueNo.filter(c => c.emailConsent && !SL.primary(c).email).length;
+      return noCons || noEm ? `<p class="hint" style="margin:-6px 0 14px">${noCons ? `${noCons} due follow-up${noCons === 1 ? ' has' : 's have'} no email written because "Happy to receive emails" isn't ticked. ` : ''}${noEm ? `${noEm} ${noEm === 1 ? 'has' : 'have'} no email address.` : ''} Tick it on the contact if they're happy to get emails.</p>` : ''; })()}
     ${s.view === 'map' ? '<section class="card"><div id="sales-map" style="height:560px;border-radius:14px"></div></section>' : `
     <section class="card">
       <div class="tabs-scroll"><div class="seg wrap">${TABS.map(([k, l]) => `<label><input type="radio" name="stab" value="${k}" data-act-change="salesTab" ${s.tab === k ? 'checked' : ''}><span>${l} (${count(k)})</span></label>`).join('')}</div></div>
@@ -385,6 +406,7 @@
           <div class="row-btns"><button class="btn primary" data-act="smSend" data-id="${mail.id}">Approve and send</button><button class="btn" data-act="smEdit" data-id="${mail.id}">Edit first</button><button class="btn ghost" data-act="smSkip" data-id="${mail.id}">Skip</button></div></section>` : ''}
         <section class="card"><h3>Next follow-up</h3><div class="fu-line"><span class="dotbar" style="background:${stripe(f.state)}"></span><span><b class="${f.state === 'overdue' ? 'neg' : ''}">${e(f.label)}</b>${c.nextFollowUp ? `<span class="hint" style="display:block">${e(f.kind)}</span>` : ''}</span></div>
           <div class="grid2" style="margin-top:10px">${App.field('Date', `<input type="date" value="${e(c.nextFollowUp || '')}" data-act-change="scSet" data-k="nextFollowUp">`)}${App.field('Type', `<select data-act-change="scSet" data-k="followUpType"><option value=""></option>${App.opts([{ value: 'followup', label: 'Follow up' }, { value: 'callback', label: 'Call back' }, { value: 'review', label: 'Ask for a review' }, { value: 'revisit', label: 'Revisit' }], c.followUpType || '')}</select>`)}</div>
+          ${['overdue', 'today'].includes(f.state) && !mail && SL.whyNoEmail(c) ? `<p class="hint" style="margin:0 0 10px">${e(SL.whyNoEmail(c))}</p>` : ''}
           <button class="btn" data-act="salesLog" data-id="${e(c.id)}">Done, log it and set the next one</button></section>
         <section class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Estimates</h3><span class="hint">Linked automatically</span></div>
           ${ests.map(x => `<a class="est-link" href="#/e/${x.id}"><span><b>${e(st.displayNumber(x))}</b> ${e(x.heading || '')}<span class="hint" style="display:block">${App.statusLabel ? App.statusLabel(x.status) : e(x.status)}${x.sentDate ? `, sent ${App.fmtShort(x.sentDate)}` : ''}${x.openedAt ? ', opened' : ''}</span></span><b>${App.money(st.totals(x).sub, 0)}</b></a>`).join('') || '<p class="hint">No estimates yet.</p>'}
@@ -406,7 +428,7 @@
   A.scArchive = () => { const c = curC(); saveC(Object.assign({}, c, { archived: !c.archived })); };
   A.scEmail = () => {
     const c = curC(); const p = SL.primary(c); const t = SL.tpl('Follow-up') || { subject: '', body: '' }; const v = SL.vars(c);
-    App.mail.compose({ title: `Email ${c.company || p.name}`, to: p.email, subject: SL.fill(t.subject, v), body: SL.fill(t.body, v).replace(/\n{3,}/g, '\n\n').trim(),
+    App.mail.compose({ title: `Email ${c.company || p.name}`, to: p.email, subject: SL.fill(t.subject, v), body: SL.tidy(SL.fill(t.body, v).replace(/\n{3,}/g, '\n\n').trim(), v.sender),
       onSent: () => { const n = Object.assign({}, c, { lastContacted: App.today() }); const a = SL.auto(n.status, n.stage); n.nextFollowUp = a.date; n.followUpType = a.type; saveC(n, { type: 'Email', outcome: 'Email sent', note: '' }); } });
   };
   A.scEstimate = async () => {
@@ -428,7 +450,7 @@
       <div class="row-btns" style="margin:8px 0 0"><button class="btn small primary" data-act="smSend" data-id="${x.id}">Approve and send</button><button class="btn small" data-act="smEdit" data-id="${x.id}">Edit first</button><button class="btn small ghost" data-act="smSkip" data-id="${x.id}">Skip</button></div></div>`).join('')}`, { wide: true });
     return m;
   };
-  const mailById = id => SL.queue().find(x => x.id === id);
+  const mailById = id => { const x = SL.queue().find(q => q.id === id); if (x && x.status === 'waiting' && !x.tidied) { x.body = SL.tidy(x.body, x.owner); x.tidied = true; } return x; };
   A.smSend = async el => {
     const x = mailById(el.dataset.id); el.disabled = true;
     try { await SL.sendMail(x, x.subject, x.body); App.toast(`Sent to ${x.company}`); const row = el.closest('.mail-row'); if (row) row.remove(); if (!document.querySelector('.mail-row')) App.closeModal(); App.refresh(); }
