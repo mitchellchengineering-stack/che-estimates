@@ -157,11 +157,13 @@
       const head = lines.slice(0, i).join('\n').replace(/\s+$/, '');
       return (tail.length ? head + '\n\n' + tail.join('\n') : head) + '\n\nCheers,';
     },
+    validEmail(v) { return /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(String(v || '').trim()); },
     /* Why a due follow-up has no email waiting, so it's clear what to fix */
     whyNoEmail(c) {
       if (!['followup', 'review'].includes(c.followUpType)) return c.followUpType === 'callback' ? 'This one is a call back, so no email is written for it.' : '';
       if (!c.emailConsent) return 'No email was written because "Happy to receive emails" isn\'t ticked for this contact.';
       if (!this.primary(c).email) return 'No email was written because the main contact has no email address.';
+      if (!this.validEmail(this.primary(c).email)) return `No email was written because the email address doesn't look right (${this.primary(c).email}). Fix it under People.`;
       return '';
     },
     queue() { return (st.data.salesMail || []).filter(m => !m.deleted).map(m => { if (m.status === 'waiting' && !m.tidied) { m.body = this.tidy(m.body, m.owner); m.tidied = true; } return m; }); },
@@ -172,7 +174,7 @@
       this.S.contacts.forEach(c => {
         if (c.archived || !c.emailConsent || !['followup', 'review'].includes(c.followUpType)) return;
         const f = this.fu(c); if (!['overdue', 'today'].includes(f.state)) return;
-        const p = this.primary(c); if (!p.email) return;
+        const p = this.primary(c); if (!p.email || !this.validEmail(p.email)) return;
         const key = `${c.id}|${c.nextFollowUp}|${c.followUpType}`;
         if (st.data.salesMail.some(m => m.key === key)) return;
         const t = this.tpl(c.followUpType === 'review' ? 'Review Request' : 'Follow-up'); if (!t) return;
@@ -182,9 +184,19 @@
       });
       if (added) st.save();
     },
-    async sendMail(m, subject, body) {
+    async sendMail(m, subject, body, toOverride) {
       if (st.mode !== 'drive') throw new Error('Connect Google to send emails from the hub.');
-      await App.G.send({ to: m.to, subject, html: await App.mail.html(body) });
+      const c0 = this.get(m.contactId);
+      const to = String(toOverride || (c0 && this.primary(c0).email) || m.to || '').trim();
+      if (!this.validEmail(to)) throw new Error(`The email address for ${m.company} doesn't look right (${to || 'none'}). Use "Edit first" to fix it.`);
+      /* if the address was corrected here, save it on the contact too */
+      if (c0 && toOverride && to.toLowerCase() !== String(this.primary(c0).email || '').trim().toLowerCase()) {
+        const n = Object.assign({}, c0); n.people = App.clone(n.people || []); if (!n.people.length) n.people.push({ name: '', role: '', phone: '', email: '' });
+        const i = n.people.findIndex(p => p.name || p.phone || p.email); n.people[i < 0 ? 0 : i].email = to;
+        await this.saveContact(n, { type: 'Note', outcome: 'Email address corrected', note: to });
+      }
+      m.to = to;
+      await App.G.send({ to, subject, html: await App.mail.html(body) });
       m.status = 'sent'; m.sentAt = Date.now(); m.sentBy = st.me().email; m.subject = subject; m.body = body; st.touch(m); st.save();
       const c = this.get(m.contactId);
       if (c) {
@@ -446,7 +458,8 @@
   /* ---------- Approving the follow-up emails ---------- */
   A.salesApprove = () => {
     const list = SL.waiting(); if (!list.length) return App.toast('Nothing waiting');
-    const m = App.modal(`Sales follow-up emails (${list.length})`, `<p class="hint">Nothing goes out until you approve it. Each email sends from your Gmail.</p>${list.map(x => `<div class="mail-row" data-id="${x.id}"><div><b>${e(x.company)}</b> <span class="hint">to ${e(x.toName || '')} ${e(x.to)}, due ${App.fmtShort(x.due)}${x.owner ? ', ' + e(x.owner) + '\'s contact' : ''}</span><p class="small" style="margin:4px 0 0"><b>${e(x.subject)}</b></p><p class="hint" style="margin:2px 0 0">${e(x.body.slice(0, 140))}…</p></div>
+    const m = App.modal(`Sales follow-up emails (${list.length})`, `<p class="hint">Nothing goes out until you approve it. Each email sends from your Gmail.</p>${list.map(x => `<div class="mail-row" data-id="${x.id}"><div><b>${e(x.company)}</b> <span class="hint">to ${e(x.toName || '')} ${e((SL.get(x.contactId) && SL.primary(SL.get(x.contactId)).email) || x.to)}, due ${App.fmtShort(x.due)}${x.owner ? ', ' + e(x.owner) + '\'s contact' : ''}</span><p class="small" style="margin:4px 0 0"><b>${e(x.subject)}</b></p><p class="hint" style="margin:2px 0 0">${e(x.body.slice(0, 140))}…</p></div>
+      ${(() => { const c = SL.get(x.contactId); const to = (c && SL.primary(c).email) || x.to; return SL.validEmail(to) ? '' : `<p class="neg small" style="margin:6px 0 0">The email address doesn't look right: ${e(to)}. Click Edit first to fix it.</p>`; })()}
       <div class="row-btns" style="margin:8px 0 0"><button class="btn small primary" data-act="smSend" data-id="${x.id}">Approve and send</button><button class="btn small" data-act="smEdit" data-id="${x.id}">Edit first</button><button class="btn small ghost" data-act="smSkip" data-id="${x.id}">Skip</button></div></div>`).join('')}`, { wide: true });
     return m;
   };
@@ -458,9 +471,10 @@
   };
   A.smEdit = el => {
     const x = mailById(el.dataset.id);
-    const m = App.modal(`Email ${x.company}`, `${App.field('To', `<input value="${e(x.to)}" disabled>`)}${App.field('Subject', `<input id="se-s" value="${e(x.subject)}">`)}${App.field('Message', `<textarea id="se-b" rows="12">${e(x.body)}</textarea>`)}`,
+    const cur0 = SL.get(x.contactId); const to0 = (cur0 && SL.primary(cur0).email) || x.to;
+    const m = App.modal(`Email ${x.company}`, `${App.field('To', `<input id="se-to" type="email" value="${e(to0)}">`)}${SL.validEmail(to0) ? '' : '<p class="neg small" style="margin:-6px 0 10px">This address doesn\'t look right. Fix it here and it\'ll be saved on the contact too.</p>'}${App.field('Subject', `<input id="se-s" value="${e(x.subject)}">`)}${App.field('Message', `<textarea id="se-b" rows="12">${e(x.body)}</textarea>`)}`,
       { wide: true, actions: '<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="se-ok">Send</button>' });
-    m.querySelector('#se-ok').onclick = async ev => { ev.target.disabled = true; try { await SL.sendMail(x, m.querySelector('#se-s').value, m.querySelector('#se-b').value); App.closeModal(); App.toast(`Sent to ${x.company}`); App.refresh(); } catch (er) { App.toast(er.message, 'err', 6000); ev.target.disabled = false; } };
+    m.querySelector('#se-ok').onclick = async ev => { ev.target.disabled = true; try { await SL.sendMail(x, m.querySelector('#se-s').value, m.querySelector('#se-b').value, m.querySelector('#se-to').value); App.closeModal(); App.toast(`Sent to ${x.company}`); App.refresh(); } catch (er) { App.toast(er.message, 'err', 6000); ev.target.disabled = false; } };
   };
   A.smSkip = el => { const x = mailById(el.dataset.id); x.status = 'skipped'; x.skippedBy = st.me().email; st.touch(x); st.save(); const row = el.closest('.mail-row'); if (row) row.remove(); if (!document.querySelector('.mail-row') && document.querySelector('.modal')) App.closeModal(); App.toast('Skipped. The follow-up date stays as it is.'); App.refresh(); };
 
