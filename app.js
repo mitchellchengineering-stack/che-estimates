@@ -11,6 +11,7 @@
     ['calendar', 'Calendar', '<rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
     ['coils', 'Coils', '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>'],
     ['fasteners', 'Fasteners', '<path d="M12 3v14M8 7h8M10 21h4"/>'],
+    ['pricing', 'Pricing', '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'],
     ['dashboard', 'Dashboard', '<path d="M5 20V12M12 20V5M19 20v-9"/>'],
     ['map', 'Map of jobs', '<path d="M12 21s-6-6.2-6-11a6 6 0 0 1 12 0c0 4.8-6 11-6 11z"/><circle cx="12" cy="10" r="2"/>'],
     ['settings', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>'],
@@ -58,7 +59,7 @@
       const est = st.newEstimate(r.a === 'ft' ? 'ft' : 'general', !!App.state.practice);
       location.replace(`#/e/${est.id}`); return;
     }
-    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'], sales: ['sales', r.a, r.b] }[r.name] || ['home'];
+    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'], sales: ['sales', r.a, r.b], pricing: ['pricing'] }[r.name] || ['home'];
     if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home', 'coils', 'fasteners', 'sales'].includes(v[0])) App.cur = null;
     try { html = App.views[v[0]](...v.slice(1)); mount = App.views[v[0]].mount; }
     catch (er) { console.error(er); html = `<div class="empty"><h2>Something went wrong on this page</h2><p>${e(er.message)}</p><a class="btn" href="#/">Go home</a></div>`; }

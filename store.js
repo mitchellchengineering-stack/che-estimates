@@ -1,4 +1,10 @@
 /* Data store: settings, estimates/jobs, numbering, sync */
+App.defaultMachines = () => {
+  const m = (id, name, sections, coilWidth, products) => ({ id, name, sections, products, coilWidth, pricePerTonne: 1450, scrapPct: 5, density: 7850, period: 'week', overhead: 3000, output: 4000, operators: 2, ratePerOperator: 1400, marginType: 'margin', marginPct: 25 });
+  const all = sec => ['0.55', '0.75', '0.95', '1.15'].map(g => `${sec}|${g}`);
+  return [m('m89', '89mm C-section', ['89x41'], 182, all('89x41')), m('m75', '75mm C-section', ['75x41'], 166, all('75x41')),
+    m('m150', '150mm C-section', ['150x41'], 243, all('150x41')), m('mth', 'Top hat', ['Top hat purlin', 'Top hat batten'], 135, ['Top hat purlin|0.75', 'Top hat batten|0.55'])];
+};
 App.SECTIONS = ['75x41', '89x41', '150x41', 'Top hat purlin', 'Top hat batten'];
 App.GAUGES = { '75x41': ['0.55', '0.75', '0.95', '1.15'], '89x41': ['0.55', '0.75', '0.95', '1.15'], '150x41': ['0.55', '0.75', '0.95', '1.15'], 'Top hat purlin': ['0.75'], 'Top hat batten': ['0.55'] };
 App.sectionLabel = s => /^\d/.test(s) ? `${s} galvanised LGS` : (s === 'Top hat purlin' ? 'Top hat roofing purlins' : 'Top hat ceiling battens');
@@ -77,7 +83,8 @@ App.defaultSettings = () => ({
     ],
     materialBox: 'Ramset pins and chargers, multigrips, electrical grommets, all fixings to assemble frames on site, grinding discs, top plate connectors, 12kN hold-down brackets and screw bolts.'
   },
-  pricing: { markup: 1.2, minMargin: 0.15, labourRate: 65, rates: {}, ratesUpdatedAt: 0, items: [] },
+  pricing: { markup: 1.2, minMargin: 0.15, targetMargin: 25, labourRate: 65, rates: {}, steelMarkup: {}, ratesUpdatedAt: 0, items: [] },
+  machines: App.defaultMachines(),
   delivery: {
     zones: ['Zone 1: Hamilton', 'Zone 2: within 50km', 'Zone 3: further than 50km'],
     bands: [50, 150, 250],

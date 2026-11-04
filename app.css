@@ -823,3 +823,45 @@ a.practice-flag { text-decoration: none; }
 .nowrap { white-space: nowrap; }
 @media (max-width: 1180px) { .snaps.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .snaps.four { grid-template-columns: 1fr; } }
+
+/* ================= Pricing ================= */
+.pr-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.pr-left .card { margin: 0 0 16px; }
+.pr-left h3 { display: flex; align-items: center; gap: 10px; }
+.num-b { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--yellow); font-size: .8rem; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.unit-in { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; background: #fbfbfa; padding-right: 12px; }
+.unit-in input { border: 0; background: transparent; box-shadow: none; flex: 1; min-width: 0; }
+.unit-in:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(245, 196, 0, .35); }
+.unit-in em { font-style: normal; color: var(--ink-3); font-size: .86rem; white-space: nowrap; }
+.chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.chips-row .chip { font: inherit; font-size: .84rem; font-weight: 700; height: 38px; padding: 0 14px; border-radius: 19px; border: 1px solid var(--line); background: #fff; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.chips-row .chip.on { background: var(--ink); color: var(--yellow); border-color: var(--ink); }
+.chips-row .chip input { position: absolute; opacity: 0; pointer-events: none; }
+.pr-panel { position: sticky; top: 80px; background: var(--ink); color: #fff; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.pr-panel .k { margin: 0; font-size: .74rem; font-weight: 800; color: var(--yellow); letter-spacing: .04em; text-transform: uppercase; }
+.pr-panel .l { margin: 0; color: #c9ced3; font-size: .9rem; }
+.pr-panel .big { margin: -6px 0 0; font-size: 3.1rem; font-weight: 800; font-stretch: 112%; line-height: 1; }
+.pr-panel .big span { font-size: 1.1rem; color: #c9ced3; font-weight: 600; }
+.pr-panel .pos, .job-profit .pos { color: #8fd19e; }
+.job-profit .pos { color: var(--green); }
+.pr-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #2c3136; }
+.pr-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .78rem; color: #c9ced3; }
+.pr-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; }
+.pr-t { width: 100%; border-collapse: collapse; font-size: .88rem; color: #fff; }
+.pr-t th { text-align: left; color: #8a939b; font-size: .74rem; padding: 6px 8px; }
+.pr-t td { padding: 9px 8px; border-top: 1px solid #2c3136; }
+.pr-t .r { text-align: right; } .pr-t .y { color: var(--yellow); font-weight: 800; } .pr-t .pos { color: #8fd19e; }
+.pr-t tr { cursor: pointer; } .pr-t tr.on td { background: #22262a; } .pr-t tbody tr:hover td { background: #22262a; }
+.pr-time { background: #22262a; border-radius: 14px; padding: 14px 16px; }
+.pr-time .g { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 6px; font-size: .84rem; margin-top: 8px; }
+.pr-time .g > span, .pr-time .g > b { text-align: right; } .pr-time .g .l { text-align: left; color: #c9ced3; } .pr-time .g .pos { color: #8fd19e; }
+.pr-stale { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.job-profit .jp-top { display: grid; grid-template-columns: minmax(180px, 0.6fr) 1fr; gap: 20px; align-items: center; margin-top: 12px; }
+.jp-big { display: flex; flex-direction: column; }
+.jp-big b { font-size: 2.4rem; font-weight: 800; font-stretch: 112%; line-height: 1.05; }
+.jp-big span { color: var(--ink-2); }
+.jp-rows .kv { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-2); font-size: .9rem; }
+.jp-rows .kv.tot { border-bottom: 0; font-weight: 700; }
+.jp-target { margin-top: 14px; background: var(--yellow-soft); border-radius: 12px; padding: 12px 14px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: .92rem; }
+.jp-target.under { background: var(--red-bg); }
+@media (max-width: 1000px) { .pr-cols { grid-template-columns: 1fr; } .pr-panel { position: static; } .job-profit .jp-top { grid-template-columns: 1fr; } }

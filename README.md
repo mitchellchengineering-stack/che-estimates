@@ -1,6 +1,16 @@
 # CH Engineering Estimates
 
-## Latest update: Sales
+## Latest update: Pricing and job profit
+
+1. **Upload the new files to GitHub** and commit. Your `config.js` isn't included.
+2. **Open Pricing** (in the menu) and check each machine: coil width (89mm uses 182mm, 75mm uses 166mm, 150mm uses 243mm to start with, top hat 135mm), steel $/tonne, overheads, output, labour and your margin. Everything saves as you type.
+3. From then on, steel lines in an estimate are priced from Pricing: your cost per metre, with the machine margin as the markup, so it isn't marked up twice. Bought-in items still use the default markup.
+4. If you change a price and open estimates were priced the old way, a yellow banner on Pricing lets you re-price them. Drafts are ticked; sent ones aren't, unless you choose to.
+5. Every estimate's **My workings** tab shows **What you make on this job**, and a button to set the price to hit your target margin (set in Settings > Pricing).
+
+---
+
+## Earlier update: Sales
 
 1. **Upload the new files to GitHub** (everything in the update folder) and commit. Your `config.js` isn't included.
 2. **Connect it.** In the app, go to **Settings > Sales**. The sales tracker link is already filled in. Type in the **team passcode** (the same one the phone app uses) and click **Check the connection**. You don't need to change anything in the sales tracker's own script or sheet.

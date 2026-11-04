@@ -64,14 +64,17 @@
 
   App.Set.pricing = s => {
     const p = s.pricing; const gauges = ['0.55', '0.75', '0.95', '1.15'];
-    return `<section class="card"><h3>Markup and labour</h3><div class="grid3">
-      ${App.field('Default markup (%)', `<input data-act-change="setMarkupPct" value="${e(App.round((App.num(p.markup) - 1) * 100, 2))}" inputmode="decimal">`)}
-      ${App.field('Minimum margin (%)', `<input data-act-change="minMargin" value="${e(App.round(p.minMargin * 100, 1))}">`)}
-      ${App.field('Labour rate ($/hr cost)', `<input data-bind="pricing.labourRate" data-type="num" value="${e(p.labourRate)}">`)}</div></section>
-    <section class="card"><h3>Steel cost per lineal metre</h3><p class="hint">Your cost, before markup. When you change these, estimates priced on the old rates get flagged.</p>
+    const made = App.Pricing ? App.Pricing.list() : {};
+    return `<section class="card"><h3>Margins and labour</h3><div class="grid2">
+      ${App.field('Target margin on each job (%)', `<input data-bind="pricing.targetMargin" data-type="num" value="${e(p.targetMargin ?? 25)}" inputmode="decimal">`)}
+      ${App.field('Minimum margin, warns below this (%)', `<input data-act-change="minMargin" value="${e(App.round(p.minMargin * 100, 1))}">`)}
+      ${App.field('Default markup on bought-in items (%)', `<input data-act-change="setMarkupPct" value="${e(App.round((App.num(p.markup) - 1) * 100, 2))}" inputmode="decimal">`)}
+      ${App.field('Labour rate ($/hr cost)', `<input data-bind="pricing.labourRate" data-type="num" value="${e(p.labourRate)}">`)}</div>
+      <p class="hint">The default markup is for things you buy in (doors, cladding, labour). The steel you make is priced on the Pricing page at your machine margin, so it isn't marked up twice.</p></section>
+    <section class="card"><h3>Steel you make</h3><p class="hint">These come from the <a href="#/pricing">Pricing page</a>. Change the steel price, overheads, labour or margin there and every price per metre updates.</p>
       <table class="wtable rates"><thead><tr><th>Section</th>${gauges.map(g => `<th class="r">${g} BMT</th>`).join('')}</tr></thead><tbody>
-      ${App.SECTIONS.map(sec => `<tr><td>${e(sec)}</td>${gauges.map(g => App.GAUGES[sec].includes(g) ? `<td><input class="num" data-act-change="rateSet" data-k="${e(sec)}|${g}" value="${e(p.rates[`${sec}|${g}`] ?? '')}" placeholder="$"></td>` : '<td></td>').join('')}</tr>`).join('')}</tbody></table>
-      ${p.ratesUpdatedAt ? `<p class="hint">Rates last changed ${App.fmtStamp(p.ratesUpdatedAt)}</p>` : ''}</section>
+      ${App.SECTIONS.map(sec => `<tr><td>${e(sec)}</td>${gauges.map(g => { const x = made[`${sec}|${g}`]; return App.GAUGES[sec].includes(g) ? `<td class="r">${x ? `${App.money(x.cost)} <span class="hint">cost</span><br><b>${App.money(x.sell)}</b> <span class="hint">sell</span>` : `<input class="num" data-act-change="rateSet" data-k="${e(sec)}|${g}" value="${e(p.rates[`${sec}|${g}`] ?? '')}" placeholder="$ cost">`}</td>` : '<td></td>'; }).join('')}</tr>`).join('')}</tbody></table>
+      <a class="btn" href="#/pricing" style="margin-top:10px">Open Pricing</a></section>
     <section class="card"><h3>Price list</h3><p class="hint">Things you add often: garage doors, PA doors, windows, flashings, screws. Add the supplier so you can make purchase orders.</p>
       <table class="wtable"><thead><tr><th>Item</th><th>Unit</th><th class="r">Cost</th><th>Supplier</th><th>Supplier email</th><th></th></tr></thead><tbody>
       ${p.items.map((it, i) => `<tr><td>${inp(`pricing.items.${i}.name`, it.name)}</td><td>${inp(`pricing.items.${i}.unit`, it.unit, 'class="unit"')}</td><td><input class="num" data-bind="pricing.items.${i}.cost" data-type="num" value="${e(it.cost)}"></td><td>${inp(`pricing.items.${i}.supplier`, it.supplier)}</td><td>${inp(`pricing.items.${i}.supplierEmail`, it.supplierEmail, 'type="email"')}</td><td><button class="icon-btn" data-act="rowDel" data-path="pricing.items" data-i="${i}" aria-label="Remove">✕</button></td></tr>`).join('')}

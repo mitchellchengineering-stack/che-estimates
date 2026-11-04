@@ -316,6 +316,7 @@
       ${lowMargin ? `<div class="banner warn" style="margin-top:12px">This job is under your minimum margin of ${App.pct(minM)}.</div>` : ''}
       <div class="row-btns"><button class="btn primary" data-act="useWorkings" ${locked ? 'disabled' : ''}>Use as the estimate price</button><button class="btn small" data-act="markupAll">Set every line to ${defPct}%</button><span class="hint">Estimate price is currently ${App.money(st.totals(est).sub)}</span></div>
     </section>
+    <section class="card job-profit" id="job-profit">${App.Est.profitHtml(est)}</section>
     <section class="card">
       <h3>FRAMECAD detailing</h3>
       ${fc ? `<div class="fc-sum"><b>${e(fc.fileName)}</b>: ${App.round(fc.totalLM, 2).toLocaleString('en-NZ')} LM, ${App.round(fc.totalKg, 1).toLocaleString('en-NZ')} kg, ${fc.frames.length} frame types (${e(App.FC.summaryText(fc))})
@@ -329,7 +330,7 @@
       <div class="targets">${sizes.map(sz => { const tgt = App.num(w.targets[sz]); const got = alloc[sz] || 0; const left = tgt - got;
         return `<div class="target"><span>${e(sz)} total</span><input data-bind="workings.targets.${sz}" data-type="num" value="${e(w.targets[sz] ?? '')}" placeholder="LM" inputmode="decimal" aria-label="${e(sz)} total metres">
         <em class="${tgt && Math.abs(left) > 0.01 ? (left > 0 ? 'warn' : 'err') : 'ok'}" data-live="tgt-${e(sz)}">${tgt ? (Math.abs(left) < 0.01 ? 'All allocated' : left > 0 ? `${App.round(left, 2)} LM still to allocate` : `${App.round(-left, 2)} LM over`) : `${App.round(got, 2)} LM allocated`}</em></div>`; }).join('')}</div>
-      <p class="hint">Split each section across gauges, e.g. 700 LM at 0.75 and 300 LM at 0.95. Each line starts at your default markup, and you can change any of them.</p>
+      <p class="hint">Split each section across gauges, e.g. 700 LM at 0.75 and 300 LM at 0.95. Each line is priced from the <a href="#/pricing">Pricing page</a>: the cost per metre, with your machine margin as the markup, so it isn't marked up twice. You can still change any of them.</p>
       <div class="table-scroll"><table class="wtable"><thead><tr><th>Section</th><th>Gauge</th><th class="r">Metres</th><th class="r">Cost per LM</th><th class="r">Cost</th><th class="r">Markup %</th><th class="r">Sell</th><th></th></tr></thead><tbody>
       ${w.steel.map((r, i) => `<tr>
         <td><select data-bind="workings.steel.${i}.size" data-rerender="1" aria-label="Section">${App.opts(App.SECTIONS, r.size)}</select></td>
@@ -381,6 +382,19 @@
     <div class="row-btns"><button class="btn" data-act="workingsPrint">Print my workings</button></div>
     </div>`;
   };
+  App.Est.profitHtml = est => {
+    if (!App.Pricing) return '';
+    const pf = App.Pricing.profit(est); const t = App.num(S().pricing.targetMargin); const m = pf.margin * 100;
+    if (!pf.cost) return '<h3>What you make on this job</h3><p class="hint">Add steel and other lines to see what you make.</p>';
+    const row = (l, x) => x[0] || x[1] ? `<div class="kv"><span>${l}</span><span>${App.money(x[0], 0)} cost, <b class="pos">${App.money(x[1] - x[0], 0)}</b> profit</span></div>` : '';
+    const off = Math.abs(m - t) >= 0.5;
+    return `<div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><h3 style="margin:0">What you make on this job</h3><span class="hint">${st.totals(est).sub ? 'At the estimate price' : 'At the workings price'} of ${App.money(pf.sell, 0)} excl GST</span></div>
+      <div class="jp-top"><div class="jp-big"><b class="${pf.profit < 0 ? 'neg' : 'pos'}">${App.money(pf.profit, 0)}</b><span>profit, ${App.round(m, 1)}% margin</span></div>
+      <div class="jp-rows">${row('Framing you make', pf.by.made)}${row('Bought-in items', pf.by.bought)}${row('Labour', pf.by.labour)}${row('Delivery', pf.by.delivery)}
+        ${Math.abs(pf.adjust) >= 1 ? `<div class="kv"><span>Price vs workings</span><b class="${pf.adjust < 0 ? 'neg' : 'pos'}">${pf.adjust < 0 ? '-' : '+'}${App.money(Math.abs(pf.adjust), 0)}</b></div>` : ''}
+        <div class="kv tot"><span>Total cost</span><b>${App.money(pf.cost, 0)}</b></div></div></div>
+      ${t ? `<div class="jp-target ${m < t - 0.5 ? 'under' : ''}"><span><b>Target margin ${t}%.</b> ${off ? `You're at ${App.round(m, 1)}%. To hit exactly ${t}%, the price would be ${App.money(pf.cost / (1 - t / 100), 0)}.` : 'Right on target.'}</span>${off && !App.Est.locked(est) ? '<button class="btn small primary" data-act="hitTarget">Set the price to hit it</button>' : ''}</div>` : ''}`;
+  };
   App.Est.deliveryPrice = est => {
     const d = S().delivery; const w = est.workings;
     const area = App.num(w.deliveryCalc.area || est.building.floorArea || (est.ft && est.ft.criteria.floorArea.v));
@@ -392,6 +406,7 @@
     const set = (k, v) => { const el = document.querySelector(`[data-live="${k}"]`); if (el) el.innerHTML = v; };
     est.workings.steel.forEach((r, i) => { set(`sc-${i}`, App.money(st.steelCost(r))); set(`ss-${i}`, `<b>${App.money(st.steelCost(r) * st.lineMk(r, est))}</b>`); });
     est.workings.lines.forEach((l, i) => { set(`lc-${i}`, App.money(st.lineCost(l))); set(`ls-${i}`, `<b>${App.money(st.lineCost(l) * st.lineMk(l, est))}</b>`); });
+    const jp = document.getElementById('job-profit'); if (jp) jp.innerHTML = App.Est.profitHtml(est);
     set('w-cost', App.money(c.cost)); set('w-sell', App.money(c.main) + (c.extra ? ` + ${App.money(c.extra)}` : '')); set('w-margin', App.pct(c.margin));
     const alloc = st.steelByLM(est);
     Object.keys(est.workings.targets).concat(Object.keys(alloc)).forEach(sz => {
@@ -474,10 +489,19 @@
 
   /* Workings actions */
   const defP = () => st.defPct(cur());
-  A.steelAdd = () => { const est = cur(); const sec = est.sections[0] || { size: '89x41', gauges: ['0.75'] }; const g = sec.gauges[0] || App.GAUGES[sec.size][0]; est.workings.steel.push({ id: App.uid(), size: sec.size, gauge: g, lm: '', rate: S().pricing.rates[`${sec.size}|${g}`] || '', markupPct: defP() }); save(); };
+  /* Steel you make is priced from the Pricing page: cost per metre, with the machine margin as its markup */
+  const steelRateFor = key => { const p = App.Pricing && App.Pricing.get(key); return p ? App.round(p.cost, 4) : (S().pricing.rates[key] || ''); };
+  const steelMkFor = key => { const p = App.Pricing && App.Pricing.markupFor(key); return p != null ? p : defP(); };
+  A.steelAdd = () => { const est = cur(); const sec = est.sections[0] || { size: '89x41', gauges: ['0.75'] }; const g = sec.gauges[0] || App.GAUGES[sec.size][0]; est.workings.steel.push({ id: App.uid(), size: sec.size, gauge: g, lm: '', rate: steelRateFor(`${sec.size}|${g}`), markupPct: steelMkFor(`${sec.size}|${g}`) }); save(); };
   A.defMarkup = el => { const est = cur(); const p = App.num(el.value); est.workings.markup = App.round(1 + p / 100, 4); st.log(est, `Default markup set to ${p}%`); save(); };
-  A.markupAll = async () => { const est = cur(); const p = defP(); if (!(await App.confirm('Set every line to ' + p + '%?', 'This replaces the markup on every steel line and other line with your default.', 'Set them all'))) return; est.workings.steel.concat(est.workings.lines).forEach(l => { if (l.kind !== 'delivery') { l.markupPct = p; delete l.markup; } }); save(); };
-  A.steelRate = el => { const r = cur().workings.steel[+el.dataset.i]; r.gauge = el.value; const rate = S().pricing.rates[`${r.size}|${r.gauge}`]; if (rate) r.rate = rate; save(); };
+  A.markupAll = async () => { const est = cur(); const p = defP(); if (!(await App.confirm('Set every line to ' + p + '%?', 'Other lines get your default markup. Steel lines go back to the price and margin on the Pricing page, so they aren\'t marked up twice.', 'Set them all'))) return; est.workings.lines.forEach(l => { if (l.kind !== 'delivery') { l.markupPct = p; delete l.markup; } }); est.workings.steel.forEach(r => { const k = `${r.size}|${r.gauge}`; const rt = steelRateFor(k); if (rt) r.rate = rt; r.markupPct = steelMkFor(k); delete r.markup; }); save(); };
+  A.hitTarget = async () => {
+    const est = cur(); const pf = App.Pricing.profit(est); const t = App.num(S().pricing.targetMargin) / 100;
+    const need = pf.cost / (1 - t); const extras = st.totals(est).extras; const price = App.round(need - extras, 0);
+    if (!(await App.confirm(`Set the price to ${App.money(price + extras, 0)}?`, `That's a ${App.num(S().pricing.targetMargin)}% margin on ${App.money(pf.cost, 0)} of costs.${extras ? ` The extras stay as they are, so the main price becomes ${App.money(price, 0)}.` : ''}`, 'Set the price'))) return;
+    est.price = price; st.log(est, `Price set to hit ${S().pricing.targetMargin}% margin: ${App.money(price, 0)}`); save();
+  };
+  A.steelRate = el => { const r = cur().workings.steel[+el.dataset.i]; r.gauge = el.value; const k = `${r.size}|${r.gauge}`; const rate = steelRateFor(k); if (rate) { r.rate = rate; r.markupPct = steelMkFor(k); delete r.markup; } save(); };
   A.lineAdd = () => { cur().workings.lines.push({ id: App.uid(), desc: '', qty: 1, unit: 'ea', cost: '', bucket: 'main', markupPct: defP() }); save(); };
   A.labourAdd = () => { cur().workings.lines.push({ id: App.uid(), desc: 'Labour', qty: '', unit: 'hrs', cost: S().pricing.labourRate, bucket: 'main', kind: 'labour', markupPct: defP() }); save(); };
   A.libAdd = el => { const it = S().pricing.items.find(x => x.id === el.value); if (!it) return; cur().workings.lines.push({ id: App.uid(), desc: it.name, qty: 1, unit: it.unit || 'ea', cost: it.cost, bucket: 'main', supplier: it.supplier, supplierEmail: it.supplierEmail, libId: it.id, markupPct: defP() }); save(); };
@@ -509,7 +533,7 @@
     const est = cur(); const fc = est.workings.framecad; const w = est.workings;
     const prof = Object.entries(fc.byProfile).filter(([, lm]) => lm > 0);
     if (prof.length) {
-      prof.forEach(([p, lm]) => { const sg = App.FC.profileToSection(p); if (!sg) return; let r = w.steel.find(x => x.size === sg.size && x.gauge === sg.gauge); if (!r) { r = { id: App.uid(), size: sg.size, gauge: sg.gauge, rate: S().pricing.rates[`${sg.size}|${sg.gauge}`] || '', markupPct: defP() }; w.steel.push(r); } r.lm = App.round(lm, 2); w.targets[sg.size] = App.round((App.num(w.targets[sg.size]) || 0) + lm, 2); });
+      prof.forEach(([p, lm]) => { const sg = App.FC.profileToSection(p); if (!sg) return; let r = w.steel.find(x => x.size === sg.size && x.gauge === sg.gauge); if (!r) { r = { id: App.uid(), size: sg.size, gauge: sg.gauge, rate: steelRateFor(`${sg.size}|${sg.gauge}`), markupPct: steelMkFor(`${sg.size}|${sg.gauge}`) }; w.steel.push(r); } r.lm = App.round(lm, 2); w.targets[sg.size] = App.round((App.num(w.targets[sg.size]) || 0) + lm, 2); });
       App.toast('Metres split by profile from the drawings'); save(); return;
     }
     const sizes = est.sections.map(s => s.size);
@@ -519,7 +543,7 @@
     m.querySelector('#fc-ok').onclick = () => {
       const sz = m.querySelector('#fc-sec').value; w.targets[sz] = App.round(fc.totalLM, 2);
       const sec = est.sections.find(s => s.size === sz);
-      if (!w.steel.some(r => r.size === sz)) { const g = (sec && sec.gauges[0]) || App.GAUGES[sz][0]; w.steel.push({ id: App.uid(), size: sz, gauge: g, lm: App.round(fc.totalLM, 2), rate: S().pricing.rates[`${sz}|${g}`] || '', markupPct: defP() }); }
+      if (!w.steel.some(r => r.size === sz)) { const g = (sec && sec.gauges[0]) || App.GAUGES[sz][0]; w.steel.push({ id: App.uid(), size: sz, gauge: g, lm: App.round(fc.totalLM, 2), rate: steelRateFor(`${sz}|${g}`), markupPct: steelMkFor(`${sz}|${g}`) }); }
       App.closeModal(); save();
     };
   };
