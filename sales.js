@@ -261,6 +261,7 @@
     </section>`}`;
   };
   App.views.sales.mount = async (a, b) => {
+    if (!SL.ready()) return;   /* not connected yet: nothing to load (and no reloading the page) */
     const need = !SL.S.loadedAt;
     const ch = await SL.load();
     if ((need || ch) && App.route().name === 'sales') { App.refresh(); return; }

@@ -59,7 +59,7 @@
       </aside>
     </div>`;
   };
-  App.views.fasteners.mount = async () => { const need = !F.S.loadedAt; const ch = await F.load(); if ((need || ch) && App.route().name === 'fasteners') App.refresh(); };
+  App.views.fasteners.mount = async () => { if (!F.ready()) return; const need = !F.S.loadedAt; const ch = await F.load(); if ((need || ch) && App.route().name === 'fasteners') App.refresh(); };
   A.fastRefresh = async () => { await F.load(true); App.refresh(); App.toast('Fastener stock updated'); };
   A.fastSearch = App.debounce(el => { F.S.search = el.value; App.refresh(); const i = document.getElementById('fast-q'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200);
 })();
