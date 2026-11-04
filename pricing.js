@@ -119,7 +119,6 @@
         <section class="card"><h3><span class="num-b">4</span>Margin</h3><p class="hint">What you make on every metre this machine produces. Estimates use this, and don't add another markup on top.</p>
           ${seg('prmt', `${base}.marginType`, [['margin', 'Margin on sell price'], ['markup', 'Markup on cost']], m.marginType || 'margin')}
           <div class="grid2" style="margin-top:12px">${fld(m.marginType === 'markup' ? 'Markup' : 'Margin', `${base}.marginPct`, m.marginPct, '%')}<p class="hint" id="pr-eq" style="align-self:end">${P.eqText(m)}</p></div></section>
-        ${ms.length > 1 ? `<div class="row-btns"><button class="btn ghost danger" data-act="prDel">Remove this machine</button></div>` : ''}
       </div>
       <aside class="pr-panel" id="pr-panel">${P.panelHtml(m, i)}</aside>
     </div>
@@ -152,7 +151,7 @@
     S().machines.push({ id: App.uid(), name, sections: [], products: [], coilWidth: '', pricePerTonne: base.pricePerTonne || 1450, scrapPct: 5, density: 7850, period: 'week', overhead: base.overhead || 0, output: base.output || 0, operators: base.operators || 1, ratePerOperator: base.ratePerOperator || 0, marginType: 'margin', marginPct: base.marginPct || 25 });
     P.tab = S().machines.length - 1; touch();
   };
-  A.prDel = async () => { const m = P.machines()[P.tab]; if (!(await App.confirm(`Remove ${m.name}?`, 'Its prices come off the price list. Estimates already priced keep their numbers.', 'Remove'))) return; S().machines.splice(P.tab, 1); P.tab = 0; touch(); };
+  A.prDel = async el => { const i = +el.dataset.i; const m = P.machines()[i]; if (!(await App.confirm(`Remove ${m.name}?`, 'Its prices come off the price list and the Pricing page. Estimates already priced keep their numbers. This can\'t be undone.', 'Remove machine'))) return; S().machines.splice(i, 1); P.tab = 0; S().updatedAt = Date.now(); st.touch(S()); P.sync(); st.save(); App.refresh(); };
   A.prStale = () => {
     const list = P.stale();
     const m = App.modal('Update estimates to the new steel prices', `<p class="hint">Drafts are ticked. Sent estimates aren't, because the client already has that price. Tick one if you want to re-price it anyway.</p>
