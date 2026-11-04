@@ -143,7 +143,7 @@
     const live = jobs.filter(j => !['delivered', 'complete'].includes(j.job.stage));
     const dels = []; jobs.forEach(j => (j.job.loads || []).forEach(l => { if (l.date && !l.delivered && l.date >= today && l.date <= App.addDays(today, 6)) dels.push({ j, l }); }));
     const kgOf = (j, ids) => j.job.frames.filter(f => !ids || ids.includes(f.id)).reduce((a, f) => a + (f.weight || 0) * f.qty, 0);
-    const depOut = jobs.filter(j => !j.job.deposit.received && STAGE_ORDER(j) <= 6);
+    const depOut = jobs.filter(j => !j.job.deposit.received && !j.job.deposit.notRequired && STAGE_ORDER(j) <= 6);
     const C = App.Coil; const coilsOn = C && C.ready() && C.S.loadedAt; const cs = coilsOn ? C.summary() : null;
     const F = App.Fast; const fastOn = F && F.ready() && F.S.loadedAt && !F.S.error; const low = fastOn ? F.low() : [];
     const due = App.Track.due();

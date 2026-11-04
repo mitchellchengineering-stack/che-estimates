@@ -93,7 +93,7 @@
     const out = []; const today = App.today(); const soon = App.addDays(today, 3);
     App.Jobs.list().forEach(j => {
       const i = STAGE_IDX(j.job.stage); const d = App.Jobs.daysIn(j); const n = j.number;
-      if (!j.job.deposit.received && i >= 2 && i <= 4) out.push({ lvl: 'red', j, t: `${n} has no deposit yet`, s: j.job.manufactureDate ? `Booked to start manufacture ${App.fmtDate(j.job.manufactureDate, { weekday: 'short', day: 'numeric', month: 'short' })}` : 'In production', b: 'Open job', href: `#/job/${j.id}` });
+      if (!j.job.deposit.received && !j.job.deposit.notRequired && i >= 2 && i <= 4) out.push({ lvl: 'red', j, t: `${n} has no deposit yet`, s: j.job.manufactureDate ? `Booked to start manufacture ${App.fmtDate(j.job.manufactureDate, { weekday: 'short', day: 'numeric', month: 'short' })}` : 'In production', b: 'Open job', href: `#/job/${j.id}` });
       const limit = { accepted: 5, detailing: 7, yard: 7 }[j.job.stage];
       if (limit && d > limit) out.push({ lvl: 'amber', j, t: `${n} has been ${App.stageLabel(j.job.stage).toLowerCase()} for ${d} days`, s: 'Longer than usual. Worth a look?', b: 'Open job', href: `#/job/${j.id}` });
       (j.job.loads || []).filter(l => l.date && !l.delivered && l.date >= today && l.date <= soon).forEach(l => {
@@ -143,7 +143,7 @@
     const d = App.Jobs.daysIn(j); const warn = App.Jobs.attention().some(a => a.j === j && a.lvl !== 'blue');
     const tag = (t, c = '') => `<span class="tag ${c}">${t}</span>`;
     const tags = [];
-    if (i <= 4) tags.push(j.job.deposit.received ? tag('Deposit paid', 'ok') : tag('No deposit', 'bad'));
+    if (i <= 4) tags.push(j.job.deposit.notRequired ? tag('No deposit needed', 'ok') : j.job.deposit.received ? tag('Deposit paid', 'ok') : tag('No deposit', 'bad'));
     if (j.job.manufactureDate && i <= 3) tags.push(tag('Make ' + App.fmtDate(j.job.manufactureDate, { weekday: 'short', day: 'numeric', month: 'short' }), 'dark'));
     if (nd) tags.push(tag(`Delivery ${nd.n}/${j.job.loads.length} ${App.fmtDate(nd.date, { weekday: 'short', day: 'numeric', month: 'short' })}`, 'blue'));
     if (ld.total > 1 && ld.done) tags.push(tag(`Delivered ${ld.done} of ${ld.total}`, 'ok'));
@@ -349,7 +349,8 @@
       <label class="check"><input type="checkbox" data-bind="job.notifyClient" ${j.notifyClient ? 'checked' : ''}> Email the client when a delivery is booked</label>
     </section>
     <section class="card"><h3>Money</h3>
-      <div class="kv-list"><div><span>Total (excl GST)</span><b>${App.money(t.sub)}</b></div><div><span>${S().estimate.depositPct}% deposit</span><b>${App.money(t.deposit)}</b></div></div>
+      <div class="kv-list"><div><span>Total (excl GST)</span><b>${App.money(t.sub)}</b></div>${est.clientPo ? `<div><span>Client PO / reference</span><b>${e(est.clientPo)}</b></div>` : ''}<div><span>${j.deposit.notRequired ? 'Deposit' : `${j.deposit.mode ? App.round(j.deposit.pct, 1) : S().estimate.depositPct}% deposit`}</span><b>${j.deposit.notRequired ? 'Not required' : App.money(j.deposit.mode ? j.deposit.amount : t.deposit)}</b></div></div>
+      ${S().emails.accountsEmail && st.mode === 'drive' ? `<button class="btn small" data-act="accountsEmail">${j.deposit.invoiceRequested ? 'Email accounts again' : 'Email accounts about the deposit'}</button>${j.deposit.invoiceRequested ? `<span class="hint"> Sent ${App.fmtStamp(j.deposit.invoiceRequested)}</span>` : ''}` : ''}
       <label class="check"><input type="checkbox" data-bind="job.deposit.invoiced" ${j.deposit.invoiced ? 'checked' : ''}> Deposit invoiced</label>
       <label class="check"><input type="checkbox" data-bind="job.deposit.received" ${j.deposit.received ? 'checked' : ''}> Deposit received</label>
       ${!j.deposit.received && STAGE_IDX(j.stage) >= 3 ? '<div class="banner warn">This job is in manufacture but the deposit isn\'t marked as received.</div>' : ''}

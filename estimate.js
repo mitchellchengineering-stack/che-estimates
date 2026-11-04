@@ -586,28 +586,63 @@
       onSent: () => { if (est.status === 'draft') markSent(est); else { st.log(est, 'Estimate emailed again'); save(); } } });
   };
   A.estAccept = () => {
-    const est = cur(); const s = S();
+    const est = cur(); const s = S(); const t = st.totals(est); const pct0 = App.num(s.estimate.depositPct);
+    const drive = st.mode === 'drive';
     const m = App.modal(`Mark ${st.displayNumber(est)} accepted`, `
-      ${App.field('Accepted on', `<input type="date" id="acc-date" value="${App.today()}">`)}
-      ${st.mode === 'drive' && est.client.email ? `<label class="check"><input type="checkbox" id="acc-thanks" checked> Send the client a thank-you email with next steps</label>` : ''}
-      ${st.mode === 'drive' && s.emails.accountsEmail ? `<label class="check"><input type="checkbox" id="acc-accts" checked> Email ${e(s.emails.accountsEmail)} to raise the deposit invoice in Xero</label>` : `<p class="hint">Add your accounts email in Settings to have the app tell them about the deposit.</p>`}`,
-      { actions: `<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="acc-ok">Mark accepted</button>` });
-    m.querySelector('#acc-ok').onclick = async ev => {
-      ev.target.disabled = true;
+      <div class="grid2">${App.field('Accepted on', `<input type="date" id="acc-date" value="${App.today()}">`)}
+      ${App.field('Client\'s PO number or reference', `<input id="acc-po" value="${e(est.clientPo || '')}" placeholder="Whatever the client gives you" autocomplete="off">`)}</div>
+      <p class="hint" style="margin-top:-6px">You need the client's PO number or reference before the job can be accepted.</p>
+      <div class="fld"><span>Deposit to invoice</span><div class="seg wrap">${[['pct', `${pct0}%`], ['other', 'Different %'], ['amount', 'Set amount'], ['none', 'No deposit']].map(([v, l], i) => `<label><input type="radio" name="acc-dm" value="${v}" ${i === 0 ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
+      <div class="row" id="acc-dv-row" hidden><input id="acc-dv" inputmode="decimal" style="max-width:160px"><span class="hint" id="acc-dv-u"></span></div>
+      <p id="acc-dep" class="calc-val" style="margin:6px 0 14px"></p>
+      ${drive && est.client.email ? `<label class="check"><input type="checkbox" id="acc-thanks" checked> Send the client a thank-you email with next steps</label>` : ''}
+      ${drive && s.emails.accountsEmail ? `<label class="check"><input type="checkbox" id="acc-accts" checked> Email ${e(s.emails.accountsEmail)} the estimate, PO reference and deposit to invoice. You'll check the email before it goes.</label>` : `<p class="hint">${drive ? 'Add your accounts email in Settings, Emails to send the deposit details to accounts.' : 'Connect Google to email accounts from the app.'}</p>`}`,
+      { actions: `<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="acc-ok" disabled>Mark accepted</button>` });
+    const po = m.querySelector('#acc-po'), ok = m.querySelector('#acc-ok'), dv = m.querySelector('#acc-dv');
+    const dep = () => {
+      const mode = m.querySelector('input[name="acc-dm"]:checked').value; const v = App.num(dv.value);
+      if (mode === 'none') return { mode, amount: 0, pct: 0 };
+      if (mode === 'amount') return { mode, amount: v, pct: t.sub ? v / t.sub * 100 : 0 };
+      const p = mode === 'other' ? v : pct0; return { mode, amount: t.sub * p / 100, pct: p };
+    };
+    const upd = () => {
+      const mode = m.querySelector('input[name="acc-dm"]:checked').value; const d = dep();
+      m.querySelector('#acc-dv-row').hidden = !['other', 'amount'].includes(mode);
+      m.querySelector('#acc-dv-u').textContent = mode === 'other' ? '% of the total' : 'excl GST';
+      m.querySelector('#acc-dep').innerHTML = mode === 'none' ? 'No deposit on this job' : `Deposit: <b>${App.money(d.amount)}</b> excl GST (${App.round(d.pct, 1)}% of ${App.money(t.sub)})`;
+      ok.disabled = !po.value.trim() || (['other', 'amount'].includes(mode) && !(App.num(dv.value) > 0));
+    };
+    m.querySelectorAll('input[name="acc-dm"]').forEach(r => r.onchange = () => { dv.value = ''; upd(); if (!m.querySelector('#acc-dv-row').hidden) dv.focus(); });
+    po.oninput = upd; dv.oninput = upd; upd(); po.focus();
+    ok.onclick = async () => {
+      const ref = po.value.trim(); if (!ref) return App.toast('Add the client\'s PO number or reference first', 'err');
+      const d = dep();
       const thanks = m.querySelector('#acc-thanks') && m.querySelector('#acc-thanks').checked;
       const accts = m.querySelector('#acc-accts') && m.querySelector('#acc-accts').checked;
-      est.status = 'accepted'; est.acceptedAt = m.querySelector('#acc-date').value || App.today();
+      ok.disabled = true;
+      est.status = 'accepted'; est.acceptedAt = m.querySelector('#acc-date').value || App.today(); est.clientPo = ref;
       est.job = est.job || App.Est.newJob(); est.job.acceptedAt = est.acceptedAt;
+      Object.assign(est.job.deposit, { amount: App.round(d.amount, 2), pct: App.round(d.pct, 2), mode: d.mode, notRequired: d.mode === 'none' });
       if (est.workings.framecad && !est.job.frames.length) est.job.frames = App.clone(est.workings.framecad.frames);
-      st.upsertCustomer(est); st.log(est, 'Accepted'); st.touch(est); st.save();
+      st.upsertCustomer(est); st.log(est, `Accepted. Client PO/reference: ${ref}. ${d.mode === 'none' ? 'No deposit.' : `Deposit ${App.money(d.amount)} (${App.round(d.pct, 1)}%).`}`); st.touch(est); st.save();
       App.closeModal();
-      try {
-        if (accts) { const t = App.mail.tpl('accounts', est); await App.G.send({ to: s.emails.accountsEmail, subject: t.subject, html: await App.mail.html(t.body) }); st.log(est, 'Accounts emailed about the deposit'); }
-        if (thanks) { const t = App.mail.tpl('thanks', est); await App.G.send({ to: est.client.email, subject: t.subject, html: await App.mail.html(t.body, est, 'thanks') }); st.log(est, 'Thank-you email sent'); }
-      } catch (er) { App.toast(er.message, 'err', 6000); }
-      st.save(); if (App.Sales) App.Sales.syncFromEstimates(); App.toast('Accepted. It\'s now on the production board.'); location.hash = `#/job/${est.id}`;
+      if (App.Sales) App.Sales.syncFromEstimates();
+      if (thanks) { try { const tt = App.mail.tpl('thanks', est); await App.G.send({ to: est.client.email, subject: tt.subject, html: await App.mail.html(tt.body, est, 'thanks') }); st.log(est, 'Thank-you email sent'); st.save(); } catch (er) { App.toast(er.message, 'err', 6000); } }
+      location.hash = `#/job/${est.id}`;
+      App.toast('Accepted. It\'s now on the production board.');
+      if (accts) setTimeout(() => App.Est.accountsEmail(est), 300);
     };
   };
+  /* The deposit email to accounts: always opened for checking first, with the estimate attached */
+  App.Est.accountsEmail = est => {
+    const s = S(); const d = est.job.deposit || {}; const t = st.totals(est);
+    const amount = d.amount != null && d.mode ? d.amount : t.deposit; const pct = d.mode ? d.pct : s.estimate.depositPct;
+    const line = d.notRequired ? 'Deposit: no deposit required on this job' : `Deposit (${App.round(pct, 1)}%, excl GST): ${App.money(amount)}`;
+    const tt = App.mail.tpl('accounts', est, { po_ref: est.clientPo || 'not given', deposit: App.money(amount), deposit_pct: App.round(pct, 1), deposit_line: line });
+    App.mail.compose({ title: 'Email accounts about the deposit', est, kind: 'accounts', to: s.emails.accountsEmail, subject: tt.subject, body: tt.body, attachEstimate: true,
+      onSent: () => { est.job.deposit.invoiceRequested = Date.now(); st.log(est, `Accounts emailed: PO ${est.clientPo || ''}, ${d.notRequired ? 'no deposit' : App.money(amount) + ' deposit'}`); st.touch(est); st.save(); App.refresh(); } });
+  };
+  A.accountsEmail = () => App.Est.accountsEmail(cur());
   A.estReject = () => {
     const est = cur();
     const m = App.modal(`Mark ${st.displayNumber(est)} rejected`, `${App.field('Why did we miss out?', `<select id="rej-r">${App.opts(S().estimate.lostReasons)}</select>`)}${App.field('Notes', '<input id="rej-n">')}`,
