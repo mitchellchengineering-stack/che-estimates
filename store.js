@@ -37,6 +37,7 @@ App.defaultSettings = () => ({
   ],
   numbering: { prefix: 'CHE', startSeq: { '26': 130 } },
   estimate: {
+    revRed: true,
     expiryMonths: 1, depositPct: 25, leadTime: '', showAcceptanceGeneral: false, attachBrochure: true,
     shutdown: { showFrom: '', closedFrom: '', closedTo: '', message: 'Please note we are closed from {closed_from} to {closed_to}. Orders confirmed after {show_from} may be scheduled for manufacture after the break.' },
     steelSpec: 'GS550 galvanised steel (Axxis, NZ Steel)',

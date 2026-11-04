@@ -30,6 +30,7 @@
     const yy = st.yy(); const es = s.estimate;
     return `<section class="card"><h3>Practice mode</h3><p class="hint">Practice estimates get TEST numbers, don't use up real numbers, and stay out of the stats. A small banner shows at the top while it's on. This is set for this computer only.</p>
       <label class="switch"><input type="checkbox" data-act-change="togglePractice" ${App.state.practice ? 'checked' : ''}><span></span>Practice mode</label></section>
+    <section class="card"><h3>Revisions</h3><label class="check"><input type="checkbox" data-bind="estimate.revRed" ${s.estimate.revRed !== false ? 'checked' : ''}> On Rev 1, Rev 2 and so on, show anything new or changed since the previous version in red</label><p class="hint">Anything taken out is simply left off. A short line at the top tells the client what the red means.</p></section>
     <section class="card"><h3>Numbering</h3>
       <div class="grid3">${App.field('Prefix', inp('numbering.prefix', s.numbering.prefix))}
       ${App.field(`First number for 20${yy}`, `<input data-bind="numbering.startSeq.${yy}" data-type="num" value="${e(s.numbering.startSeq[yy] || 1)}" data-rerender-blur="1">`)}

@@ -67,72 +67,103 @@ App.Docs = {
   joinNice(a) { a = a.map(x => (x || '').trim()).filter(Boolean); if (a.length < 2) return a.join(''); return a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; },
 
   /* ---------- estimate ---------- */
+  /* The pieces of an estimate document as plain text, so a revision can be compared with the version before it */
+  estParts(est) {
+    const s = App.store.s(); const t = App.store.totals(est);
+    const deliveryLine = est.delivery && est.delivery.on ? `Delivery to ${est.siteAddress || 'site'}` : null;
+    const opts = (est.options || []).filter(o => o.desc).map(o => ({ desc: o.desc, price: o.price, key: `${o.desc}|${App.num(o.price)}` }));
+    const extras = (est.extras || []).filter(x => x.desc).map(x => ({ desc: x.desc, price: x.price, key: `${x.desc}|${App.num(x.price)}` }));
+    const out = { deliveryLine, opts, optKeys: opts.map(o => o.key), extras, extraKeys: extras.map(x => x.key), chips: this.sectionsChips(est), total: App.round(t.sub, 2), extrasTotal: App.round(t.extras, 2),
+      site: est.siteAddress, heading: est.heading, description: est.description || '', notes: est.notes || '' };
+    if (est.type !== 'ft') {
+      const b = est.building || {};
+      out.client = est.client.name || est.client.company; out.clientSub = est.client.email || est.client.phone; out.company = est.client.company && est.client.name ? est.client.company : '';
+      out.stats = [['Size', b.width && b.depth ? `${b.width}m x ${b.depth}m` : ''], ['Stud height', b.studHeight ? b.studHeight + 'm' : ''], ['Roof pitch', b.roofPitch ? b.roofPitch + '°' : ''], ['Floor area', b.floorArea ? b.floorArea + 'm²' : '']].filter(x => x[1]);
+      out.statVals = out.stats.map(x => x[0] + ':' + x[1]);
+      out.incl = (est.inclusions || []).filter(Boolean); if (deliveryLine) out.incl.push(deliveryLine);
+      return out;
+    }
+    const ft = est.ft || {}; const c = ft.criteria || {}; const scope = ft.scope || {};
+    out.who = est.client.company || est.client.name; out.whoSub = est.client.company ? est.client.name : (est.client.email || est.client.phone);
+    out.project = ft.projectName || est.heading; out.plans = [ft.plansStage, ft.plansRev ? 'Rev ' + ft.plansRev : ''].filter(Boolean).join(', ') || 'As supplied'; out.plansDate = ft.plansDate ? 'Received ' + App.fmtLong(ft.plansDate) : '';
+    const on = k => scope[k] === 'inc';
+    const tiles = [];
+    if (on('LGS wall framing')) tiles.push('LGS wall frames');
+    if (on('LGS roof trusses') || on('LGS roof panels')) tiles.push(on('LGS roof trusses') && on('LGS roof panels') ? 'LGS roof trusses and roof panels' : on('LGS roof trusses') ? 'LGS roof trusses' : 'LGS roof panels');
+    if (on('LGS floor joists') || on('LGS floor panels')) tiles.push(on('LGS floor joists') && on('LGS floor panels') ? 'LGS floor joists and floor panels' : on('LGS floor joists') ? 'LGS floor joists' : 'LGS floor panels');
+    out.tiles = tiles;
+    const STAR = ['LGS wall framing', 'LGS roof trusses', 'LGS roof panels', 'LGS floor joists', 'LGS floor panels'];
+    out.critVals = App.CRITERIA.filter(([k]) => c[k] && c[k].v).map(([k]) => k + ':' + c[k].v);
+    const custom = (ft.customScope || []).filter(x => x.text);
+    out.also = s.ft.scopeItems.filter(i => scope[i] === 'inc' && !STAR.includes(i)).concat(custom.filter(x => x.state === 'inc').map(x => x.text)).concat((est.inclusions || []).filter(Boolean));
+    if (deliveryLine) out.also.push(deliveryLine);
+    out.exc = s.ft.scopeItems.filter(i => scope[i] === 'exc').concat(custom.filter(x => x.state === 'exc').map(x => x.text));
+    if (!deliveryLine) out.exc.push('Delivery');
+    (ft.exclusions || []).filter(x => x.on).forEach(x => out.exc.push(x.text));
+    out.materialBox = scope['Material box (fixings)'] === 'inc' && ft.materialBox ? ft.materialBox : '';
+    out.notes = (est.description ? [est.description] : []).concat((ft.notes || []).filter(Boolean)).concat(est.notes ? [est.notes] : []);
+    out.conditions = (ft.conditions || []).filter(Boolean);
+    out.lumpLabel = est.extrasLabel || this.joinNice(extras.map(x => x.desc));
+    return out;
+  },
+
   estimate(est) {
     const s = App.store.s(); const st = App.store; const num = st.displayNumber(est);
     const who = est.client.company || est.client.name;
     const meta = [['Date', App.fmtLong(est.date)], ['Valid until', App.fmtLong(est.expiry)], ['Prepared by', est.preparedBy]];
     const img = this.imgUrl(est) ? this.blk(`<div class="img3d"><img src="${this.imgUrl(est)}" alt="3D view of the project"></div>`) : '';
-    const deliveryLine = est.delivery && est.delivery.on ? `Delivery to ${est.siteAddress || 'site'}` : null;
     const notListed = `<p class="nl">${this.e(s.estimate.notListed)}</p>`;
-    const opts = (est.options || []).filter(o => o.desc);
-    const optBox = opts.length ? `<div class="extras"><p class="t">Optional extras <span>(not included in the total)</span></p>${opts.map(o => `<div class="exrow"><span>${this.e(o.desc)}</span><b>${App.num(o.price) ? App.money(o.price) : 'Price on request'}</b></div>`).join('')}</div>` : '';
+    /* On a revision, anything new or changed since the previous version is shown in red. Removed things simply aren't shown. */
+    const prevData = est.rev && s.estimate.revRed !== false && (est.revisions || [])[0] ? est.revisions[0].data : null;
+    const L = this.estParts(est); const P = prevData ? this.estParts(prevData) : null;
+    const norm = v => String(v ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const isNew = (list, t) => !!P && !(P[list] || []).some(x => norm(x) === norm(t));
+    const changed = key => !!P && norm(L[key]) !== norm(P[key]);
+    const red = (html, on) => on ? `<span class="rv">${html}</span>` : html;
+    const card = (l, key, v, sKey, sv) => `<div class="card"><p class="l">${this.e(l)}</p><p class="v">${red(this.e(v || ''), changed(key))}</p>${sv ? `<p class="s">${red(this.e(sv), changed(sKey))}</p>` : ''}</div>`;
+    const ticks = (list, items, no) => `<div class="ticks" data-items>${items.map(t => `<span class="tick ${no ? 'no' : ''}${isNew(list, t) ? ' rv' : ''}"><b>${no ? '–' : '✓'}</b>${this.e(t)}</span>`).join('')}</div>`;
+    const chips = () => `<div class="chips">${L.chips.map(c => `<span class="chip${isNew('chips', c) ? ' rv' : ''}">${this.e(c)}</span>`).join('')}<span class="chip-note">${this.e(s.estimate.steelSpec)}</span></div>`;
+    const optBox = L.opts.length ? `<div class="extras"><p class="t">Optional extras <span>(not included in the total)</span></p>${L.opts.map(o => `<div class="exrow${isNew('optKeys', o.key) ? ' rv' : ''}"><span>${this.e(o.desc)}</span><b>${App.num(o.price) ? App.money(o.price) : 'Price on request'}</b></div>`).join('')}</div>` : '';
+    const price = () => { const box = this.priceBox(est); return changed('total') ? box.replace('<p class="big">', '<p class="big rv">') : box; };
     const flow = [];
+    if (P) flow.push(this.blk('<p class="rv-note">Anything new or changed since the previous version is shown in red.</p>'));
     let bottom;
 
     if (est.type !== 'ft') {
-      const b = est.building || {};
-      flow.push(this.blk(`<div class="cards3">${this.card('Client', est.client.name || est.client.company, est.client.email || est.client.phone)}${this.card('Job', est.heading, est.client.company && est.client.name ? est.client.company : '')}${this.card('Site', est.siteAddress)}</div>`));
+      flow.push(this.blk(`<div class="cards3">${card('Client', 'client', L.client, 'clientSub', L.clientSub)}${card('Job', 'heading', est.heading, 'company', L.company)}${card('Site', 'site', est.siteAddress)}</div>`));
       if (img) flow.push(img);
-      if (est.description) flow.push(this.blk(`<p class="desc">${App.textToHtml(est.description)}</p>`));
-      const stats = [['Size', b.width && b.depth ? `${b.width}m x ${b.depth}m` : ''], ['Stud height', b.studHeight ? b.studHeight + 'm' : ''], ['Roof pitch', b.roofPitch ? b.roofPitch + '°' : ''], ['Floor area', b.floorArea ? b.floorArea + 'm²' : '']].filter(x => x[1]);
-      flow.push(this.blk(`${this.h2('The building')}${stats.length ? `<div class="stats" style="grid-template-columns:repeat(${stats.length},minmax(0,1fr))">${stats.map(x => `<div class="stat"><p class="l">${x[0]}</p><p class="v">${this.e(x[1])}</p></div>`).join('')}</div>` : ''}
-        <div class="chips">${this.sectionsChips(est).map(c => this.chip(c)).join('')}<span class="chip-note">${this.e(s.estimate.steelSpec)}</span></div>`));
-      const incl = (est.inclusions || []).filter(Boolean); if (deliveryLine) incl.push(deliveryLine);
-      if (incl.length) flow.push(this.blk(`${this.h2('What\'s included')}<div class="inclist" data-items>${incl.map(t => `<div class="inc"><span class="b">✓</span>${this.e(t)}</div>`).join('')}</div>`));
-      if (est.notes) flow.push(this.blk(`<div class="note"><p class="t">Notes</p><p>${App.textToHtml(est.notes)}</p></div>`));
+      if (est.description) flow.push(this.blk(`<p class="desc">${red(App.textToHtml(est.description), changed('description'))}</p>`));
+      flow.push(this.blk(`${this.h2('The building')}${L.stats.length ? `<div class="stats" style="grid-template-columns:repeat(${L.stats.length},minmax(0,1fr))">${L.stats.map(x => `<div class="stat"><p class="l">${x[0]}</p><p class="v">${red(this.e(x[1]), isNew('statVals', x[0] + ':' + x[1]))}</p></div>`).join('')}</div>` : ''}
+        ${chips()}`));
+      if (L.incl.length) flow.push(this.blk(`${this.h2('What\'s included')}<div class="inclist" data-items>${L.incl.map(t => `<div class="inc${isNew('incl', t) ? ' rv' : ''}"><span class="b">✓</span>${this.e(t)}</div>`).join('')}</div>`));
+      if (est.notes) flow.push(this.blk(`<div class="note"><p class="t">Notes</p><p>${red(App.textToHtml(est.notes), changed('notes'))}</p></div>`));
       const sd = this.shutdownNote(); if (sd) flow.push(sd);
-      bottom = `<div class="bottom"><div class="left">${optBox}${notListed}</div>${this.priceBox(est)}</div>${est.showAcceptance ? this.signRow([['Signed', '2fr'], ['Name', '2fr'], ['Date', '1fr']]) : ''}`;
+      bottom = `<div class="bottom"><div class="left">${optBox}${notListed}</div>${price()}</div>${est.showAcceptance ? this.signRow([['Signed', '2fr'], ['Name', '2fr'], ['Date', '1fr']]) : ''}`;
     } else {
       const ft = est.ft; const c = ft.criteria;
-      const plans = [ft.plansStage, ft.plansRev ? 'Rev ' + ft.plansRev : ''].filter(Boolean).join(', ');
-      flow.push(this.blk(`<div class="cards3">${this.card('Customer', who, est.client.company ? est.client.name : (est.client.email || est.client.phone))}${this.card('Project', ft.projectName || est.heading, est.siteAddress)}${this.card('Plans', plans || 'As supplied', ft.plansDate ? 'Received ' + App.fmtLong(ft.plansDate) : '')}</div>`));
+      flow.push(this.blk(`<div class="cards3">${card('Customer', 'who', L.who, 'whoSub', L.whoSub)}${card('Project', 'project', L.project, 'site', est.siteAddress)}${card('Plans', 'plans', L.plans, 'plansDate', L.plansDate)}</div>`));
       if (img) flow.push(img);
       const SUB = 'As per engineer\'s final design and detailing';
-      const on = k => ft.scope[k] === 'inc';
-      const tiles = [];
-      if (on('LGS wall framing')) tiles.push('LGS wall frames');
-      if (on('LGS roof trusses') || on('LGS roof panels')) tiles.push(on('LGS roof trusses') && on('LGS roof panels') ? 'LGS roof trusses and roof panels' : on('LGS roof trusses') ? 'LGS roof trusses' : 'LGS roof panels');
-      if (on('LGS floor joists') || on('LGS floor panels')) tiles.push(on('LGS floor joists') && on('LGS floor panels') ? 'LGS floor joists and floor panels' : on('LGS floor joists') ? 'LGS floor joists' : 'LGS floor panels');
-      const STAR = ['LGS wall framing', 'LGS roof trusses', 'LGS roof panels', 'LGS floor joists', 'LGS floor panels'];
-      const stars = tiles;
-      if (tiles.length) {
-        flow.push(this.blk(`${this.h2('Your frame and truss package')}<div class="stars" style="grid-template-columns:repeat(${tiles.length},minmax(0,1fr))">${tiles.map(t => `<div class="star"><span class="top"><span class="ck">✓</span><span class="inc">INCLUDED</span></span><span class="t">${t}</span><span class="s">${SUB}</span></div>`).join('')}</div>
-          <p class="cap">${deliveryLine ? 'Delivered to site. ' : ''}Everything else that's included is listed below.</p>`));
+      if (L.tiles.length) {
+        flow.push(this.blk(`${this.h2('Your frame and truss package')}<div class="stars" style="grid-template-columns:repeat(${L.tiles.length},minmax(0,1fr))">${L.tiles.map(t => `<div class="star"><span class="top"><span class="ck">✓</span><span class="inc">INCLUDED</span></span><span class="t">${red(t, isNew('tiles', t))}</span><span class="s">${SUB}</span></div>`).join('')}</div>
+          <p class="cap">${L.deliveryLine ? 'Delivered to site. ' : ''}Everything else that's included is listed below.</p>`));
       }
       const crit = App.CRITERIA.filter(([k]) => c[k] && c[k].v);
-      if (crit.length) flow.push(this.blk(`${this.h2('Frame and truss details')}<div class="kv2" data-items>${crit.map(([k, l]) => `<div class="kvr"><span>${l}</span><b>${this.e(c[k].v)}${c[k].a ? '<i class="assumed">ASSUMED</i>' : ''}</b></div>`).join('')}</div>`));
-      flow.push(this.blk(`${this.h2('Steel specification')}<div class="chips">${this.sectionsChips(est).map(x => this.chip(x)).join('')}<span class="chip-note">${this.e(s.estimate.steelSpec)}</span></div>`));
-      const custom = (ft.customScope || []).filter(x => x.text);
-      const also = s.ft.scopeItems.filter(i => ft.scope[i] === 'inc' && !STAR.includes(i)).concat(custom.filter(x => x.state === 'inc').map(x => x.text)).concat((est.inclusions || []).filter(Boolean));
-      if (deliveryLine) also.push(deliveryLine);
-      if (also.length) flow.push(this.blk(`${this.h2(stars.length ? 'Also included' : 'What\'s included')}${this.ticks(also)}`));
-      const exc = s.ft.scopeItems.filter(i => ft.scope[i] === 'exc').concat(custom.filter(x => x.state === 'exc').map(x => x.text));
-      if (!deliveryLine) exc.push('Delivery');
-      ft.exclusions.filter(x => x.on).forEach(x => exc.push(x.text));
-      if (exc.length) flow.push(this.blk(`${this.h2('Not included')}${this.ticks(exc, true)}`));
-      if (ft.scope['Material box (fixings)'] === 'inc' && ft.materialBox) flow.push(this.blk(`<div class="note"><p class="t">Material box includes</p><p>${this.e(ft.materialBox)}</p></div>`));
-      const notes = (est.description ? [est.description] : []).concat(ft.notes.filter(Boolean)).concat(est.notes ? [est.notes] : []);
-      if (notes.length) flow.push(this.blk(`${this.h2('Project notes')}<div class="paras" data-items>${notes.map(n => `<p>${App.textToHtml(n)}</p>`).join('')}</div>`));
-      if (ft.conditions.filter(Boolean).length) flow.push(this.blk(`${this.h2('Conditions')}<div class="paras" data-items>${ft.conditions.filter(Boolean).map(p => `<p>${this.e(p)}</p>`).join('')}</div>`));
+      if (crit.length) flow.push(this.blk(`${this.h2('Frame and truss details')}<div class="kv2" data-items>${crit.map(([k, l]) => `<div class="kvr"><span>${l}</span><b>${red(this.e(c[k].v), isNew('critVals', k + ':' + c[k].v))}${c[k].a ? '<i class="assumed">ASSUMED</i>' : ''}</b></div>`).join('')}</div>`));
+      flow.push(this.blk(`${this.h2('Steel specification')}${chips()}`));
+      if (L.also.length) flow.push(this.blk(`${this.h2(L.tiles.length ? 'Also included' : 'What\'s included')}${ticks('also', L.also)}`));
+      if (L.exc.length) flow.push(this.blk(`${this.h2('Not included')}${ticks('exc', L.exc, true)}`));
+      if (L.materialBox) flow.push(this.blk(`<div class="note"><p class="t">Material box includes</p><p>${red(this.e(L.materialBox), changed('materialBox'))}</p></div>`));
+      if (L.notes.length) flow.push(this.blk(`${this.h2('Project notes')}<div class="paras" data-items>${L.notes.map(n => `<p${isNew('notes', n) ? ' class="rv"' : ''}>${App.textToHtml(n)}</p>`).join('')}</div>`));
+      if (L.conditions.length) flow.push(this.blk(`${this.h2('Conditions')}<div class="paras" data-items>${L.conditions.map(p => `<p${isNew('conditions', p) ? ' class="rv"' : ''}>${this.e(p)}</p>`).join('')}</div>`));
       const sd = this.shutdownNote(); if (sd) flow.push(sd);
-      const extras = (est.extras || []).filter(x => x.desc);
       let exBox = '';
-      if (extras.length) {
+      if (L.extras.length) {
         exBox = est.extrasMode === 'itemised'
-          ? `<div class="extras"><p class="t">Additional extras</p>${extras.map(x => `<div class="exrow"><span>${this.e(x.desc)}</span><b>${App.money(x.price)}</b></div>`).join('')}</div>`
-          : `<div class="extras lump"><div><p class="t">Additional extras</p><span>${this.e(est.extrasLabel || this.joinNice(extras.map(x => x.desc)))}</span></div><b>${App.money(App.store.totals(est).extras)}</b></div>`;
+          ? `<div class="extras"><p class="t">Additional extras</p>${L.extras.map(x => `<div class="exrow${isNew('extraKeys', x.key) ? ' rv' : ''}"><span>${this.e(x.desc)}</span><b>${App.money(x.price)}</b></div>`).join('')}</div>`
+          : `<div class="extras lump"><div><p class="t">Additional extras</p><span>${red(this.e(L.lumpLabel), changed('lumpLabel'))}</span></div><b>${red(App.money(App.store.totals(est).extras), changed('extrasTotal'))}</b></div>`;
       }
-      bottom = `<div class="bottom"><div class="left">${exBox}${optBox}${notListed}</div>${this.priceBox(est)}</div>${est.showAcceptance ? this.signRow([['Signed', '2fr'], ['Name', '2fr'], ['Date', '1fr'], ['PO number', '1fr']]) : ''}`;
+      bottom = `<div class="bottom"><div class="left">${exBox}${optBox}${notListed}</div>${price()}</div>${est.showAcceptance ? this.signRow([['Signed', '2fr'], ['Name', '2fr'], ['Date', '1fr'], ['PO number', '1fr']]) : ''}`;
     }
     const tcs = s.tcs.filter(Boolean);
     const after = tcs.length ? [`<section class="blk tcs"><h1 class="h1" data-title="Terms and conditions">Terms and conditions</h1><ol data-items>${tcs.map(t => { const m = t.match(/^([^:]{2,40}):\s*(.*)$/); return `<li>${m ? `<b>${this.e(m[1])}.</b> ${this.e(m[2])}` : this.e(t)}</li>`; }).join('')}</ol></section>`] : [];

@@ -865,3 +865,11 @@ a.practice-flag { text-decoration: none; }
 .jp-target { margin-top: 14px; background: var(--yellow-soft); border-radius: 12px; padding: 12px 14px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: .92rem; }
 .jp-target.under { background: var(--red-bg); }
 @media (max-width: 1000px) { .pr-cols { grid-template-columns: 1fr; } .pr-panel { position: static; } .job-profit .jp-top { grid-template-columns: 1fr; } }
+
+/* Revisions: new or changed items in red (text only, no highlight) */
+.pg .rv, .pg .rv *, .pg .tick.rv, .pg .inc.rv, .pg .exrow.rv span, .pg .exrow.rv b { color: #c8102e !important; }
+.pg .inc.rv .b, .pg .tick.rv b { color: #c8102e !important; }
+.pg .inc.rv .b { background: #c8102e; color: #fff !important; }
+.pg .price .rv, .pg .star .rv { color: #ff8a80 !important; }
+.pg .chip.rv { color: #c8102e !important; border-color: #c8102e; }
+.pg .rv-note { margin: 0; font-size: 11px; color: #c8102e; }
