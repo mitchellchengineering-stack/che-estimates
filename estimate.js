@@ -235,7 +235,8 @@
       <p class="hint">Anything you want listed on the estimate: labour, screws, cladding, a roller door…</p>
       ${listEditor('inclusions', est.inclusions, 'e.g. 1 x manual roller door')}
       <div class="row-btns"><button class="btn small" data-act="inclFromWorkings">Copy lines from my workings</button></div>
-      <label class="check"><input type="checkbox" data-bind="delivery.on" data-rerender="1" ${est.delivery.on ? 'checked' : ''}> Delivery to ${e(est.siteAddress || 'the site address')}</label>
+      <div class="row" style="flex-wrap:wrap;gap:18px"><label class="check"><input type="checkbox" data-act-change="delMode" data-v="del" ${est.delivery.on ? 'checked' : ''}> Delivery to ${e(est.siteAddress || 'the site address')}</label>
+      <label class="check"><input type="checkbox" data-act-change="delMode" data-v="ex" ${est.delivery.exYard && !est.delivery.on ? 'checked' : ''}> Ex yard (the client collects from our yard)</label></div>
     </section>
     ${est.type === 'ft' ? `<section class="card"><h3>Additional extras</h3>
       <p class="hint">Priced separately and added to the total, e.g. engineering, detailing, bracing.</p>
@@ -585,6 +586,7 @@
     App.mail.compose({ title: `Email ${st.displayNumber(est)}`, est, kind: 'estimate', to: est.client.email, subject: t.subject, body: t.body, attachEstimate: true, attachBrochure: !!S().estimate.attachBrochure,
       onSent: () => { if (est.status === 'draft') markSent(est); else { st.log(est, 'Estimate emailed again'); save(); } } });
   };
+  A.delMode = el => { const d = cur().delivery; if (el.dataset.v === 'del') { d.on = el.checked; if (el.checked) d.exYard = false; } else { d.exYard = el.checked; if (el.checked) d.on = false; } save(); App.refresh(); };
   A.estAccept = () => {
     const est = cur(); const s = S(); const t = st.totals(est); const pct0 = App.num(s.estimate.depositPct);
     const drive = st.mode === 'drive';
@@ -638,7 +640,10 @@
     const s = S(); const d = est.job.deposit || {}; const t = st.totals(est);
     const amount = d.amount != null && d.mode ? d.amount : t.deposit; const pct = d.mode ? d.pct : s.estimate.depositPct;
     const line = d.notRequired ? 'Deposit: no deposit required on this job' : `Deposit (${App.round(pct, 1)}%, excl GST): ${App.money(amount)}`;
-    const tt = App.mail.tpl('accounts', est, { po_ref: est.clientPo || 'not given', deposit: App.money(amount), deposit_pct: App.round(pct, 1), deposit_line: line });
+    const exYard = est.delivery && est.delivery.exYard && !est.delivery.on;
+    const company = est.client.company && est.client.company.trim();
+    const tt = App.mail.tpl('accounts', est, { po_ref: est.clientPo || 'not given', deposit: App.money(amount), deposit_pct: App.round(pct, 1), deposit_line: line,
+      company_line: company ? `\nCompany: ${company}` : '', site_address: exYard ? 'Ex yard' : (est.siteAddress || '') });
     App.mail.compose({ title: 'Email accounts about the deposit', est, kind: 'accounts', to: s.emails.accountsEmail, subject: tt.subject, body: tt.body, attachEstimate: true,
       onSent: () => { est.job.deposit.invoiceRequested = Date.now(); st.log(est, `Accounts emailed: PO ${est.clientPo || ''}, ${d.notRequired ? 'no deposit' : App.money(amount) + ' deposit'}`); st.touch(est); st.save(); App.refresh(); } });
   };

@@ -56,13 +56,14 @@ App.Docs = {
     if (!sd.showFrom || !sd.closedTo || t < sd.showFrom || t > sd.closedTo) return '';
     return this.blk(`<div class="note yel">${this.e(App.fill(sd.message, { closed_from: App.fmtLong(sd.closedFrom), closed_to: App.fmtLong(sd.closedTo), show_from: App.fmtLong(sd.showFrom) }))}</div>`);
   },
-  priceBox(est) {
+  priceBox(est, exChanged) {
     const t = App.store.totals(est); const s = App.store.s();
-    let top = '';
-    if (est.type === 'ft' && t.extras) top = `<div class="sm"><span>Frame and truss${est.delivery && est.delivery.on ? ', delivered' : ''}</span><span>${App.money(t.price)}</span></div><div class="sm"><span>Additional extras</span><span>${App.money(t.extras)}</span></div><div class="rule"></div>`;
+    const exYard = est.delivery && est.delivery.exYard && !est.delivery.on;
+    let top = exYard ? `<p class="exy${exChanged ? ' rv' : ''}">EX YARD</p>` : '';
+    if (est.type === 'ft' && t.extras) top += `<div class="sm"><span>Frame and truss${est.delivery && est.delivery.on ? ', delivered' : exYard ? ', ex yard' : ''}</span><span>${App.money(t.price)}</span></div><div class="sm"><span>Additional extras</span><span>${App.money(t.extras)}</span></div><div class="rule"></div>`;
     const gst = est.gst ? `<div class="rule"></div><div class="sm"><span>GST 15%</span><span>${App.money(t.gst)}</span></div><div class="sm big2"><span>Total incl GST</span><span>${App.money(t.incl)}</span></div>` : '';
     return `<div class="price">${top}<p class="lbl">Total excl GST</p><p class="big">${App.money(t.sub)}</p>${gst}
-      <p class="dep">A ${s.estimate.depositPct}% deposit is required before manufacture.${s.estimate.leadTime ? ` Current lead time: ${this.e(s.estimate.leadTime)}.` : ''}</p></div>`;
+      <p class="dep">${exYard ? `Ex yard: collect from our yard at ${this.e(s.company.address)}. ` : ''}A ${s.estimate.depositPct}% deposit is required before manufacture.${s.estimate.leadTime ? ` Current lead time: ${this.e(s.estimate.leadTime)}.` : ''}</p></div>`;
   },
   joinNice(a) { a = a.map(x => (x || '').trim()).filter(Boolean); if (a.length < 2) return a.join(''); return a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; },
 
@@ -71,9 +72,10 @@ App.Docs = {
   estParts(est) {
     const s = App.store.s(); const t = App.store.totals(est);
     const deliveryLine = est.delivery && est.delivery.on ? `Delivery to ${est.siteAddress || 'site'}` : null;
+    const exYard = !!(est.delivery && est.delivery.exYard && !est.delivery.on);
     const opts = (est.options || []).filter(o => o.desc).map(o => ({ desc: o.desc, price: o.price, key: `${o.desc}|${App.num(o.price)}` }));
     const extras = (est.extras || []).filter(x => x.desc).map(x => ({ desc: x.desc, price: x.price, key: `${x.desc}|${App.num(x.price)}` }));
-    const out = { deliveryLine, opts, optKeys: opts.map(o => o.key), extras, extraKeys: extras.map(x => x.key), chips: this.sectionsChips(est), total: App.round(t.sub, 2), extrasTotal: App.round(t.extras, 2),
+    const out = { deliveryLine, exYard, deliveryMode: deliveryLine ? 'delivery' : exYard ? 'exyard' : '', siteSub: exYard ? 'Ex yard, collected from our yard' : '', opts, optKeys: opts.map(o => o.key), extras, extraKeys: extras.map(x => x.key), chips: this.sectionsChips(est), total: App.round(t.sub, 2), extrasTotal: App.round(t.extras, 2),
       site: est.siteAddress, heading: est.heading, description: est.description || '', notes: est.notes || '' };
     if (est.type !== 'ft') {
       const b = est.building || {};
@@ -124,13 +126,13 @@ App.Docs = {
     const ticks = (list, items, no) => `<div class="ticks" data-items>${items.map(t => `<span class="tick ${no ? 'no' : ''}${isNew(list, t) ? ' rv' : ''}"><b>${no ? '–' : '✓'}</b>${this.e(t)}</span>`).join('')}</div>`;
     const chips = () => `<div class="chips">${L.chips.map(c => `<span class="chip${isNew('chips', c) ? ' rv' : ''}">${this.e(c)}</span>`).join('')}<span class="chip-note">${this.e(s.estimate.steelSpec)}</span></div>`;
     const optBox = L.opts.length ? `<div class="extras"><p class="t">Optional extras <span>(not included in the total)</span></p>${L.opts.map(o => `<div class="exrow${isNew('optKeys', o.key) ? ' rv' : ''}"><span>${this.e(o.desc)}</span><b>${App.num(o.price) ? App.money(o.price) : 'Price on request'}</b></div>`).join('')}</div>` : '';
-    const price = () => { const box = this.priceBox(est); return changed('total') ? box.replace('<p class="big">', '<p class="big rv">') : box; };
+    const price = () => { const box = this.priceBox(est, changed('deliveryMode')); return changed('total') ? box.replace('<p class="big">', '<p class="big rv">') : box; };
     const flow = [];
     if (P) flow.push(this.blk('<p class="rv-note">Anything new or changed since the previous version is shown in red.</p>'));
     let bottom;
 
     if (est.type !== 'ft') {
-      flow.push(this.blk(`<div class="cards3">${card('Client', 'client', L.client, 'clientSub', L.clientSub)}${card('Job', 'heading', est.heading, 'company', L.company)}${card('Site', 'site', est.siteAddress)}</div>`));
+      flow.push(this.blk(`<div class="cards3">${card('Client', 'client', L.client, 'clientSub', L.clientSub)}${card('Job', 'heading', est.heading, 'company', L.company)}${card('Site', 'site', est.siteAddress, 'siteSub', L.siteSub)}</div>`));
       if (img) flow.push(img);
       if (est.description) flow.push(this.blk(`<p class="desc">${red(App.textToHtml(est.description), changed('description'))}</p>`));
       flow.push(this.blk(`${this.h2('The building')}${L.stats.length ? `<div class="stats" style="grid-template-columns:repeat(${L.stats.length},minmax(0,1fr))">${L.stats.map(x => `<div class="stat"><p class="l">${x[0]}</p><p class="v">${red(this.e(x[1]), isNew('statVals', x[0] + ':' + x[1]))}</p></div>`).join('')}</div>` : ''}
@@ -146,7 +148,7 @@ App.Docs = {
       const SUB = 'As per engineer\'s final design and detailing';
       if (L.tiles.length) {
         flow.push(this.blk(`${this.h2('Your frame and truss package')}<div class="stars" style="grid-template-columns:repeat(${L.tiles.length},minmax(0,1fr))">${L.tiles.map(t => `<div class="star"><span class="top"><span class="ck">✓</span><span class="inc">INCLUDED</span></span><span class="t">${red(t, isNew('tiles', t))}</span><span class="s">${SUB}</span></div>`).join('')}</div>
-          <p class="cap">${L.deliveryLine ? 'Delivered to site. ' : ''}Everything else that's included is listed below.</p>`));
+          <p class="cap">${L.deliveryLine ? 'Delivered to site. ' : L.exYard ? red('Ex yard, collected from our yard. ', changed('deliveryMode')) : ''}Everything else that's included is listed below.</p>`));
       }
       const crit = App.CRITERIA.filter(([k]) => c[k] && c[k].v);
       if (crit.length) flow.push(this.blk(`${this.h2('Frame and truss details')}<div class="kv2" data-items>${crit.map(([k, l]) => `<div class="kvr"><span>${l}</span><b>${red(this.e(c[k].v), isNew('critVals', k + ':' + c[k].v))}${c[k].a ? '<i class="assumed">ASSUMED</i>' : ''}</b></div>`).join('')}</div>`));

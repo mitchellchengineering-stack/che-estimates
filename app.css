@@ -875,3 +875,6 @@ a.practice-flag { text-decoration: none; }
 .pg .rv-note { margin: 0; font-size: 11px; color: #c8102e; }
 
 .check input[type="checkbox"] { flex: none; }
+
+.pg .price .exy { display: inline-block; margin: 0 0 10px; background: #f5c400; color: #15171a; font-weight: 800; font-size: 12px; letter-spacing: .06em; padding: 4px 10px; border-radius: 6px; }
+.pg .price .exy.rv { color: #c8102e !important; }

@@ -111,7 +111,7 @@ App.defaultSettings = () => ({
       fu2: { subject: 'Estimate {number}, {heading}', body: 'Hi {first_name},\n\nJust one last check-in on our estimate for {heading}. Your pricing is held until {expiry}, so if you\'d like to go ahead, or if your plans have changed and you\'d like us to revise anything, just let me know.\n\nIf now isn\'t the right time, no worries at all, and I won\'t keep following up. We\'d love to help whenever you\'re ready.\n\nCheers,' },
       expiry: { subject: 'Your pricing is held until {expiry}: Estimate {number}', body: 'Hi {first_name},\n\nJust a quick heads-up that the pricing on our estimate for {heading} is held until {expiry}. If you\'d like to lock it in, just reply to this email and we\'ll get things moving.\n\nCheers,' },
       thanks: { subject: 'Thanks for going ahead: {number}, {heading}', body: 'Hi {first_name},\n\nThanks for choosing us for {heading}. Here\'s what happens next:\n\n1. We\'ll send through the {deposit_pct}% deposit invoice ({deposit}).\n2. Once the deposit and final plans are in, we\'ll start detailing.\n3. We\'ll confirm manufacture and delivery dates with you.\n\nIf you have any questions along the way, just reply to this email.\n\nCheers,' },
-      accounts: { subject: 'Accepted: {number}, {client_name}. Deposit invoice needed', body: 'Hi,\n\n{number} for {client_name} ({heading}) has been accepted. The estimate is attached.\n\nClient PO / reference: {po_ref}\nClient email: {client_email}\nSite: {site_address}\nTotal (excl GST): {total}\n{deposit_line}\n\nCould you please raise the deposit invoice in Xero, with their PO reference on it?\n\nCheers,' },
+      accounts: { subject: 'Accepted: {number}, {client_name}. Deposit invoice needed', body: 'Hi,\n\n{number} for {client_name} ({heading}) has been accepted. The estimate is attached.\n\nClient PO / reference: {po_ref}\nClient email: {client_email}{company_line}\nSite: {site_address}\nTotal (excl GST): {total}\n{deposit_line}\n\nCould you please raise the deposit invoice in Xero, with their PO reference on it?\n\nCheers,' },
       delivery: { subject: 'Delivery booked: {number}, {delivery_date}', body: 'Hi {first_name},\n\nYour delivery for {heading} is booked for {delivery_date} ({load}).\n\nWe deliver by truck and trailer and unload ourselves, so please make sure there\'s clear, safe access for a truck and trailer, and a flat, dry area close to the build for unloading.\n\nCheers,' },
       review: { subject: 'How did we do? {heading}', body: 'Hi {first_name},\n\nNow that everything\'s delivered for {heading}, we\'d love to hear how it went. If you have a minute, a Google review really helps a small Waikato business like ours.\n\nThanks again for the work.\n\nCheers,\n\nIf you\'d rather not get emails like this, just reply and let us know and we won\'t send any more.' },
       po: { subject: 'Purchase order {po_number}: {number}', body: 'Hi,\n\nPlease find attached purchase order {po_number} for job {number} ({site_address}).\n\nCheers,' }
@@ -151,6 +151,10 @@ App.store = {
         at.body = at.body.replace('Deposit ({deposit_pct}%, excl GST): {deposit}', '{deposit_line}');
         at.body = at.body.includes('Client email:') ? at.body.replace('Client email:', 'Client PO / reference: {po_ref}\nClient email:') : at.body.replace(/\n*Cheers,\s*$/, '\n\nClient PO / reference: {po_ref}\n\nCheers,');
       }
+    }
+    if (!d.settings.v6) {
+      d.settings.v6 = true; const at = d.settings.emails && d.settings.emails.templates && d.settings.emails.templates.accounts;
+      if (at && at.body && !at.body.includes('{company_line}') && at.body.includes('Client email: {client_email}')) at.body = at.body.replace('Client email: {client_email}', 'Client email: {client_email}{company_line}');
     }
     if (!d.settings.v4) {
       d.settings.v4 = true; const c = d.settings.coils;
