@@ -188,7 +188,9 @@
     list = list.slice().sort((a, b) => S.filter === 'used' ? (b.scannedOutAt || '').localeCompare(a.scannedOutAt || '') : (b.signedInAt || '').localeCompare(a.signedInAt || ''));
     const sel = S.sel && S.coils.find(c => c.key === S.sel);
     const consIn = ins.filter(c => c.consignment);
-    return `<div class="statcards">
+    const wrong = admin ? S.coils.filter(x => Number(x.width) === 188) : [];
+    return `${wrong.length ? `<div class="banner warn"><b>${wrong.length} coil${wrong.length === 1 ? ' is' : 's are'} recorded as 188mm wide.</b> The correct width is 182mm. <button class="btn small primary" data-act="coilFix188">Change ${wrong.length === 1 ? 'it' : 'them'} to 182mm</button></div>` : ''}
+    <div class="statcards">
       <div class="statcard dark"><p class="l">In stock</p><p class="v">${ins.length} coil${ins.length === 1 ? '' : 's'}</p><p class="s">${kg(ins.reduce((s, c) => s + c.weight, 0))}</p></div>
       <div class="statcard"><p class="l">Used this month</p><p class="v">${used.length} coil${used.length === 1 ? '' : 's'}</p><p class="s">${kg(used.reduce((s, c) => s + c.weight, 0))}</p></div>
       <div class="statcard"><p class="l">Waiting for labels</p><p class="v">${sm.unlabelled.length}</p><p class="s">Print before they go on the rack</p></div>
@@ -225,6 +227,20 @@
         ${admin && !used ? `<button class="btn" data-act="coilPrint" data-key="${e(c.key)}">${c.labelsPrinted ? 'Reprint label' : 'Print label'}</button>` : ''}
         ${admin && used ? `<button class="btn" data-act="coilReturn" data-key="${e(c.key)}">Return to stock</button>` : ''}
         ${admin ? `<button class="btn ghost" data-act="coilForm" data-key="${e(c.key)}">Edit</button>` : ''}</div>`;
+  };
+  /* One-off fix: 188mm was the wrong width for the 89 coil, 182mm is right */
+  A.coilFix188 = async el => {
+    const list = C.S.coils.filter(x => Number(x.width) === 188);
+    if (!(await App.confirm(`Change ${list.length} coil${list.length === 1 ? '' : 's'} to 182mm?`, 'This corrects the width in the Coil Register. Their IDs, weights, jobs and history stay the same. Coils still in stock will need new labels, which you can print straight after.', 'Change to 182mm'))) return;
+    el.disabled = true; el.textContent = 'Updating…'; const done = [];
+    for (const x of list) {
+      try { const upd = await C.api('updateCoil', { key: x.key, supplier: x.supplier, consignment: x.consignment, coilId: x.coilId, width: 182, thickness: x.thickness, weight: x.weight, grade: x.grade, notes: x.notes }); C.upsert(upd); done.push(C.S.coils.find(c => c.key === upd.key)); }
+      catch (er) { App.toast(`${x.coilId}: ${er.message}`, 'err', 6000); }
+    }
+    App.refresh();
+    const reprint = done.filter(x => x.status === 'In stock');
+    if (reprint.length && await App.confirm(`${done.length} coil${done.length === 1 ? '' : 's'} changed to 182mm`, `Print new labels for the ${reprint.length} still in stock? The QR codes stay the same, only the printed width changes.`, 'Print labels')) C.printLabels(reprint);
+    else if (done.length) App.toast(`${done.length} coil${done.length === 1 ? '' : 's'} changed to 182mm`);
   };
   A.coilFilter = el => { C.S.filter = el.value; App.refresh(); };
   A.coilSearch = App.debounce(el => { C.S.search = el.value; App.refresh(); const i = document.getElementById('coil-q'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200);

@@ -87,7 +87,7 @@ App.defaultSettings = () => ({
   production: { capacityPerWeek: 0, reviewDelayDays: 10, monthlyTarget: 0 },
   coils: {
     apiUrl: 'https://script.google.com/macros/s/AKfycbzKxrxXmeAQnY5EG9Bc0JfEHbbwfdVNDDephiEn8mM9i-JaJup9XU98INJNBMphojjHIQ/exec',
-    widths: [92, 135, 166, 188], thicknesses: [0.55, 0.75, 0.95, 1.15], defaultGrade: 'G550', lowPerGauge: 1
+    widths: [92, 135, 166, 182], thicknesses: [0.55, 0.75, 0.95, 1.15], defaultGrade: 'G550', lowPerGauge: 1
   },
   sales: { apiUrl: 'https://script.google.com/macros/s/AKfycbwayHN0oCE9qnWFcYadC4uGoMexbirj-kqBCDp8bp8Zf_dTN5bwrMGs97eVzu5x6LRMYA/exec', passcode: '', sheetId: '' },
   fasteners: {
@@ -136,6 +136,10 @@ App.store = {
       d.settings.v3 = true; const si = d.settings.ft.scopeItems;
       if (!si.includes('LGS roof panels')) si.splice(Math.max(0, si.indexOf('LGS roof trusses') + 1), 0, 'LGS roof panels');
       if (!si.includes('LGS floor panels')) si.splice(Math.max(0, si.indexOf('LGS floor joists') + 1), 0, 'LGS floor panels');
+    }
+    if (!d.settings.v4) {
+      d.settings.v4 = true; const c = d.settings.coils;
+      if (c && Array.isArray(c.widths)) c.widths = [...new Set(c.widths.map(w => Number(w) === 188 ? 182 : Number(w)))].sort((a, b) => a - b);
     }
     return d;
   },
