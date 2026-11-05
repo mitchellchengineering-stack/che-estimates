@@ -30,6 +30,9 @@
     const yy = st.yy(); const es = s.estimate;
     return `<section class="card"><h3>Practice mode</h3><p class="hint">Practice estimates get TEST numbers, don't use up real numbers, and stay out of the stats. A small banner shows at the top while it's on. This is set for this computer only.</p>
       <label class="switch"><input type="checkbox" data-act-change="togglePractice" ${App.state.practice ? 'checked' : ''}><span></span>Practice mode</label></section>
+    <section class="card"><h3>Morning brief</h3><p class="hint">The first time you open the app after this time each day, it walks you through today, what to follow up and anything that needs a look. You can always open it again from the home page.</p>
+      <div class="row" style="flex-wrap:wrap;gap:18px">${App.field('Show it from', `<select data-bind="brief.hour" data-type="num" style="width:auto">${[6, 7, 8, 9, 10, 11, 12].map(h => App.opt(h, h < 12 ? h + 'am' : '12pm', (s.brief || {}).hour ?? 9)).join('')}</select>`)}
+      <label class="check"><input type="checkbox" data-bind="brief.off" ${(s.brief || {}).off ? 'checked' : ''}> Turn the morning brief off</label></div></section>
     <section class="card"><h3>Revisions</h3><label class="check"><input type="checkbox" data-bind="estimate.revRed" ${s.estimate.revRed !== false ? 'checked' : ''}> On Rev 1, Rev 2 and so on, show anything new or changed since the previous version in red</label><p class="hint">Anything taken out is simply left off. A short line at the top tells the client what the red means.</p></section>
     <section class="card"><h3>Numbering</h3>
       <div class="grid3">${App.field('Prefix', inp('numbering.prefix', s.numbering.prefix))}

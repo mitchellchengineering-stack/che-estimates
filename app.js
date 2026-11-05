@@ -70,6 +70,7 @@
     document.body.classList.remove('menu-open');
     if (keepScroll) window.scrollTo(0, y); else window.scrollTo(0, 0);
     App.state.staleView = false;
+    if (App.Brief) setTimeout(() => App.Brief.maybe(), 800);
   };
   App.refresh = () => App.render(true);
   /* Re-render after focus has moved, then put the cursor back where the person is typing */
@@ -162,7 +163,7 @@
     const kpi = (l, v, sub, dark) => `<div class="statcard ${dark ? 'dark' : ''}"><p class="l">${l}</p><p class="v">${v}</p><p class="s">${sub}</p></div>`;
     const templates = st.data.templates.filter(t => !t.deleted);
     return `<div class="page-head"><div><p class="sub" style="margin:0 0 6px;font-weight:700">${greet}, ${e(me.name)}. ${App.fmtDate(today, { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>Dashboard</h1></div>
-      <div class="head-actions"><a class="btn primary" href="#/new/general">+ General estimate</a><a class="btn dark" href="#/new/ft">+ Full F&amp;T estimate</a><button class="btn" data-act="homeScan">Scan a coil</button><a class="btn" href="#/calendar">Open calendar</a></div></div>
+      <div class="head-actions"><a class="btn primary" href="#/new/general">+ General estimate</a><a class="btn dark" href="#/new/ft">+ Full F&amp;T estimate</a><button class="btn" data-act="briefOpen">Morning brief</button><button class="btn" data-act="homeScan">Scan a coil</button><a class="btn" href="#/calendar">Open calendar</a></div></div>
     <div class="statcards six">
       ${kpi('Quoted this month', App.money(sum(sentM), 0), `${sentM.length} sent, ${App.money(sum(waiting), 0)} waiting`, true)}
       ${kpi('Accepted this month', App.money(sum(wonM), 0), target ? `${Math.round(sum(wonM) / target * 100)}% of ${App.money(target, 0)} target` : `${wonM.length} job${wonM.length === 1 ? '' : 's'} won`)}

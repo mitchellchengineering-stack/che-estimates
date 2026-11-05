@@ -97,6 +97,7 @@ App.defaultSettings = () => ({
     apiUrl: 'https://script.google.com/macros/s/AKfycbzKxrxXmeAQnY5EG9Bc0JfEHbbwfdVNDDephiEn8mM9i-JaJup9XU98INJNBMphojjHIQ/exec',
     widths: [92, 135, 166, 182], thicknesses: [0.55, 0.75, 0.95, 1.15], defaultGrade: 'G550', lowPerGauge: 1
   },
+  brief: { hour: 9, off: false },
   sales: { apiUrl: 'https://script.google.com/macros/s/AKfycbwayHN0oCE9qnWFcYadC4uGoMexbirj-kqBCDp8bp8Zf_dTN5bwrMGs97eVzu5x6LRMYA/exec', passcode: '', sheetId: '' },
   fasteners: {
     sheetId: '1wljKchKFiSzcOzHFh150yRn41T4XYOWZImUG_csJGIw',
