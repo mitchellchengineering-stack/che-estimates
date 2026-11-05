@@ -878,3 +878,11 @@ a.practice-flag { text-decoration: none; }
 
 .pg .price .exy { display: inline-block; margin: 0 0 10px; background: #f5c400; color: #15171a; font-weight: 800; font-size: 12px; letter-spacing: .06em; padding: 4px 10px; border-radius: 6px; }
 .pg .price .exy.rv { color: #c8102e !important; }
+
+/* Included lists: no ticks, larger lighter text, a thin line between items */
+.pg .inclist { border-bottom: 1px solid #d9dde0; }
+.pg .inclist .inc { display: block; padding: 9px 2px; border-top: 1px solid #d9dde0; font-size: 16px; font-weight: 500; }
+.pg .linelist { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; }
+.pg .linelist .li { padding: 8px 2px; border-bottom: 1px solid #d9dde0; font-size: 15px; font-weight: 500; }
+.pg .linelist .li:nth-child(-n+2) { border-top: 1px solid #d9dde0; }
+.pg .linelist.no .li { color: #4a5158; }

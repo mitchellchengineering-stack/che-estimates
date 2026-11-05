@@ -123,7 +123,7 @@ App.Docs = {
     const changed = key => !!P && norm(L[key]) !== norm(P[key]);
     const red = (html, on) => on ? `<span class="rv">${html}</span>` : html;
     const card = (l, key, v, sKey, sv) => `<div class="card"><p class="l">${this.e(l)}</p><p class="v">${red(this.e(v || ''), changed(key))}</p>${sv ? `<p class="s">${red(this.e(sv), changed(sKey))}</p>` : ''}</div>`;
-    const ticks = (list, items, no) => `<div class="ticks" data-items>${items.map(t => `<span class="tick ${no ? 'no' : ''}${isNew(list, t) ? ' rv' : ''}"><b>${no ? '–' : '✓'}</b>${this.e(t)}</span>`).join('')}</div>`;
+    const ticks = (list, items, no) => `<div class="linelist${no ? ' no' : ''}" data-items>${items.map(t => `<div class="li${isNew(list, t) ? ' rv' : ''}">${this.e(t)}</div>`).join('')}</div>`;
     const chips = () => `<div class="chips">${L.chips.map(c => `<span class="chip${isNew('chips', c) ? ' rv' : ''}">${this.e(c)}</span>`).join('')}<span class="chip-note">${this.e(s.estimate.steelSpec)}</span></div>`;
     const optBox = L.opts.length ? `<div class="extras"><p class="t">Optional extras <span>(not included in the total)</span></p>${L.opts.map(o => `<div class="exrow${isNew('optKeys', o.key) ? ' rv' : ''}"><span>${this.e(o.desc)}</span><b>${App.num(o.price) ? App.money(o.price) : 'Price on request'}</b></div>`).join('')}</div>` : '';
     const price = () => { const box = this.priceBox(est, changed('deliveryMode')); return changed('total') ? box.replace('<p class="big">', '<p class="big rv">') : box; };
@@ -137,7 +137,7 @@ App.Docs = {
       if (est.description) flow.push(this.blk(`<p class="desc">${red(App.textToHtml(est.description), changed('description'))}</p>`));
       flow.push(this.blk(`${this.h2('The building')}${L.stats.length ? `<div class="stats" style="grid-template-columns:repeat(${L.stats.length},minmax(0,1fr))">${L.stats.map(x => `<div class="stat"><p class="l">${x[0]}</p><p class="v">${red(this.e(x[1]), isNew('statVals', x[0] + ':' + x[1]))}</p></div>`).join('')}</div>` : ''}
         ${chips()}`));
-      if (L.incl.length) flow.push(this.blk(`${this.h2('What\'s included')}<div class="inclist" data-items>${L.incl.map(t => `<div class="inc${isNew('incl', t) ? ' rv' : ''}"><span class="b">✓</span>${this.e(t)}</div>`).join('')}</div>`));
+      if (L.incl.length) flow.push(this.blk(`${this.h2('What\'s included')}<div class="inclist" data-items>${L.incl.map(t => `<div class="inc${isNew('incl', t) ? ' rv' : ''}">${this.e(t)}</div>`).join('')}</div>`));
       if (est.notes) flow.push(this.blk(`<div class="note"><p class="t">Notes</p><p>${red(App.textToHtml(est.notes), changed('notes'))}</p></div>`));
       const sd = this.shutdownNote(); if (sd) flow.push(sd);
       bottom = `<div class="bottom"><div class="left">${optBox}${notListed}</div>${price()}</div>${est.showAcceptance ? this.signRow([['Signed', '2fr'], ['Name', '2fr'], ['Date', '1fr']]) : ''}`;
