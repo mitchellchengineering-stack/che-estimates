@@ -418,6 +418,7 @@
     if (!fc.frames.length) throw new Error('No frames found in that PDF.');
     if (est.job.frames.length && !(await App.confirm('Replace the frame list?', `This job already has ${est.job.frames.length} frame types. Replace them with the ${fc.frames.length} from ${name}? Any delivery split and checklist ticks will be reset.`, 'Replace'))) return;
     est.job.frames = fc.frames; est.job.loads = []; est.job.checklist.ticks = {}; est.job.framesFrom = name;
+    est.job.detailed = { byCatLM: fc.byCatLM, byProfile: fc.byProfile, totalLM: fc.totalLM, file: name, at: Date.now() };
     st.log(est, `Frames read from ${name}: ${App.FC.summaryText(fc)}`); st.touch(est); st.save();
     App.toast(`Read ${App.FC.summaryText(fc)}`); const h = `#/job/${est.id}/deliveries`; if (location.hash === h) App.refresh(); else location.hash = h;
   };
@@ -532,7 +533,8 @@
   A.checkPrint = () => { const est = App.cur; const html = App.Docs.checklist(est); App.Docs.preview('Factory checklist', html, { pdfName: `${est.number} Factory checklist.pdf`, onDrive: st.mode === 'drive' ? async () => { const f = await st.subFolder(est, 'Dockets and checklists'); await App.G.uploadOrReplace({ name: `${est.number} Factory checklist.pdf`, parent: f, blob: await App.Docs.toPdf(html), mime: 'application/pdf' }); } : null }); };
 
   /* Back-costing */
-  App.Jobs.backTab = est => {
+  App.Jobs.backTab = est => (App.Helper ? App.Helper.compareHtml(est) : '') + App.Jobs.backTabMain(est);
+  App.Jobs.backTabMain = est => {
     const b = est.job.backcost;
     if (!b) return `<section class="card"><h3>Back-costing</h3><p>Compare what the job actually cost against your workings and see what you really made.</p><button class="btn primary" data-act="backStart">Start back-costing</button></section>`;
     const t = App.Jobs.backTotals(est);

@@ -98,6 +98,7 @@ App.defaultSettings = () => ({
     widths: [92, 135, 166, 182], thicknesses: [0.55, 0.75, 0.95, 1.15], defaultGrade: 'G550', lowPerGauge: 1
   },
   brief: { hour: 9, off: false },
+  helper: { studSpacing: 0.6, trussSpacing: 0.9, joistSpacing: 0.45, wallExtra: 15, waste: 5, internalPerM2: 0.3, keys: { walls: '89x41|0.75', trusses: '89x41|0.75', joists: '150x41|0.95' } },
   sales: { apiUrl: 'https://script.google.com/macros/s/AKfycbwayHN0oCE9qnWFcYadC4uGoMexbirj-kqBCDp8bp8Zf_dTN5bwrMGs97eVzu5x6LRMYA/exec', passcode: '', sheetId: '' },
   fasteners: {
     sheetId: '1wljKchKFiSzcOzHFh150yRn41T4XYOWZImUG_csJGIw',

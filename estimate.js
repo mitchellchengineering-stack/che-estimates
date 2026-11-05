@@ -318,6 +318,7 @@
       ${lowMargin ? `<div class="banner warn" style="margin-top:12px">This job is under your minimum margin of ${App.pct(minM)}.</div>` : ''}
       <div class="row-btns"><button class="btn primary" data-act="useWorkings" ${locked ? 'disabled' : ''}>Use as the estimate price</button><button class="btn small" data-act="markupAll">Set every line to ${defPct}%</button><span class="hint">Estimate price is currently ${App.money(st.totals(est).sub)}</span></div>
     </section>
+    ${App.Helper ? App.Helper.card(est) : ''}
     <section class="card job-profit" id="job-profit">${App.Est.profitHtml(est)}</section>
     <section class="card">
       <h3>FRAMECAD detailing</h3>
@@ -494,6 +495,14 @@
   /* Steel you make is priced from the Pricing page: cost per metre, with the machine margin as its markup */
   const steelRateFor = key => { const p = App.Pricing && App.Pricing.get(key); return p ? App.round(p.cost, 4) : (S().pricing.rates[key] || ''); };
   const steelMkFor = key => { const p = App.Pricing && App.Pricing.markupFor(key); return p != null ? p : defP(); };
+  /* set the metres for one section and gauge (used by the Estimate helper) */
+  App.Est.setSteel = (est, key, lm) => {
+    const [size, gauge] = key.split('|'); let r = est.workings.steel.find(x => x.size === size && x.gauge === gauge);
+    if (!r) { r = { id: App.uid(), size, gauge, lm: '', rate: steelRateFor(key), markupPct: steelMkFor(key) }; est.workings.steel.push(r); }
+    r.lm = lm; if (!App.num(r.rate)) r.rate = steelRateFor(key);
+    if (!(est.sections || []).some(x => x.size === size)) { est.sections = est.sections || []; est.sections.push({ size, gauges: [gauge] }); }
+    else { const sec = est.sections.find(x => x.size === size); if (sec && !sec.gauges.includes(gauge)) sec.gauges.push(gauge); }
+  };
   A.steelAdd = () => { const est = cur(); const sec = est.sections[0] || { size: '89x41', gauges: ['0.75'] }; const g = sec.gauges[0] || App.GAUGES[sec.size][0]; est.workings.steel.push({ id: App.uid(), size: sec.size, gauge: g, lm: '', rate: steelRateFor(`${sec.size}|${g}`), markupPct: steelMkFor(`${sec.size}|${g}`) }); save(); };
   A.defMarkup = el => { const est = cur(); const p = App.num(el.value); est.workings.markup = App.round(1 + p / 100, 4); st.log(est, `Default markup set to ${p}%`); save(); };
   A.markupAll = async () => { const est = cur(); const p = defP(); if (!(await App.confirm('Set every line to ' + p + '%?', 'Other lines get your default markup. Steel lines go back to the price and margin on the Pricing page, so they aren\'t marked up twice.', 'Set them all'))) return; est.workings.lines.forEach(l => { if (l.kind !== 'delivery') { l.markupPct = p; delete l.markup; } }); est.workings.steel.forEach(r => { const k = `${r.size}|${r.gauge}`; const rt = steelRateFor(k); if (rt) r.rate = rt; r.markupPct = steelMkFor(k); delete r.markup; }); save(); };

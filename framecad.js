@@ -68,15 +68,16 @@ App.FC = {
   },
 
   summarise(fc) {
-    let lm = 0, kg = 0; const byCat = {}, byProfile = {};
+    let lm = 0, kg = 0; const byCat = {}, byProfile = {}, byCatLM = {};
     let missing = 0;
     fc.frames.forEach(f => {
       const fl = (f.length || 0) * f.qty; lm += fl; kg += (f.weight || 0) * f.qty;
       byCat[f.category] = (byCat[f.category] || 0) + f.qty;
+      byCatLM[f.category] = (byCatLM[f.category] || 0) + fl;
       if (f.profile) byProfile[f.profile] = (byProfile[f.profile] || 0) + fl;
       if (f.length == null) missing++;
     });
-    return Object.assign(fc, { totalLM: App.round(lm, 2), totalKg: App.round(kg, 1), byCat, byProfile, missingLength: missing });
+    return Object.assign(fc, { totalLM: App.round(lm, 2), totalKg: App.round(kg, 1), byCat, byCatLM, byProfile, missingLength: missing });
   },
 
   summaryText(fc) {

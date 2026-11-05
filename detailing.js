@@ -368,6 +368,7 @@
       const fc = await App.FC.parse(await (await D.blob(f)).arrayBuffer(), f.name); if (!fc.frames.length) throw new Error('No frames found in that PDF.');
       if (est.job.frames.length && !(await App.confirm('Replace the frame list?', `This job already has ${est.job.frames.length} frame types. Replace them with the ${fc.frames.length} from ${f.name}? Any delivery split and checklist ticks will be reset.`, 'Replace'))) return;
       est.job.frames = fc.frames; est.job.loads = []; est.job.checklist.ticks = {}; est.job.framesFrom = f.name;
+      est.job.detailed = { byCatLM: fc.byCatLM, byProfile: fc.byProfile, totalLM: fc.totalLM, file: f.name, at: Date.now() };
       st.log(est, `Frames read from ${f.name}: ${App.FC.summaryText(fc)}`); st.touch(est); st.save(); location.hash = `#/job/${est.id}/deliveries`;
     } catch (er) { App.toast(er.message, 'err', 6000); }
   };

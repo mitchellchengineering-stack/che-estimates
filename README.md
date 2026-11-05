@@ -1,6 +1,15 @@
 # CH Engineering Estimates
 
-## Latest update: Detailing
+## Latest update: Morning brief, Estimate helper, Estimated vs detailed
+
+1. **Upload all the files** and commit.
+2. **Morning brief:** pops up the first time you open the app after 9am each day. Change the time or turn it off in Settings > Estimates.
+3. **Estimate helper:** in each estimate's My workings. Put in the floor area and a few basics and it suggests the metres. Check its first suggestions against your own judgement: until a few jobs have been detailed it only uses the rules in Settings > Pricing > Estimate helper rules, which you can adjust.
+4. **Estimated vs detailed:** on each job's Back-costing tab, once the detailing has been read (Frames and deliveries, or Detailing > Use for the job).
+
+---
+
+## Earlier update: Detailing
 
 1. **Upload the new files to GitHub** (everything in the update folder) and commit. Your `config.js` isn't included.
 2. **Detailing** is in the menu between Production and Calendar. Click **+ Upload detailing**, type what it is (e.g. 6 x 6 garage), pick the job if there is one, and drop in the IFC and PDF files.

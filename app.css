@@ -956,3 +956,31 @@ a.practice-flag { text-decoration: none; }
 .br-nums p { margin: 0; font-size: .82rem; font-weight: 650; opacity: .8; }
 .br-nums b { display: block; font-size: 1.8rem; font-weight: 800; }
 .br-nums span { font-size: .84rem; opacity: .8; }
+
+/* ================= Estimate helper ================= */
+.helper > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.helper > summary::-webkit-details-marker { display: none; }
+.helper > summary::after { content: '▾'; margin-left: auto; color: var(--ink-3); }
+.helper[open] > summary::after { content: '▴'; }
+.helper-grid { border: 0; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.helper-in .seg.wrap { display: inline-flex; }
+.more-in summary { cursor: pointer; font-size: .86rem; font-weight: 650; color: var(--ink-2); margin: 6px 0; }
+.helper-sug { background: var(--ink); color: #fff; border-radius: 18px; padding: 20px; position: sticky; top: 80px; }
+.helper-sug .k { margin: 0; font-size: .74rem; font-weight: 800; color: var(--yellow); letter-spacing: .04em; }
+.helper-sug .l { margin: 4px 0 10px; color: #c9ced3; font-size: .88rem; }
+.hs-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 0; border-top: 1px solid #2c3136; }
+.hs-row > span { display: flex; flex-direction: column; }
+.hs-row span span { font-size: .76rem; color: #c9ced3; }
+.hs-row .r { text-align: right; } .hs-row .r b { font-size: 1.5rem; color: var(--yellow); }
+.helper-sug .row-btns { margin-top: 12px; }
+.evd { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; margin-bottom: 16px; }
+.evd aside { display: flex; flex-direction: column; gap: 16px; }
+.evd-big { background: var(--ink); color: #fff; border-radius: 18px; padding: 20px; }
+.evd-big .k { margin: 0; font-size: .74rem; font-weight: 800; color: var(--yellow); }
+.evd-big .v { margin: 4px 0 0; font-size: 2.6rem; font-weight: 800; font-stretch: 112%; line-height: 1; }
+.evd-big .l { margin: 6px 0 0; color: #c9ced3; }
+.evd tr.tot td { background: var(--yellow-soft); border-top: 2px solid var(--ink); }
+@media (max-width: 1100px) { .helper-grid, .evd { grid-template-columns: 1fr; } .helper-sug { position: static; } }
+
+.helper-in { min-width: 0; }
+.helper-in select, .helper-in .unit-in { max-width: 100%; }
