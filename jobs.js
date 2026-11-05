@@ -111,7 +111,8 @@
     });
     return Object.values(tot).filter(x => x.lm > 0).sort((a, b) => (a.size + a.gauge).localeCompare(b.size + b.gauge));
   };
-  App.Jobs.timelineDays = start => { const out = []; let d = App.weekStart(start); while (out.length < 10) { if (![0, 6].includes(App.parseDate(d).getDay())) out.push(d); d = App.addDays(d, 1); } return out; };
+  /* Monday to Saturday, two weeks (Saturday for the odd weekend delivery) */
+  App.Jobs.timelineDays = start => { const out = []; let d = App.weekStart(start); while (out.length < 12) { if (App.parseDate(d).getDay() !== 0) out.push(d); d = App.addDays(d, 1); } return out; };
   App.Jobs.timelineRows = days => {
     const first = days[0], last = days[days.length - 1];
     return App.Jobs.list().filter(j => j.job.stage !== 'complete').map(j => {

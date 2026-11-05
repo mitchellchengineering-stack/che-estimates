@@ -156,7 +156,7 @@
     if (cs) cs.low.forEach(x => needs.push({ lvl: 'amber', t: `${C.bmt(x.t)} BMT coils running low`, s: `${x.n} coil${x.n === 1 ? '' : 's'} left in stock`, b: 'Coils', href: '#/coils' }));
     if (due.length) needs.push({ lvl: 'amber', t: `${due.length} follow-up${due.length === 1 ? '' : 's'} ready to send`, s: due.map(d => `${d.est.number} ${d.est.client.company || d.est.client.name}`).slice(0, 3).join(', '), b: 'Review', href: '#/followups' });
     expiring.forEach(x => needs.push({ lvl: 'blue', t: `${x.number} expires ${App.fmtDate(x.expiry, { weekday: 'long' })}`, s: `${x.client.company || x.client.name}, ${App.money(st.totals(x).sub, 0)}`, b: 'Open', href: `#/e/${x.id}` }));
-    const days = []; for (let i = 0; i < 5; i++) days.push(App.addDays(wk, i));
+    const days = []; for (let i = 0; i < 6; i++) days.push(App.addDays(wk, i));
     const rows = App.Jobs.timelineRows(days);
     const kpi = (l, v, sub, dark) => `<div class="statcard ${dark ? 'dark' : ''}"><p class="l">${l}</p><p class="v">${v}</p><p class="s">${sub}</p></div>`;
     const templates = st.data.templates.filter(t => !t.deleted);

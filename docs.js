@@ -147,7 +147,7 @@ App.Docs = {
       if (img) flow.push(img);
       const SUB = 'As per engineer\'s final design and detailing';
       if (L.tiles.length) {
-        flow.push(this.blk(`${this.h2('Your frame and truss package')}<div class="stars" style="grid-template-columns:repeat(${L.tiles.length},minmax(0,1fr))">${L.tiles.map(t => `<div class="star"><span class="top"><span class="ck">✓</span><span class="inc">INCLUDED</span></span><span class="t">${red(t, isNew('tiles', t))}</span><span class="s">${SUB}</span></div>`).join('')}</div>
+        flow.push(this.blk(`${this.h2('Your frame and truss package')}<div class="stars" style="grid-template-columns:repeat(${L.tiles.length},minmax(0,1fr))">${L.tiles.map(t => `<div class="star"><span class="top"><span class="inc">INCLUDED</span></span><span class="t">${red(t, isNew('tiles', t))}</span><span class="s">${SUB}</span></div>`).join('')}</div>
           <p class="cap">${L.deliveryLine ? 'Delivered to site. ' : L.exYard ? red('Ex yard, collected from our yard. ', changed('deliveryMode')) : ''}Everything else that's included is listed below.</p>`));
       }
       const crit = App.CRITERIA.filter(([k]) => c[k] && c[k].v);

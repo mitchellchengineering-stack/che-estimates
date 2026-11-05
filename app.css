@@ -886,3 +886,7 @@ a.practice-flag { text-decoration: none; }
 .pg .linelist .li { padding: 8px 2px; border-bottom: 1px solid #d9dde0; font-size: 15px; font-weight: 500; }
 .pg .linelist .li:nth-child(-n+2) { border-top: 1px solid #d9dde0; }
 .pg .linelist.no .li { color: #4a5158; }
+
+/* Star tiles: no tick, just the INCLUDED label */
+.pg .star .top { justify-content: flex-end; }
+/* Saturday column on the timelines is a little quieter */
