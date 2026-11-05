@@ -522,7 +522,7 @@
       const fc = await App.FC.parse(await App.readFile(f, 'buffer'), f.name);
       if (!fc.frames.length) throw new Error('No frames found in that PDF. Is it FRAMECAD detailing?');
       cur().workings.framecad = fc; save();
-      if (st.mode === 'drive') { try { const folder = await st.subFolder(cur(), 'Plans and detailing'); await App.G.uploadOrReplace({ name: f.name, parent: folder, blob: f, mime: 'application/pdf' }); } catch (er) {} }
+      if (App.Detailing) App.Detailing.capture(cur(), f);
     } catch (er) { App.toast(er.message, 'err', 6000); }
   };
   A.fcClear = () => { cur().workings.framecad = null; save(); };

@@ -1,6 +1,16 @@
 # CH Engineering Estimates
 
-## Latest update: Pricing and job profit
+## Latest update: Detailing
+
+1. **Upload the new files to GitHub** (everything in the update folder) and commit. Your `config.js` isn't included.
+2. **Detailing** is in the menu between Production and Calendar. Click **+ Upload detailing**, type what it is (e.g. 6 x 6 garage), pick the job if there is one, and drop in the IFC and PDF files.
+3. Each set saves in Google Drive in **CH Engineering Estimates / Detailing / (description)**, and in the job's folder under **Detailing**.
+4. FRAMECAD PDFs you upload in an estimate's workings or a job's Frames and deliveries tab are added to Detailing automatically.
+5. The 3D viewer needs an internet connection; the first model you open takes a few extra seconds while the viewer loads.
+
+---
+
+## Earlier update: Pricing and job profit
 
 1. **Upload the new files to GitHub** and commit. Your `config.js` isn't included.
 2. **Open Pricing** (in the menu) and check each machine: coil width (89mm uses 182mm, 75mm uses 166mm, 150mm uses 243mm to start with, top hat 135mm), steel $/tonne, overheads, output, labour and your margin. Everything saves as you type.

@@ -119,7 +119,7 @@ App.defaultSettings = () => ({
   }
 });
 
-App.defaultData = () => ({ v: 1, settings: App.defaultSettings(), counters: { practice: 0 }, estimates: [], customers: [], templates: [], events: [], salesMail: [] });
+App.defaultData = () => ({ v: 1, settings: App.defaultSettings(), counters: { practice: 0 }, estimates: [], customers: [], templates: [], events: [], salesMail: [], detailing: [] });
 
 App.store = {
   data: null, mode: 'local', rootId: null, fileId: null, saving: false, pending: false, lastSync: 0, logs: [],
@@ -138,7 +138,7 @@ App.store = {
     const ds = App.defaultSettings();
     const deep = (target, src) => { Object.keys(src).forEach(k => { if (target[k] === undefined) target[k] = src[k]; else if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k]) && target[k] && typeof target[k] === 'object' && !Array.isArray(target[k])) deep(target[k], src[k]); }); };
     deep(d.settings, ds);
-    ['estimates', 'customers', 'templates', 'events', 'salesMail'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
+    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
     if (!d.settings.v2) { d.settings.v2 = true; d.settings.estimate.showAcceptanceGeneral = false; }
     if (!d.settings.v3) {
       d.settings.v3 = true; const si = d.settings.ft.scopeItems;
@@ -191,7 +191,7 @@ App.store = {
     let changed = false;
     if ((remote.settings.updatedAt || 0) > (local.settings.updatedAt || 0)) { local.settings = remote.settings; changed = true; }
     Object.keys(remote.counters || {}).forEach(k => { if ((remote.counters[k] || 0) > (local.counters[k] || 0)) { local.counters[k] = remote.counters[k]; changed = true; } });
-    ['estimates', 'customers', 'templates', 'events', 'salesMail'].forEach(k => {
+    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing'].forEach(k => {
       const idx = new Map(local[k].map((r, i) => [r.id, i]));
       (remote[k] || []).forEach(r => {
         if (!idx.has(r.id)) { local[k].push(r); changed = true; }

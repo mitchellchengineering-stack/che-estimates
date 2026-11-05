@@ -29,7 +29,11 @@ App.FC = {
   },
   profileToSection(p) {
     const m = p && p.match(/(75|89|150)\s*[Cc]\s*(\d\.\d{2})/);
-    return m ? { size: `${m[1]}x41`, gauge: m[2] } : null;
+    if (m) return { size: `${m[1]}x41`, gauge: m[2] };
+    /* top hat: TH0.75 is the purlin, TH0.55 the batten */
+    const t = p && p.match(/\bTH\s*(\d\.\d{2})/i);
+    if (t) return { size: t[1] === '0.55' ? 'Top hat batten' : 'Top hat purlin', gauge: t[1] };
+    return null;
   },
 
   async parse(buffer, fileName = '') {
@@ -44,7 +48,7 @@ App.FC = {
       const len = text.match(/Total Length:\s*([\d.,]+)\s*m/i);
       const wt = text.match(/Total Weight:\s*([\d.,]+)\s*kg/i);
       const qty = text.match(/Quantity:\s*(\d+)/i);
-      const prof = text.match(/\b(75|89|150)\s*[Cc]\s*(\d\.\d{2})\b/);
+      const prof = text.match(/\b(75|89|150)\s*[Cc]\s*(\d\.\d{2})\b/) || ((m2 => m2 ? [m2[0], 'TH', m2[1]] : null)(text.match(/\bTH\s*(\d\.\d{2})\b/i)));
       let title = null;
       items.forEach(s => {
         const m = s.match(/^(.*\S)\s+-\s+([A-Za-z]{1,4}[\w.]*\d[\w.\-]*)$/);
@@ -57,7 +61,7 @@ App.FC = {
       frames.push({
         id: App.uid(), page: p, name: code, group, category: this.category(group, code), level: this.level(group),
         qty: q, length: len ? parseFloat(len[1].replace(/,/g, '')) : null, weight: wt ? parseFloat(wt[1].replace(/,/g, '')) : null,
-        profile: prof ? `${prof[1]}C${prof[2]}` : ''
+        profile: prof ? (prof[1] === 'TH' ? `TH${prof[2]}` : `${prof[1]}C${prof[2]}`) : ''
       });
     }
     return this.summarise({ fileName, pages: doc.numPages, frames, readAt: Date.now() });

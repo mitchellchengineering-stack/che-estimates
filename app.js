@@ -8,6 +8,7 @@
     ['followups', 'Follow-ups', '<path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/>'],
     ['sales', 'Sales', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
     ['production', 'Production', '<path d="M3 20V9l6 4V9l6 4V5h6v15z"/>'],
+    ['detailing', 'Detailing', '<path d="M4 4h10l6 6v10H4z"/><path d="M14 4v6h6"/><path d="M8 14h8M8 17h5"/>'],
     ['calendar', 'Calendar', '<rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
     ['coils', 'Coils', '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>'],
     ['fasteners', 'Fasteners', '<path d="M12 3v14M8 7h8M10 21h4"/>'],
@@ -59,8 +60,8 @@
       const est = st.newEstimate(r.a === 'ft' ? 'ft' : 'general', !!App.state.practice);
       location.replace(`#/e/${est.id}`); return;
     }
-    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'], sales: ['sales', r.a, r.b], pricing: ['pricing'] }[r.name] || ['home'];
-    if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home', 'coils', 'fasteners', 'sales'].includes(v[0])) App.cur = null;
+    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'], sales: ['sales', r.a, r.b], pricing: ['pricing'], detailing: ['detailing', r.a] }[r.name] || ['home'];
+    if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home', 'coils', 'fasteners', 'sales', 'detailing'].includes(v[0])) App.cur = null;
     try { html = App.views[v[0]](...v.slice(1)); mount = App.views[v[0]].mount; }
     catch (er) { console.error(er); html = `<div class="empty"><h2>Something went wrong on this page</h2><p>${e(er.message)}</p><a class="btn" href="#/">Go home</a></div>`; }
     main.innerHTML = html;

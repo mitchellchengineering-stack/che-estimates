@@ -890,3 +890,48 @@ a.practice-flag { text-decoration: none; }
 /* Star tiles: no tick, just the INCLUDED label */
 .pg .star .top { justify-content: flex-end; }
 /* Saturday column on the timelines is a little quieter */
+
+/* ================= Detailing ================= */
+.dgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.dcard { background: #fff; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; text-decoration: none; transition: box-shadow .15s, transform .15s; }
+.dcard:hover { box-shadow: 0 10px 28px rgba(21,23,26,.1); transform: translateY(-2px); }
+.dthumb { height: 200px; background: var(--soft); position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.dthumb.pdf { background: #e9ebe8; }
+.dthumb img { width: 100%; height: 100%; object-fit: cover; }
+.dthumb.pdf img { object-fit: contain; background: #fff; }
+.dbadge { position: absolute; left: 12px; top: 12px; font-size: .7rem; font-weight: 800; padding: 4px 9px; border-radius: 6px; background: #fff; border: 1px solid var(--line); }
+.dbadge.ifc { background: var(--ink); color: var(--yellow); border-color: var(--ink); }
+.dbody { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+.dbody .dt { font-size: 1.12rem; font-weight: 800; }
+.dfiles { display: flex; flex-wrap: wrap; gap: 6px; }
+.dfile { display: inline-flex; gap: 6px; align-items: center; font-size: .76rem; font-weight: 650; padding: 4px 8px; border-radius: 8px; background: var(--soft); }
+.dfile b, .du-row b, .dk { font-size: .64rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: var(--red-bg); color: var(--red); }
+.dfile b.ifc, .du-row b.ifc, .dk.ifc { background: var(--ink); color: var(--yellow); }
+.drop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 2px dashed #c4cacf; border-radius: 16px; padding: 22px; text-align: center; background: #fafbf9; cursor: pointer; margin-top: 4px; }
+.drop.over { border-color: var(--ink); background: var(--yellow-soft); }
+.drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.du-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.du-row { display: flex; gap: 10px; align-items: center; background: var(--soft); border-radius: 10px; padding: 9px 12px; font-size: .9rem; }
+.du-row > span { flex: 1; min-width: 0; }
+.du-row select { width: auto; height: 38px; }
+.dset { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.dset-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dview { padding: 0; overflow: hidden; margin: 0; position: relative; }
+.dv-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--line-2); }
+.dv-3d { height: 480px; background: var(--soft); }
+.dv-3d:fullscreen { height: 100vh; }
+.dv-help { margin: 0; padding: 8px 16px 12px; }
+.ifc-pick { position: absolute; right: 16px; bottom: 48px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: .86rem; box-shadow: 0 4px 14px rgba(0,0,0,.08); max-width: 260px; }
+.dv-pdf { display: grid; grid-template-columns: 140px minmax(0, 1fr); background: #e9ebe8; }
+.pdf-thumbs { max-height: 640px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--line); }
+.pthumb { font: inherit; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0; cursor: pointer; overflow: hidden; text-align: left; }
+.pthumb canvas { width: 100%; display: block; min-height: 60px; background: #fff; }
+.pthumb span { display: block; padding: 3px 6px; font-size: .72rem; font-weight: 700; }
+.pthumb.on { border: 2px solid var(--ink); } .pthumb.on span { background: var(--yellow-soft); }
+.pdf-main { padding: 18px 20px; overflow: auto; max-height: 760px; }
+.pdf-main canvas { display: block; margin: 0 auto; box-shadow: 0 6px 20px rgba(0,0,0,.12); background: #fff; max-width: none; }
+.dset-side .card { margin: 0 0 16px; }
+.drive-box { margin-top: 12px; background: var(--soft); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; font-size: .86rem; }
+.use-box { background: var(--soft); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; margin-bottom: 8px; }
+@media (max-width: 1100px) { .dset { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .dv-pdf { grid-template-columns: 1fr; } .pdf-thumbs { display: none; } .dv-3d { height: 360px; } }

@@ -422,7 +422,7 @@
     App.toast(`Read ${App.FC.summaryText(fc)}`); const h = `#/job/${est.id}/deliveries`; if (location.hash === h) App.refresh(); else location.hash = h;
   };
   A.jobFramesFromDrive = async el => { try { App.toast('Reading the drawings…'); const b = await App.G.getBlob(el.dataset.fid); await applyFrames(App.cur, await b.arrayBuffer(), el.dataset.name); } catch (er) { App.toast(er.message, 'err', 6000); } };
-  A.jobReadFrames = async el => { const f = el.files[0]; if (!f) return; try { await applyFrames(App.cur, await App.readFile(f, 'buffer'), f.name); if (st.mode === 'drive') { const folder = await st.subFolder(App.cur, 'Plans and detailing'); await App.G.uploadOrReplace({ name: f.name, parent: folder, blob: f, mime: 'application/pdf' }); } } catch (er) { App.toast(er.message, 'err', 6000); } };
+  A.jobReadFrames = async el => { const f = el.files[0]; if (!f) return; try { const est = App.cur; await applyFrames(est, await App.readFile(f, 'buffer'), f.name); if (App.Detailing) App.Detailing.capture(est, f); } catch (er) { App.toast(er.message, 'err', 6000); } };
   A.jobFramesFromWorkings = () => { const est = App.cur; est.job.frames = App.clone(est.workings.framecad.frames); est.job.framesFrom = est.workings.framecad.fileName; st.touch(est); st.save(); App.refresh(); };
 
   /* Frames and deliveries */
