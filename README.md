@@ -1,6 +1,15 @@
 # CH Engineering Estimates
 
-## Latest update: Morning brief, Estimate helper, Estimated vs detailed
+## Latest update: Health and safety, Maintenance, PDFs
+
+1. **Upload all the files** and commit.
+2. **Health and safety** (menu): Overview, Hazards, Incidents, Toolbox talks, People and training, Checks, Substances. It starts with a suggested hazard list, checks and substances; edit them to suit your site, and add your team under People and training.
+3. **Maintenance** (menu): Machines, Vehicles and Service log. It starts with your roll-formers, top hat, compressor, truck, HIAB, forklift and ute. Edit each one (rego, hours or km, reminders), and enter the current hours or km so the reminders work.
+4. **PDFs:** every page has a Download PDF button at the top, and incidents, toolbox talks, machines, jobs and sales contacts have their own PDF.
+
+---
+
+## Earlier update: Morning brief, Estimate helper, Estimated vs detailed
 
 1. **Upload all the files** and commit.
 2. **Morning brief:** pops up the first time you open the app after 9am each day. Change the time or turn it off in Settings > Estimates.
