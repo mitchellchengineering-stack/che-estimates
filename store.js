@@ -260,6 +260,8 @@ App.store = {
       if (opens) { try { const j = JSON.parse(await App.G.getText(opens.id)); (j.opens || []).forEach(o => logs.push(Object.assign({ kind: 'open' }, o))); } catch (e) {} }
       this.logs = logs;
       this.applyLogs();
+      const resp = await App.G.find('client-responses.json', this.rootId);
+      if (resp && App.Accept) { try { const j = JSON.parse(await App.G.getText(resp.id)); App.Accept.apply(j.responses || []); } catch (e) {} }
     } catch (e) {}
   },
   applyLogs() {

@@ -60,8 +60,10 @@
       (w.steel || []).forEach(r => { const c = st.steelCost(r); by.made[0] += c; by.made[1] += c * st.lineMk(r, est); });
       (w.lines || []).forEach(l => { if (l.bucket === 'option') return; const c = st.lineCost(l); const k = l.kind === 'labour' ? 'labour' : l.kind === 'delivery' ? 'delivery' : 'bought'; by[k][0] += c; by[k][1] += c * st.lineMk(l, est); });
       const cost = Object.values(by).reduce((t, x) => t + x[0], 0); const workSell = Object.values(by).reduce((t, x) => t + x[1], 0);
-      const t = st.totals(est); const sell = t.sub || workSell;
-      return { by, cost, workSell, sell, adjust: t.sub ? t.sub - workSell : 0, profit: sell - cost, margin: sell ? (sell - cost) / sell : 0 };
+      const t = st.totals(est); const varSell = App.Var ? App.Var.total(est) : 0, varCost = App.Var ? App.Var.cost(est) : 0;
+      const sell = (t.sub || workSell) + varSell;
+      const costAll = cost + varCost;
+      return { by, cost: costAll, workSell, sell, adjust: t.sub ? t.sub - workSell : 0, varSell, profit: sell - costAll, margin: sell ? (sell - costAll) / sell : 0 };
     }
   };
 

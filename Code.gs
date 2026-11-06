@@ -147,6 +147,7 @@ function weeklySummary() {
 /* ---------- Email open tracking (deploy as web app) ---------- */
 function doGet(e) {
   const id = e && e.parameter && e.parameter.e;
+  if (e && e.parameter && (e.parameter.a === 'accept' || e.parameter.a === 'var')) return clientPage_(e.parameter);
   if (id) {
     const lock = LockService.getScriptLock(); lock.waitLock(10000);
     try {
@@ -211,4 +212,73 @@ function sendTemplate_(est, kind, s, user) {
   const track = s.emails.trackingUrl ? `<img src="${s.emails.trackingUrl}?e=${encodeURIComponent(est.id)}&k=${kind}&t=${Date.now()}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">` : '';
   const html = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#222">${esc_(body).replace(/\n/g, '<br>')}</div>${sig ? '<br><div>' + sig + '</div>' : ''}${track}`;
   GmailApp.sendEmail(est.client.email, subject, body, { htmlBody: html, name: user.name });
+}
+
+
+/* ---------- Online acceptance and variation approval ----------
+   The estimate and variation emails link here. The client sees a short summary, enters their name
+   (and PO for an estimate), and their answer is saved to client-responses.json, which the app picks up. */
+function findEst_(data, id) { return (data.estimates || []).find(x => x.id === id && !x.deleted); }
+function money_(n) { return '$' + Number(n || 0).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function responses_() {
+  const folder = DriveApp.getFolderById(FOLDER_ID); const it = folder.getFilesByName('client-responses.json');
+  const file = it.hasNext() ? it.next() : folder.createFile('client-responses.json', JSON.stringify({ responses: [] }), 'application/json');
+  return { file, j: JSON.parse(file.getBlob().getDataAsString() || '{"responses":[]}') };
+}
+function clientPage_(p) {
+  const data = loadData_(); const est = data && findEst_(data, p.e); const logo = APP_LINK + 'logo.png';
+  const shell = (title, inner) => HtmlService.createHtmlOutput(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc_(title)}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&display=swap" rel="stylesheet"><style>
+    body{margin:0;background:#f3f4f1;color:#15171a;font-family:Archivo,Arial,sans-serif}.bar{height:8px;background:#f5c400}.top{background:#fff;padding:14px 18px;border-bottom:1px solid #e3e6e8}.top img{width:170px;display:block}
+    main{max-width:520px;margin:0 auto;padding:20px 18px 40px}h1{font-size:26px;margin:4px 0 12px;line-height:1.15}.k{font-size:13px;font-weight:700;color:#5c636b;margin:0}
+    .price{background:#15171a;color:#fff;border-radius:16px;padding:16px;margin:12px 0}.price p{margin:0;font-size:13px;color:#c9ced3}.price b{display:block;font-size:30px;color:#f5c400;margin:2px 0}
+    .box{background:#fff;border-radius:14px;padding:14px;margin:12px 0;font-size:15px;line-height:1.5;white-space:pre-wrap}
+    label{display:block;font-size:14px;font-weight:700;color:#4a5158;margin:12px 0 6px}input[type=text]{font:inherit;font-size:17px;width:100%;box-sizing:border-box;height:52px;border:1px solid #d9dde0;border-radius:12px;padding:0 12px}
+    .tick{display:flex;gap:10px;align-items:flex-start;font-size:14px;margin:14px 0;font-weight:600;color:#15171a}.tick input{width:22px;height:22px;flex:none}
+    button{font:inherit;font-weight:800;font-size:17px;width:100%;height:56px;border:0;border-radius:14px;background:#f5c400;cursor:pointer;margin-top:6px}button.no{background:#fff;border:1px solid #d9dde0;font-weight:700;font-size:15px;height:48px}
+    .msg{background:#e2f2e6;color:#1e6b31;border-radius:14px;padding:16px;font-weight:700}.warn{background:#fdf0d8;color:#8a4b00}.hint{font-size:13px;color:#5c636b;text-align:center;margin-top:14px}
+    </style></head><body><div class="bar"></div><div class="top"><img src="${logo}" alt="CH Engineering"></div><main>${inner}</main></body></html>`).setTitle(title).addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  const phone = (data && data.settings && data.settings.company && data.settings.company.phone) || '022 609 0176';
+  const call = `<p class="hint">Questions? Call ${esc_(phone)}</p>`;
+  if (!est) return shell('Link not found', `<h1>We couldn't find that</h1><div class="msg warn">This link isn't working any more. Please give us a call.</div>${call}`);
+  const num = est.number + (est.rev ? ' Rev ' + est.rev : ''); const done = responses_().j.responses;
+  const script = (payload, okText) => `<script>function go(d){const b=document.getElementById('go');const n=document.getElementById('nm').value.trim();const po=document.getElementById('po')?document.getElementById('po').value.trim():'';
+    if(!n){alert('Please add your name');return;} ${p.a === 'accept' ? "if(!po){alert('Please add your PO number or reference');return;} if(!document.getElementById('ok').checked){alert('Please tick to accept the terms');return;}" : ''}
+    b.disabled=true;b.textContent='Sending…';google.script.run.withSuccessHandler(function(m){document.querySelector('main').innerHTML='<div class=\"msg\">'+m+'</div>';}).withFailureHandler(function(er){alert(er.message||er);b.disabled=false;b.textContent='Try again';}).clientRespond(Object.assign(${JSON.stringify(payload)},{name:n,po:po,decision:d}));}</script>`;
+  if (p.a === 'accept') {
+    if (!est.acceptToken || p.t !== est.acceptToken) return shell('Link not found', `<h1>We couldn't find that</h1><div class="msg warn">This link isn't working any more. Please give us a call.</div>${call}`);
+    if (est.status === 'accepted' || done.some(r => r.type === 'accept' && r.estId === est.id)) return shell('Already accepted', `<p class="k">Estimate ${esc_(num)}</p><h1>${esc_(est.heading || '')}</h1><div class="msg">This estimate has already been accepted. Thank you, we'll be in touch.</div>${call}`);
+    if (est.expiry && est.expiry < today_()) return shell('Pricing has expired', `<p class="k">Estimate ${esc_(num)}</p><h1>${esc_(est.heading || '')}</h1><div class="msg warn">The pricing on this estimate was held until ${longDate_(est.expiry)}. Please give us a call and we'll confirm it for you.</div>${call}`);
+    const v = vars_(est, data.settings, {}); const dep = est.acceptInfo && est.acceptInfo.depositPct || data.settings.estimate.depositPct || 25;
+    return shell(`Accept estimate ${num}`, `<p class="k">Estimate ${esc_(num)}</p><h1>${esc_(est.heading || 'Your estimate')}</h1>
+      <div class="price"><p>Total excl GST</p><b>${v.total}</b><p>A ${dep}% deposit is required before manufacture.${est.expiry ? ' Valid until ' + longDate_(est.expiry) + '.' : ''}</p></div>
+      <p style="font-size:14px">The full estimate is attached to our email.</p>
+      <label for="nm">Your name</label><input type="text" id="nm" autocomplete="name" value="${esc_(est.client.name || '')}">
+      <label for="po">Your PO number or reference</label><input type="text" id="po" autocomplete="off">
+      <label class="tick"><input type="checkbox" id="ok"> I accept this estimate and its terms and conditions</label>
+      <button id="go" onclick="go('accept')">Accept estimate</button>${call}${script({ type: 'accept', e: est.id, t: p.t })}`);
+  }
+  const va = (est.variations || []).find(x => x.id === p.v && !x.deleted);
+  if (!va || !va.token || p.t !== va.token) return shell('Link not found', `<h1>We couldn't find that</h1><div class="msg warn">This link isn't working any more. Please give us a call.</div>${call}`);
+  if (va.status === 'approved' || va.status === 'declined' || done.some(r => r.type === 'variation' && r.varId === va.id)) return shell('Already answered', `<p class="k">Variation V${va.n} to ${esc_(num)}</p><h1>${esc_(va.title)}</h1><div class="msg">Thanks, we've already got your answer on this one.</div>${call}`);
+  return shell(`Variation V${va.n}`, `<p class="k">Variation V${va.n} to ${esc_(num)}</p><h1>${esc_(va.title)}</h1><div class="box">${esc_(va.desc || '')}</div>
+    <div class="price"><p>Price for this change, excl GST</p><b>${money_(va.price)}</b>${va.delivery ? `<p>${esc_(va.delivery)}</p>` : ''}</div>
+    <label for="nm">Your name</label><input type="text" id="nm" autocomplete="name" value="${esc_(est.client.name || '')}">
+    <button id="go" onclick="go('approve')">Approve this variation</button><button class="no" onclick="go('decline')">Decline</button>${call}${script({ type: 'variation', e: est.id, v: va.id, t: p.t })}`);
+}
+/* called from the client's page */
+function clientRespond(r) {
+  const lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    const data = loadData_(); const est = data && findEst_(data, r.e); if (!est) throw new Error('We could not find that estimate. Please give us a call.');
+    let what = '';
+    if (r.type === 'accept') { if (!est.acceptToken || r.t !== est.acceptToken) throw new Error('This link is not valid.'); what = `accepted estimate ${est.number}${est.rev ? ' Rev ' + est.rev : ''}`; }
+    else { const va = (est.variations || []).find(x => x.id === r.v); if (!va || r.t !== va.token) throw new Error('This link is not valid.'); what = `${r.decision === 'approve' ? 'approved' : 'declined'} variation V${va.n} on ${est.number} (${va.title})`; }
+    const ref = responses_();
+    ref.j.responses.push({ type: r.type, estId: r.e, varId: r.v || '', decision: r.decision || 'accept', name: String(r.name || '').slice(0, 120), po: String(r.po || '').slice(0, 120), at: Date.now() });
+    ref.file.setContent(JSON.stringify(ref.j));
+    const to = est.sentBy || Session.getEffectiveUser().getEmail();
+    try { GmailApp.sendEmail(to, `${r.name} ${what}`, `${r.name} ${what}${r.po ? '\nPO / reference: ' + r.po : ''}.\n\nOpen the app to check the details${r.type === 'accept' ? ' and send the deposit details to accounts' : ''}:\n${APP_LINK}`); } catch (er) {}
+    return r.type === 'accept' ? 'Thank you, your acceptance has been received. We\'ll be in touch about the deposit and next steps.' : (r.decision === 'approve' ? 'Thanks, the variation is approved. We\'ll take it from here.' : 'Thanks, we\'ve noted that you\'ve declined this variation. We\'ll be in touch.');
+  } finally { lock.releaseLock(); }
 }

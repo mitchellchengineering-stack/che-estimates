@@ -325,8 +325,8 @@
     const est = st.get(id);
     if (!est || !est.job) return `<div class="empty"><h2>That job doesn't exist yet</h2><p>Jobs appear once an estimate is accepted.</p><a class="btn" href="#/production">Production board</a></div>`;
     App.cur = est;
-    const tabs = [['overview', 'Overview'], ['estimate', 'Estimate'], ['workings', 'Workings'], ['files', 'Plans and files'], ['deliveries', 'Frames and deliveries'], ['coils', 'Coils'], ['checklist', 'Factory checklist'], ['backcost', 'Back-costing'], ['pos', 'Purchase orders']];
-    const body = { overview: App.Jobs.overview, estimate: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/preview">Open estimate</a></div><div class="doc-preview" id="job-doc"></div>`, workings: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/workings">Open workings</a></div><div class="doc-preview" id="job-doc"></div>`, files: App.Jobs.filesTab, deliveries: App.Jobs.delTab, checklist: App.Jobs.checkTab, backcost: App.Jobs.backTab, pos: App.Jobs.poTab, coils: x => App.Coil.jobTab(x) }[tab] || App.Jobs.overview;
+    const tabs = [['overview', 'Overview'], ['estimate', 'Estimate'], ['variations', 'Variations'], ['workings', 'Workings'], ['files', 'Plans and files'], ['deliveries', 'Frames and deliveries'], ['coils', 'Coils'], ['checklist', 'Factory checklist'], ['backcost', 'Back-costing'], ['pos', 'Purchase orders']];
+    const body = { overview: App.Jobs.overview, estimate: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/preview">Open estimate</a></div><div class="doc-preview" id="job-doc"></div>`, workings: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/workings">Open workings</a></div><div class="doc-preview" id="job-doc"></div>`, files: App.Jobs.filesTab, deliveries: App.Jobs.delTab, checklist: App.Jobs.checkTab, backcost: App.Jobs.backTab, pos: App.Jobs.poTab, coils: x => App.Coil.jobTab(x), variations: x => App.Var.tab(x) }[tab] || App.Jobs.overview;
     return `<div class="page-head"><div><div class="crumbs"><a href="#/production">Production</a></div>
       <h1>${e(st.displayNumber(est))} <span class="pill stage">${e(App.stageLabel(est.job.stage))}</span></h1>
       <p class="sub">${e(est.client.company || est.client.name)}, ${e(est.heading)}${est.siteAddress ? ', ' + e(est.siteAddress) : ''}</p></div></div>
@@ -339,7 +339,7 @@
     const j = est.job; const i = STAGE_IDX(j.stage); const ld = App.Jobs.loadsDone(est); const ck = App.Jobs.checkDone(est);
     const vars = st.live().filter(v => v.parentId === est.id);
     const t = st.totals(est);
-    return `<section class="card"><h3>Where it's at</h3>
+    return `${App.Accept ? App.Accept.banner(est) : ''}<section class="card"><h3>Where it's at</h3>
       <ol class="stepper">${App.STAGES.map((s, k) => `<li class="${k < i ? 'past' : k === i ? 'now' : ''}"><button data-act="jobStage" data-s="${s.value}"><span class="n">${k + 1}</span>${s.label}</button></li>`).join('')}</ol>
       <ul class="activity small">${j.stageLog.slice().reverse().map(l => `<li><time>${App.fmtStamp(l.at)}</time> ${e(App.stageLabel(l.stage))} <span class="hint">${e(l.by)}</span></li>`).join('')}</ul></section>
     <div class="grid2">
@@ -350,7 +350,7 @@
       <label class="check"><input type="checkbox" data-bind="job.notifyClient" ${j.notifyClient ? 'checked' : ''}> Email the client when a delivery is booked</label>
     </section>
     <section class="card"><h3>Money</h3>
-      <div class="kv-list"><div><span>Total (excl GST)</span><b>${App.money(t.sub)}</b></div>${est.clientPo ? `<div><span>Client PO / reference</span><b>${e(est.clientPo)}</b></div>` : ''}<div><span>${j.deposit.notRequired ? 'Deposit' : `${j.deposit.mode ? App.round(j.deposit.pct, 1) : S().estimate.depositPct}% deposit`}</span><b>${j.deposit.notRequired ? 'Not required' : App.money(j.deposit.mode ? j.deposit.amount : t.deposit)}</b></div></div>
+      <div class="kv-list"><div><span>Total (excl GST)</span><b>${App.money(t.sub)}</b></div>${App.Var && App.Var.total(est) ? `<div><span>Approved variations</span><b>+${App.money(App.Var.total(est))}</b></div><div><span>Job total (excl GST)</span><b>${App.money(t.sub + App.Var.total(est))}</b></div>` : ''}${est.clientPo ? `<div><span>Client PO / reference</span><b>${e(est.clientPo)}</b></div>` : ''}<div><span>${j.deposit.notRequired ? 'Deposit' : `${j.deposit.mode ? App.round(j.deposit.pct, 1) : S().estimate.depositPct}% deposit`}</span><b>${j.deposit.notRequired ? 'Not required' : App.money(j.deposit.mode ? j.deposit.amount : t.deposit)}</b></div></div>
       ${S().emails.accountsEmail && st.mode === 'drive' ? `<button class="btn small" data-act="accountsEmail">${j.deposit.invoiceRequested ? 'Email accounts again' : 'Email accounts about the deposit'}</button>${j.deposit.invoiceRequested ? `<span class="hint"> Sent ${App.fmtStamp(j.deposit.invoiceRequested)}</span>` : ''}` : ''}
       <label class="check"><input type="checkbox" data-bind="job.deposit.invoiced" ${j.deposit.invoiced ? 'checked' : ''}> Deposit invoiced</label>
       <label class="check"><input type="checkbox" data-bind="job.deposit.received" ${j.deposit.received ? 'checked' : ''}> Deposit received</label>

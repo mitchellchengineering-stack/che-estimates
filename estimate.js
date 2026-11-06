@@ -4,11 +4,15 @@
 
   /* ---------- shared email sender ---------- */
   App.mail = {
-    async html(body, est, kind, trackId) {
+    async html(body, est, kind, trackId, button) {
       const sig = await App.G.signature();
+      const btn = button && button.link && App.Accept ? App.Accept.button(button.link, button.label) : '';
       const tid = trackId || (est && est.id);
       const pixel = S().emails.trackingUrl && tid ? `<img src="${e(S().emails.trackingUrl)}?e=${encodeURIComponent(tid)}&k=${kind || 'mail'}&t=${Date.now()}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">` : '';
-      return `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#222">${App.textToHtml(body)}</div>${sig ? `<br><div>${sig}</div>` : ''}${pixel}`;
+      /* the Accept or Approve button goes just above the sign-off */
+      let main = App.textToHtml(body);
+      if (btn) { const i = main.lastIndexOf('Cheers,'); main = i >= 0 ? main.slice(0, i) + btn + main.slice(i) : main + btn; }
+      return `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#222">${main}</div>${sig ? `<br><div>${sig}</div>` : ''}${pixel}`;
     },
     /* Opens a compose window. opts: {est, kind, to, cc, subject, body, attachEstimate, attachBrochure, extra:[{name,mime,base64}], onSent} */
     compose(opts) {
@@ -19,7 +23,7 @@
         ${App.field('Cc', `<input id="m-cc" value="${e(opts.cc || '')}">`)}
         ${App.field('Subject', `<input id="m-subj" value="${e(opts.subject || '')}">`)}
         ${App.field('Message', `<textarea id="m-body" rows="10">${e(opts.body || '')}</textarea>`)}
-        <p class="hint">Your Gmail signature is added after "Cheers,".</p>
+        <p class="hint">Your Gmail signature is added after "Cheers,".${opts.buttonLink ? ` A yellow <b>${e(opts.buttonLabel || 'Accept')}</b> button is added just above it.` : ''}</p>
         ${opts.attachEstimate ? `<label class="check"><input type="checkbox" id="m-est" checked> Attach the estimate PDF</label>` : ''}
         ${brochure && opts.attachBrochure !== undefined ? `<label class="check"><input type="checkbox" id="m-bro" ${opts.attachBrochure ? 'checked' : ''}> Attach ${e(S().emails.brochureName || 'brochure')}</label>` : ''}
         ${(opts.extra || []).map(a => `<p class="hint">Attached: ${e(a.name)}</p>`).join('')}`,
@@ -38,7 +42,7 @@
           }
           const to = m.querySelector('#m-to').value.trim();
           if (!to) throw new Error('Add who the email is going to.');
-          await App.G.send({ to, cc: m.querySelector('#m-cc').value.trim(), subject: m.querySelector('#m-subj').value, html: await this.html(m.querySelector('#m-body').value, opts.est, opts.kind, opts.trackId), attachments: atts });
+          await App.G.send({ to, cc: m.querySelector('#m-cc').value.trim(), subject: m.querySelector('#m-subj').value, html: await this.html(m.querySelector('#m-body').value, opts.est, opts.kind, opts.trackId, opts.buttonLink ? { link: opts.buttonLink, label: opts.buttonLabel } : null), attachments: atts });
           App.closeModal(); App.toast('Email sent');
           opts.onSent && opts.onSent();
         } catch (er) { App.toast(er.message, 'err', 6000); b.disabled = false; b.textContent = 'Send email'; }
@@ -593,7 +597,8 @@
     if (!est.client.email) return App.toast('Add the client\'s email address first', 'err');
     if (est.status === 'draft' && !(await preSend())) return;
     const t = App.mail.tpl('estimate', est);
-    App.mail.compose({ title: `Email ${st.displayNumber(est)}`, est, kind: 'estimate', to: est.client.email, subject: t.subject, body: t.body, attachEstimate: true, attachBrochure: !!S().estimate.attachBrochure,
+    const acceptLink = App.Accept ? App.Accept.link(est) : '';
+    App.mail.compose({ title: `Email ${st.displayNumber(est)}`, est, kind: 'estimate', to: est.client.email, subject: t.subject, body: t.body, attachEstimate: true, attachBrochure: !!S().estimate.attachBrochure, buttonLink: acceptLink, buttonLabel: 'Accept this estimate',
       onSent: () => { if (est.status === 'draft') markSent(est); else { st.log(est, 'Estimate emailed again'); save(); } } });
   };
   A.delMode = el => { const d = cur().delivery; if (el.dataset.v === 'del') { d.on = el.checked; if (el.checked) d.exYard = false; } else { d.exYard = el.checked; if (el.checked) d.on = false; } save(); App.refresh(); };

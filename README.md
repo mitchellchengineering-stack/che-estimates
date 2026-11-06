@@ -1,6 +1,16 @@
 # CH Engineering Estimates
 
-## Latest update: Health and safety, Maintenance, PDFs
+## Latest update: Accept online and Variations
+
+1. **Upload all the files** to GitHub and commit (not Code-Mitchell.gs or Code-Davin.gs, those go in Apps Script).
+2. **Update your helper script (Mitchell):** paste Code-Mitchell.gs into your CH Estimates helper, Save, then **Deploy > Manage deployments > pencil > Version: New version > Deploy**. The link stays the same. If you've never deployed it as a web app, do Deploy > New deployment > Web app, Execute as Me, Who has access Anyone, and paste the link into Settings > Emails > Helper web app link.
+3. **Davin:** paste Code-Davin.gs into his helper and Save (he doesn't need to deploy it).
+4. Estimate emails now have an **Accept this estimate** button. When a client accepts, the job is accepted in the app, you get an email, and it shows on Needs you so you can check the deposit and email accounts.
+5. Each job has a **Variations** tab: add a variation, send it to the client to approve online, and it's added to the job total.
+
+---
+
+## Earlier update: Health and safety, Maintenance, PDFs
 
 1. **Upload all the files** and commit.
 2. **Health and safety** (menu): Overview, Hazards, Incidents, Toolbox talks, People and training, Checks, Substances. It starts with a suggested hazard list, checks and substances; edit them to suit your site, and add your team under People and training.

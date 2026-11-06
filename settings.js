@@ -33,6 +33,8 @@
     <section class="card"><h3>Morning brief</h3><p class="hint">The first time you open the app after this time each day, it walks you through today, what to follow up and anything that needs a look. You can always open it again from the home page.</p>
       <div class="row" style="flex-wrap:wrap;gap:18px">${App.field('Show it from', `<select data-bind="brief.hour" data-type="num" style="width:auto">${[6, 7, 8, 9, 10, 11, 12].map(h => App.opt(h, h < 12 ? h + 'am' : '12pm', (s.brief || {}).hour ?? 9)).join('')}</select>`)}
       <label class="check"><input type="checkbox" data-bind="brief.off" ${(s.brief || {}).off ? 'checked' : ''}> Turn the morning brief off</label></div></section>
+    <section class="card"><h3>Accept online</h3><label class="check"><input type="checkbox" data-bind="estimate.acceptOnline" ${s.estimate.acceptOnline !== false ? 'checked' : ''}> Add an "Accept this estimate" button to estimate emails</label>
+      <p class="hint">${s.emails.trackingUrl ? 'The client accepts on a page run by your helper script, and the job is accepted in the app automatically.' : 'Needs the helper web app link in Settings, Emails (the same one used for open tracking).'}</p></section>
     <section class="card"><h3>Revisions</h3><label class="check"><input type="checkbox" data-bind="estimate.revRed" ${s.estimate.revRed !== false ? 'checked' : ''}> On Rev 1, Rev 2 and so on, show anything new or changed since the previous version in red</label><p class="hint">Anything taken out is simply left off. A short line at the top tells the client what the red means.</p></section>
     <section class="card"><h3>Numbering</h3>
       <div class="grid3">${App.field('Prefix', inp('numbering.prefix', s.numbering.prefix))}
@@ -141,7 +143,7 @@
     const em = s.emails; const names = { estimate: 'Sending an estimate', fu1: 'First follow-up (1 week)', fu2: 'Second follow-up (2 weeks)', expiry: 'Expiry reminder (3 days before)', thanks: 'Thank you on acceptance', accounts: 'To accounts on acceptance', delivery: 'Delivery booked', review: 'Review request', po: 'Purchase order' };
     return `<section class="card"><h3>Email settings</h3><div class="grid2">
       ${App.field('Accounts email (for deposit invoices in Xero)', inp('emails.accountsEmail', em.accountsEmail, 'type="email"'))}
-      ${App.field('Email open tracking link (from the helper script)', inp('emails.trackingUrl', em.trackingUrl, 'placeholder="https://script.google.com/macros/s/…/exec"'))}</div>
+      ${App.field('Helper web app link (for open tracking and online acceptance)', inp('emails.trackingUrl', em.trackingUrl, 'placeholder="https://script.google.com/macros/s/…/exec"'))}</div>
       <h4>Brochure or capability statement</h4>
       ${em.brochureId ? `<p>${e(em.brochureName)} <button class="btn small ghost" data-act="brochureDel">Remove</button></p>` : ''}
       ${st.mode === 'drive' ? `<label class="drop small">${em.brochureId ? 'Replace' : 'Upload'} PDF<input type="file" accept="application/pdf" data-act-change="brochureUp" hidden></label>` : '<p class="hint">Connect Google Drive to upload a brochure.</p>'}</section>

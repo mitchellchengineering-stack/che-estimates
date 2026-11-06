@@ -155,6 +155,7 @@
     const expiring = real.filter(x => x.status === 'sent' && !x.archived && x.expiry >= today && x.expiry <= App.addDays(today, 7));
     const SLs = App.Sales; const salesOn = SLs && SLs.ready() && SLs.S.loadedAt && !SLs.S.error; const ssm = salesOn ? SLs.summary() : null;
     const needs = [];
+    if (App.Accept) App.Accept.needs().forEach(a => needs.push(a));
     if (SLs) SLs.needs().forEach(a => needs.push(a));
     App.Jobs.attention().forEach(a => needs.push(a));
     if (App.Safety) App.Safety.needs().forEach(x => needs.push(x));
