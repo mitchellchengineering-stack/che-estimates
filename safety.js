@@ -141,7 +141,7 @@
     flow.push(R.section('What we\'re doing about it', R.table(['Action', 'Who', 'Due', 'Done'], (i.actions || []).map(a => [e(a.text), e(a.who || ''), a.due ? fdate(a.due) : '', a.done ? '✓ ' + fdate(a.done) : '-']))));
     if (imgs.length) flow.push(R.section('Photos', `<div class="inc-photos">${imgs.map(u => `<img src="${u}" alt="">`).join('')}</div>`));
     flow.push(D.blk(`<div class="cards3" style="grid-template-columns:1fr 1fr">${box('Notifiable event (WorkSafe)?', i.notifiable ? 'Yes, notified to WorkSafe' : 'No. Not a death, serious injury or illness, or a dangerous incident.')}${box('Signed off', i.signedOff || 'Not yet')}</div>`));
-    R.show(`Incident ${i.ref}`, R.spec('Incident report', `${i.type} ${i.ref}`, [['Reference', i.ref]], flow), `Incident ${i.ref}`);
+    R.show(`Incident ${i.ref}`, R.spec('Incident report', `${i.type} ${i.ref}`, [['Reference', i.ref]], flow, 'safety'), `Incident ${i.ref}`);
   };
 
   /* ---------- toolbox talks ---------- */
@@ -171,7 +171,7 @@
       R.section('Who was there', R.table(['Name', 'Signature'], (t.attendees || []).concat(t.others ? t.others.split(',').map(x => x.trim()) : []).map(n => [e(n), '']))),
       R.section('What we talked about', `<div class="note"><p>${App.textToHtml(t.notes || '-')}</p></div>`)];
     if (t.actions) flow.push(R.section('Actions', `<div class="note"><p>${App.textToHtml(t.actions)}</p></div>`));
-    R.show('Toolbox talk', R.spec('Toolbox talk', t.topic, [], flow), `Toolbox talk ${t.date} ${t.topic}`);
+    R.show('Toolbox talk', R.spec('Toolbox talk', t.topic, [], flow, 'safety'), `Toolbox talk ${t.date} ${t.topic}`);
   };
 
   /* ---------- people and training ---------- */
@@ -255,6 +255,6 @@
     flow.push(R.section('Checks', R.table(['Check', 'Last done', 'Next due'], live('checks').map(c => { const d = H.checkDue(c); return [e(c.name), d.last ? fdate(d.last.date) + ', ' + e(d.last.by || '') : 'Not yet', e(d.label)]; }))));
     const ppl = live('staff'); if (ppl.length) flow.push(R.section('Training', R.table(['Person', 'Tickets'], ppl.map(p => [e(p.name), e((p.tickets || []).filter(t => !t.na).map(t => t.name + (t.expiry ? ' (to ' + fdate(t.expiry) + ')' : '') + (t.training ? ' (in training)' : '')).join(', '))]))));
     flow.push(R.section('Toolbox talks', R.table(['Date', 'Topic', 'Who was there'], live('talks').filter(t => R.inRange(t.date, r)).map(t => [fdate(t.date), e(t.topic), e((t.attendees || []).join(', '))]))));
-    R.show('Health and safety', R.spec('Health and safety summary', 'Health and safety', [['Period', r.label]], flow), `Health and safety ${r.label}`);
+    R.show('Health and safety', R.spec('Health and safety summary', 'Health and safety', [['Period', r.label]], flow, 'safety'), `Health and safety ${r.label}`);
   });
 })();

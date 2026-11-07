@@ -167,7 +167,8 @@
     const ft = est.ft; const b = est.building;
     const main = `<fieldset ${locked ? 'disabled' : ''}>
     <section class="card">
-      <h3>Client</h3>
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap"><h3 style="margin:0">Client</h3>${App.Clients && !est.clientId && (est.client.company || est.client.name) && !locked ? '<button class="btn small ghost" data-act="clSaveFromEst">Save as a regular client</button>' : ''}${est.clientId && App.Clients && App.Clients.get(est.clientId) ? `<a class="btn small ghost" href="#/clients/${est.clientId}">Open ${e(App.Clients.label(App.Clients.get(est.clientId)))}'s folder</a>` : ''}</div>
+      ${App.Clients ? App.Clients.pickerHtml(est) : ''}
       <div class="grid2">
         ${App.field('Name', `<input data-bind="client.name" list="cust-list" value="${e(est.client.name)}" data-act-change="pickCustomer" autocomplete="off">`)}
         ${App.field('Company', inp('client.company', est.client.company))}

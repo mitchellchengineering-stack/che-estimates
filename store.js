@@ -101,6 +101,8 @@ App.defaultSettings = () => ({
   helper: { studSpacing: 0.6, trussSpacing: 0.9, joistSpacing: 0.45, wallExtra: 15, waste: 5, internalPerM2: 0.3, keys: { walls: '89x41|0.75', trusses: '89x41|0.75', joists: '150x41|0.95' } },
   sales: { apiUrl: 'https://script.google.com/macros/s/AKfycbwayHN0oCE9qnWFcYadC4uGoMexbirj-kqBCDp8bp8Zf_dTN5bwrMGs97eVzu5x6LRMYA/exec', passcode: '', sheetId: '' },
   fasteners: {
+    lowEmails: 'operations.chengineering@gmail.com', monthlyTo: '', monthlyName: '', monthlyCheckFirst: true, reorderMultiple: 2,
+    lowNote: 'Please order more.', monthlyIntro: 'Here\'s our fastener stock at the end of {month}, and what we used this month. Could you please send through the items marked to reorder?',
     sheetId: '1wljKchKFiSzcOzHFh150yRn41T4XYOWZImUG_csJGIw',
     appUrl: 'https://script.google.com/macros/s/AKfycbzFSHtrG7MBAqq85qQna3gLCfi7u5qma0gENtZYylT-OVGSeN2iAhTpS7xY2Cg9E9jggA/exec'
   },
@@ -112,6 +114,7 @@ App.defaultSettings = () => ({
       fu1: { subject: 'Following up: Estimate {number}, {heading}', body: 'Hi {first_name},\n\nI hope you\'re well. I just wanted to check in on the estimate we sent through last week for {heading}. If you have any questions, or if anything needs adjusting, I\'m happy to go through it with you. Just reply to this email or give me a call.\n\nCheers,' },
       fu2: { subject: 'Estimate {number}, {heading}', body: 'Hi {first_name},\n\nJust one last check-in on our estimate for {heading}. Your pricing is held until {expiry}, so if you\'d like to go ahead, or if your plans have changed and you\'d like us to revise anything, just let me know.\n\nIf now isn\'t the right time, no worries at all, and I won\'t keep following up. We\'d love to help whenever you\'re ready.\n\nCheers,' },
       expiry: { subject: 'Your pricing is held until {expiry}: Estimate {number}', body: 'Hi {first_name},\n\nJust a quick heads-up that the pricing on our estimate for {heading} is held until {expiry}. If you\'d like to lock it in, just reply to this email and we\'ll get things moving.\n\nCheers,' },
+      manual: { subject: 'Following up: {about}', body: 'Hi {first_name},\n\nJust following up on {about}. Have you had a chance to have a look? Happy to answer any questions, or to price it up for you.\n\nCheers,' },
       thanks: { subject: 'Thanks for going ahead: {number}, {heading}', body: 'Hi {first_name},\n\nThanks for choosing us for {heading}. Here\'s what happens next:\n\n1. We\'ll send through the {deposit_pct}% deposit invoice ({deposit}).\n2. Once the deposit and final plans are in, we\'ll start detailing.\n3. We\'ll confirm manufacture and delivery dates with you.\n\nIf you have any questions along the way, just reply to this email.\n\nCheers,' },
       accounts: { subject: 'Accepted: {number}, {client_name}. Deposit invoice needed', body: 'Hi,\n\n{number} for {client_name} ({heading}) has been accepted. The estimate is attached.\n\nClient PO / reference: {po_ref}\nClient email: {client_email}{company_line}\nSite: {site_address}\nTotal (excl GST): {total}\n{deposit_line}\n\nCould you please raise the deposit invoice in Xero, with their PO reference on it?\n\nCheers,' },
       delivery: { subject: 'Delivery booked: {number}, {delivery_date}', body: 'Hi {first_name},\n\nYour delivery for {heading} is booked for {delivery_date} ({load}).\n\nWe deliver by truck and trailer and unload ourselves, so please make sure there\'s clear, safe access for a truck and trailer, and a flat, dry area close to the build for unloading.\n\nCheers,' },
@@ -121,7 +124,7 @@ App.defaultSettings = () => ({
   }
 });
 
-App.defaultData = () => ({ v: 1, settings: App.defaultSettings(), counters: { practice: 0 }, estimates: [], customers: [], templates: [], events: [], salesMail: [], detailing: [], hazards: [], incidents: [], talks: [], staff: [], checks: [], substances: [], assets: [], servicelog: [] });
+App.defaultData = () => ({ v: 1, settings: App.defaultSettings(), counters: { practice: 0 }, estimates: [], customers: [], templates: [], events: [], salesMail: [], detailing: [], hazards: [], incidents: [], talks: [], staff: [], checks: [], substances: [], assets: [], servicelog: [], manualfu: [] });
 
 App.store = {
   data: null, mode: 'local', rootId: null, fileId: null, saving: false, pending: false, lastSync: 0, logs: [],
@@ -140,7 +143,7 @@ App.store = {
     const ds = App.defaultSettings();
     const deep = (target, src) => { Object.keys(src).forEach(k => { if (target[k] === undefined) target[k] = src[k]; else if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k]) && target[k] && typeof target[k] === 'object' && !Array.isArray(target[k])) deep(target[k], src[k]); }); };
     deep(d.settings, ds);
-    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing', 'hazards', 'incidents', 'talks', 'staff', 'checks', 'substances', 'assets', 'servicelog'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
+    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing', 'hazards', 'incidents', 'talks', 'staff', 'checks', 'substances', 'assets', 'servicelog', 'manualfu'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
     if (!d.settings.v2) { d.settings.v2 = true; d.settings.estimate.showAcceptanceGeneral = false; }
     if (!d.settings.v3) {
       d.settings.v3 = true; const si = d.settings.ft.scopeItems;
@@ -183,8 +186,12 @@ App.store = {
   async findRoot() {
     const name = 'CH Engineering Estimates';
     const q = `name='${name}' and mimeType='${App.G.FOLDER}' and trashed=false`;
-    const r = await App.G.api(`${App.G.D}?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`);
-    if (r.files.length) return r.files[0].id;
+    const r = await App.G.api(`${App.G.D}?q=${encodeURIComponent(q)}&fields=files(id,name,ownedByMe,createdTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`);
+    /* if someone has shared the team folder with you, use theirs rather than one of your own */
+    const withData = [];
+    for (const f of r.files) { try { if (await App.G.find('che-app-data.json', f.id)) withData.push(f); } catch (e) {} }
+    const pick = withData.find(f => !f.ownedByMe) || withData.sort((a, b) => String(a.createdTime).localeCompare(String(b.createdTime)))[0] || r.files[0];
+    if (pick) return pick.id;
     return App.G.folder(name, null);
   },
 
@@ -193,7 +200,7 @@ App.store = {
     let changed = false;
     if ((remote.settings.updatedAt || 0) > (local.settings.updatedAt || 0)) { local.settings = remote.settings; changed = true; }
     Object.keys(remote.counters || {}).forEach(k => { if ((remote.counters[k] || 0) > (local.counters[k] || 0)) { local.counters[k] = remote.counters[k]; changed = true; } });
-    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing', 'hazards', 'incidents', 'talks', 'staff', 'checks', 'substances', 'assets', 'servicelog'].forEach(k => {
+    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing', 'hazards', 'incidents', 'talks', 'staff', 'checks', 'substances', 'assets', 'servicelog', 'manualfu'].forEach(k => {
       const idx = new Map(local[k].map((r, i) => [r.id, i]));
       (remote[k] || []).forEach(r => {
         if (!idx.has(r.id)) { local[k].push(r); changed = true; }

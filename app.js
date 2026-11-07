@@ -5,6 +5,7 @@
   const NAV = [
     ['', 'Home', '<path d="M3 11l9-7 9 7v9H3z"/>'],
     ['tracker', 'Estimate tracker', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
+    ['clients', 'Clients', '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"/>'],
     ['followups', 'Follow-ups', '<path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/>'],
     ['sales', 'Sales', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
     ['production', 'Production', '<path d="M3 20V9l6 4V9l6 4V5h6v15z"/>'],
@@ -27,7 +28,7 @@
   };
 
   App.renderNav = () => {
-    const r = App.route(); const due = st.data ? App.Track.due().length : 0;
+    const r = App.route(); const due = st.data ? App.Track.due().length + (App.ManualFU ? App.ManualFU.due().filter(App.ManualFU.mine).length : 0) : 0;
     const sdue = st.data && App.Sales && App.Sales.S.loadedAt && !App.Sales.S.error ? (() => { const x = App.Sales.summary(); return x.overdue.length + x.today.length + App.Sales.waiting().length; })() : 0;
     const active = r.name === 'e' ? 'tracker' : r.name === 'new' ? '' : r.name === 'job' ? 'production' : r.name;
     document.getElementById('nav').innerHTML = NAV.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg><span>${l}</span>${k === 'followups' && due ? `<em class="badge">${due}</em>` : ''}${k === 'sales' && sdue ? `<em class="badge">${sdue}</em>` : ''}</a>`).join('');
@@ -62,8 +63,8 @@
       const est = st.newEstimate(r.a === 'ft' ? 'ft' : 'general', !!App.state.practice);
       location.replace(`#/e/${est.id}`); return;
     }
-    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'], sales: ['sales', r.a, r.b], pricing: ['pricing'], detailing: ['detailing', r.a], safety: ['safety', r.a], maintenance: ['maintenance', r.a] }[r.name] || ['home'];
-    if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home', 'coils', 'fasteners', 'sales', 'detailing', 'safety', 'maintenance'].includes(v[0])) App.cur = null;
+    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'], sales: ['sales', r.a, r.b], pricing: ['pricing'], detailing: ['detailing', r.a], safety: ['safety', r.a], maintenance: ['maintenance', r.a], clients: ['clients', r.a] }[r.name] || ['home'];
+    if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home', 'coils', 'fasteners', 'sales', 'detailing', 'safety', 'maintenance', 'clients'].includes(v[0])) App.cur = null;
     try { html = App.views[v[0]](...v.slice(1)); mount = App.views[v[0]].mount; }
     catch (er) { console.error(er); html = `<div class="empty"><h2>Something went wrong on this page</h2><p>${e(er.message)}</p><a class="btn" href="#/">Go home</a></div>`; }
     main.innerHTML = html;
@@ -156,6 +157,7 @@
     const SLs = App.Sales; const salesOn = SLs && SLs.ready() && SLs.S.loadedAt && !SLs.S.error; const ssm = salesOn ? SLs.summary() : null;
     const needs = [];
     if (App.Accept) App.Accept.needs().forEach(a => needs.push(a));
+    if (App.ManualFU) App.ManualFU.needs().forEach(a => needs.push(a));
     if (SLs) SLs.needs().forEach(a => needs.push(a));
     App.Jobs.attention().forEach(a => needs.push(a));
     if (App.Safety) App.Safety.needs().forEach(x => needs.push(x));

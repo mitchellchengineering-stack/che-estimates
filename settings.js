@@ -1,7 +1,7 @@
 /* Settings */
 (() => {
   const e = App.esc, S = () => App.store.s(), st = App.store, A = App.actions;
-  const SECTIONS = [['company', 'Company and users'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['sales', 'Sales'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
+  const SECTIONS = [['company', 'Company'], ['team', 'Team'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['sales', 'Sales'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
   const inp = (path, val, attrs = '') => `<input data-bind="${path}" value="${e(val ?? '')}" ${attrs}>`;
   const list = (path, items, ph, rows = 1) => `<div class="list-ed">${items.map((it, i) => `<div class="row">${rows > 1 ? `<textarea data-bind="${path}.${i}" rows="${rows}" placeholder="${e(ph)}">${e(it)}</textarea>` : `<input data-bind="${path}.${i}" value="${e(it)}" placeholder="${e(ph)}">`}
     <span class="move"><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="-1" aria-label="Move up">↑</button><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="1" aria-label="Move down">↓</button></span>
@@ -16,15 +16,44 @@
       <fieldset class="set-body" ${me.admin ? '' : 'disabled'}>${body}</fieldset></div>`;
   };
   App.Set = {};
+  App.views.settings.mount = sec => { if (sec === 'team') A.teamLoad(); };
 
   App.Set.company = s => `<section class="card"><h3>Company details</h3><p class="hint">These show on every estimate, docket and purchase order.</p>
     <div class="grid2">${App.field('Company name', inp('company.name', s.company.name))}${App.field('Address', inp('company.address', s.company.address))}
     ${App.field('Phone', inp('company.phone', s.company.phone))}${App.field('Email', inp('company.email', s.company.email))}
     ${App.field('Website', inp('company.website', s.company.website))}${App.field('Footer line', inp('company.ccaLine', s.company.ccaLine))}</div></section>
-    <section class="card"><h3>Who can use the app</h3><p class="hint">Only these Google accounts can sign in. Each person's name shows as "Prepared by" and their phone is used in their emails.</p>
-    <table class="wtable"><thead><tr><th>Name</th><th>Gmail address</th><th>Phone</th><th>Admin</th><th></th></tr></thead><tbody>
-    ${s.users.map((u, i) => `<tr><td>${inp(`users.${i}.name`, u.name)}</td><td>${inp(`users.${i}.email`, u.email, 'type="email"')}</td><td>${inp(`users.${i}.phone`, u.phone)}</td><td><input type="checkbox" data-bind="users.${i}.admin" ${u.admin ? 'checked' : ''}></td><td><button class="icon-btn" data-act="rowDel" data-path="users" data-i="${i}" aria-label="Remove">✕</button></td></tr>`).join('')}
-    </tbody></table><button class="btn small ghost" data-act="rowAdd" data-path="users" data-tpl='{"name":"","email":"","phone":"","admin":false,"followupMode":"ask"}'>Add a person</button></section>`;
+`;
+
+  /* ---------- Team: who can use the app, and the shared Drive folder ---------- */
+  App.Set.team = s => {
+    const shared = App.state.teamShared; const me = st.me().email;
+    const status = u => { if (!shared) return '<span class="hint">-</span>'; const p = shared.find(x => x.email === (u.email || '').toLowerCase()); return p ? `<span class="tag ok">${p.role === 'owner' ? 'Owner' : 'Shared'}</span>` : '<span class="tag warn">Not shared</span>'; };
+    return `<section class="card"><h3>Team members</h3><p class="hint">Everyone here signs in with their Google account and sees the same estimates, jobs and everything else. The shared CH Engineering Estimates folder shows up in their Google Drive. Staff can't change Settings or Pricing.</p>
+    <div class="table-scroll"><table class="wtable" style="min-width:900px"><thead><tr><th>Name</th><th>Google email</th><th style="width:150px">Phone</th><th>Role</th><th>Drive folder</th><th></th></tr></thead><tbody>
+    ${s.users.map((u, i) => `<tr><td>${inp(`users.${i}.name`, u.name)}</td><td><b>${e(u.email)}</b></td><td>${inp(`users.${i}.phone`, u.phone)}</td>
+      <td><select data-act-change="teamRole" data-i="${i}" style="width:auto">${App.opts([{ value: 'admin', label: 'Admin' }, { value: 'staff', label: 'Staff' }], u.admin ? 'admin' : 'staff')}</select></td><td>${status(u)}</td>
+      <td class="r nowrap">${shared && !shared.some(x => x.email === (u.email || '').toLowerCase()) ? `<button class="btn small" data-act="teamShare" data-i="${i}">Share the folder</button>` : ''}${u.email !== me ? `<button class="btn small ghost danger" data-act="teamRemove" data-i="${i}">Remove</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
+    <div class="team-add"><b>Add a member</b><div class="grid4">${App.field('Name', '<input id="tm-n">')}${App.field('Google email', '<input id="tm-e" type="email" placeholder="name@gmail.com">')}${App.field('Role', `<select id="tm-r">${App.opts([{ value: 'staff', label: 'Staff' }, { value: 'admin', label: 'Admin' }], 'staff')}</select>`)}<div class="fld"><span>&#160;</span><button class="btn primary" data-act="teamAdd">Add</button></div></div>
+      <p class="hint">They get an email from Google with the shared folder. Then they open the app link and sign in with that Google account.</p></div></section>`;
+  };
+  A.teamRole = el => { S().users[+el.dataset.i].admin = el.value === 'admin'; save(); };
+  A.teamAdd = async () => {
+    const name = document.getElementById('tm-n').value.trim(), email = document.getElementById('tm-e').value.trim().toLowerCase(), admin = document.getElementById('tm-r').value === 'admin';
+    if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return App.toast('Add their name and a proper Google email', 'err');
+    if (S().users.some(u => (u.email || '').toLowerCase() === email)) return App.toast('They\'re already on the team', 'err');
+    S().users.push({ name, email, phone: '', admin, followupMode: 'ask' }); save();
+    if (st.mode === 'drive') { try { await App.G.share(st.rootId, email); App.toast(`${name} added and the folder shared with them`); } catch (er) { App.toast(`${name} added, but sharing the folder didn't work: ${er.message}. Share it from Google Drive instead.`, 'err', 8000); } }
+    App.state.teamShared = null; App.refresh(); A.teamLoad();
+  };
+  A.teamShare = async el => { const u = S().users[+el.dataset.i]; try { await App.G.share(st.rootId, u.email); App.toast('Shared'); } catch (er) { App.toast(er.message, 'err', 6000); } App.state.teamShared = null; A.teamLoad(); };
+  A.teamRemove = async el => {
+    const u = S().users[+el.dataset.i];
+    if (!(await App.confirm(`Remove ${u.name}?`, 'They won\'t be able to sign in to the app, and the shared folder is taken out of their Google Drive.', 'Remove'))) return;
+    S().users.splice(+el.dataset.i, 1); save();
+    if (st.mode === 'drive') { try { await App.G.unshare(st.rootId, u.email); } catch (er) { App.toast('Removed from the app. Unshare the folder in Google Drive too.', 'err', 6000); } }
+    App.state.teamShared = null; App.refresh(); A.teamLoad();
+  };
+  A.teamLoad = async () => { if (st.mode !== 'drive' || App.state.teamShared) return; try { App.state.teamShared = await App.G.sharedWith(st.rootId); if (App.route().a === 'team') App.refresh(); } catch (er) { App.state.teamShared = []; } };
 
   App.Set.estimates = s => {
     const yy = st.yy(); const es = s.estimate;
@@ -136,11 +165,18 @@
       <p>${C && C.S.user ? `Signed in to the coil tracker as <b>${e(C.S.user.name)}</b> on this computer. <button class="btn small ghost" data-act="coilSignOut">Sign out</button>` : 'Not signed in to the coil tracker on this computer. <a href="#/coils">Sign in on the Coils page</a>.'}</p></section>
     <section class="card"><h3>Fasteners</h3><p class="hint">The Fasteners page reads the stock app's Google Sheet. Everyone who uses the estimates app needs to be able to open that sheet (Viewer is enough).</p>
       ${App.field('Fastener Google Sheet ID', inp('fasteners.sheetId', f.sheetId, 'placeholder="the long code between /d/ and /edit in the sheet\'s address"'))}
-      ${App.field('Stock app link (for the "Open the stock app" button)', inp('fasteners.appUrl', f.appUrl))}</section>`;
+      ${App.field('Stock app link (for the "Open the stock app" button)', inp('fasteners.appUrl', f.appUrl))}</section>
+    <section class="card"><h3>Fastener emails</h3><p class="hint">Sent by the stock app's script, which reads these settings. Separate several emails with commas.</p>
+      ${App.field('Low stock emails go to', inp('fasteners.lowEmails', f.lowEmails))}
+      ${App.field('Line at the end of the low stock email', inp('fasteners.lowNote', f.lowNote))}
+      <div class="grid2">${App.field('Monthly summary goes to (your supplier)', inp('fasteners.monthlyTo', f.monthlyTo, 'type="email"'))}${App.field('Their name', inp('fasteners.monthlyName', f.monthlyName))}</div>
+      ${App.field('Monthly summary message (use {month})', `<textarea data-bind="fasteners.monthlyIntro" rows="3">${e(f.monthlyIntro || '')}</textarea>`)}
+      <div class="grid2">${App.field('Reorder up to', `<select data-bind="fasteners.reorderMultiple" data-type="num">${[1.5, 2, 3].map(n => App.opt(n, n + ' x the minimum', f.reorderMultiple)).join('')}</select>`)}<div class="fld"><span>&#160;</span><label class="check"><input type="checkbox" data-bind="fasteners.monthlyCheckFirst" ${f.monthlyCheckFirst !== false ? 'checked' : ''}> Send the monthly summary to us to check first, instead of straight to the supplier</label></div></div>
+      <p class="hint">The monthly summary goes on the last working day of the month at 4pm, with the full stock list attached as a PDF.</p></section>`;
   };
 
   App.Set.emails = s => {
-    const em = s.emails; const names = { estimate: 'Sending an estimate', fu1: 'First follow-up (1 week)', fu2: 'Second follow-up (2 weeks)', expiry: 'Expiry reminder (3 days before)', thanks: 'Thank you on acceptance', accounts: 'To accounts on acceptance', delivery: 'Delivery booked', review: 'Review request', po: 'Purchase order' };
+    const em = s.emails; const names = { estimate: 'Sending an estimate', fu1: 'First follow-up (1 week)', fu2: 'Second follow-up (2 weeks)', expiry: 'Expiry reminder (3 days before)', thanks: 'Thank you on acceptance', accounts: 'To accounts on acceptance', delivery: 'Delivery booked', review: 'Review request', po: 'Purchase order', manual: 'Your own follow-ups (use {about} and {first_name})' };
     return `<section class="card"><h3>Email settings</h3><div class="grid2">
       ${App.field('Accounts email (for deposit invoices in Xero)', inp('emails.accountsEmail', em.accountsEmail, 'type="email"'))}
       ${App.field('Helper web app link (for open tracking and online acceptance)', inp('emails.trackingUrl', em.trackingUrl, 'placeholder="https://script.google.com/macros/s/…/exec"'))}</div>

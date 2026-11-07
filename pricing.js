@@ -105,8 +105,9 @@
     const coilChips = [...new Set(ms.map(x => App.num(x.coilWidth)).filter(Boolean))].sort((a, b) => b - a);
     return head + banner + `
     <div class="seg wrap" style="margin-bottom:16px">${ms.map((x, k) => `<label><input type="radio" name="prm" value="${k}" data-act-change="prTab" ${k === i ? 'checked' : ''}><span>${e(x.name)}</span></label>`).join('')}</div>
+    ${(S().users.find(u => u.email === st.me().email) || {}).admin === false ? '<div class="banner">Only admins can change pricing.</div>' : ''}
     <div class="pr-cols">
-      <div class="pr-left">
+      <fieldset class="pr-left" style="border:0;padding:0;margin:0" ${(S().users.find(u => u.email === st.me().email) || {}).admin === false ? 'disabled' : ''}>
         <section class="card"><h3><span class="num-b">1</span>Steel</h3><p class="hint">The coil this machine runs, and what you pay for it.</p>
           <div class="grid2">${App.field('Machine name', `<input data-bind="${base}.name" value="${e(m.name)}" data-rerender-blur="1">`)}${fld('Coil width', `${base}.coilWidth`, m.coilWidth, 'mm')}</div>
           <div class="chips-row">${coilChips.map(w => `<button class="chip ${App.num(m.coilWidth) === w ? 'on' : ''}" data-act="prCoil" data-w="${w}">${w}mm</button>`).join('')}</div>
@@ -121,7 +122,7 @@
         <section class="card"><h3><span class="num-b">4</span>Margin</h3><p class="hint">What you make on every metre this machine produces. Estimates use this, and don't add another markup on top.</p>
           ${seg('prmt', `${base}.marginType`, [['margin', 'Margin on sell price'], ['markup', 'Markup on cost']], m.marginType || 'margin')}
           <div class="grid2" style="margin-top:12px">${fld(m.marginType === 'markup' ? 'Markup' : 'Margin', `${base}.marginPct`, m.marginPct, '%')}<p class="hint" id="pr-eq" style="align-self:end">${P.eqText(m)}</p></div></section>
-      </div>
+      </fieldset>
       <aside class="pr-panel" id="pr-panel">${P.panelHtml(m, i)}</aside>
     </div>
     <section class="card" style="margin-top:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Every section at a glance</h3><span class="hint">These are the prices your estimates use for the steel you make</span></div><div id="pr-all" style="margin-top:10px">${P.allHtml()}</div></section>`;

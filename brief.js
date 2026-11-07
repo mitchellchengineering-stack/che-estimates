@@ -41,6 +41,7 @@
       /* 2. Follow up */
       const fu = [];
       (App.Accept ? App.Accept.needs() : []).forEach(a => fu.push(item(a.t, a.s, a.href)));
+      (App.ManualFU ? App.ManualFU.needs() : []).forEach(a => fu.push(item(a.t, a.s, a.href)));
       const KL = { fu1: 'First follow-up ready to send', fu2: 'Second follow-up ready to send', expiry: 'Expiry reminder ready to send', review: 'Review request ready to send' };
       const due = App.Track ? App.Track.due() : [];
       due.forEach(d => fu.push(item(`${st.displayNumber(d.est)} ${d.est.client.company || d.est.client.name}`, `${KL[d.kind] || 'Email ready to send'}${d.est.openedAt ? ', they opened the estimate' : ''}`, '#/followups')));

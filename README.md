@@ -1,6 +1,17 @@
 # CH Engineering Estimates
 
-## Latest update: Accept online and Variations
+## Latest update: Team, Clients, your own follow-ups, fastener emails
+
+1. **Upload all the files** to GitHub and commit (the .gs files go in Apps Script, not GitHub).
+2. **Make sure config.js has your folder ID:** `DRIVE_FOLDER_ID: "1SNzD7A4PwS6slrwomqORv5StlPQ0lk_A"`. The app also now finds the shared folder by itself if someone has shared it with you.
+3. **Team** (Settings > Team): add people by Google email. The app shares the Drive folder with them. Staff can't change Settings or Pricing.
+4. **Clients** (menu): save your regular builders. Pick them on new estimates and their details fill in. Each client has a folder with their jobs, detailing and totals.
+5. **Your own follow-ups** (Follow-ups > + Add a follow-up): for things sent outside the app.
+6. **Fastener emails:** set who gets them in Settings > Coils and fasteners. Then in the fastener stock app's Apps Script (in Davin's sheet), replace Code.gs with **Code-fasteners.gs**, Save, run **setupTriggers** once and approve, then run **testEmail** and **testMonthly** to see the new emails.
+
+---
+
+## Earlier update: Accept online and Variations
 
 1. **Upload all the files** to GitHub and commit (not Code-Mitchell.gs or Code-Davin.gs, those go in Apps Script).
 2. **Update your helper script (Mitchell):** paste Code-Mitchell.gs into your CH Estimates helper, Save, then **Deploy > Manage deployments > pencil > Version: New version > Deploy**. The link stays the same. If you've never deployed it as a web app, do Deploy > New deployment > Web app, Execute as Me, Who has access Anyone, and paste the link into Settings > Emails > Helper web app link.

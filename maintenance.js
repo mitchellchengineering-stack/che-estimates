@@ -141,7 +141,7 @@
     const flow = [D.blk(R.stats([['Status', M.worst(a) === 'over' ? 'Overdue' : M.worst(a) === 'soon' ? 'Due soon' : 'Up to date', ''], [a.unit ? a.unit[0].toUpperCase() + a.unit.slice(1) : 'Measured by', a.unit ? fmt(a.meter) : 'dates', a.meterAt ? 'at ' + fdate(a.meterAt) : ''], ['Metres run', a.pricingMachine ? fmt(M.lmRun(a)) + ' LM' : '-', ''], ['Spent', App.money(logs.reduce((t, l) => t + App.num(l.cost), 0), 0), 'all time']])),
       R.section('Reminders', R.table(['Task', 'Every', 'Last done', 'Next'], a.tasks.map(t => [e(t.name), `${fmt(t.every)} ${UNITS[t.unit]}`, t.last ? fdate(t.last.date) : '-', e(M.due(a, t).label)]))),
       R.section('Service history', R.table(['Date', 'What was done', 'By', 'Cost'], logs.map(l => [fdate(l.date), e([l.kind === 'fault' ? 'Fault: ' + (l.notes || '') : (l.tasks || []).join(', '), l.kind === 'fault' ? l.fix : l.notes].filter(Boolean).join('. ')), e(l.by || ''), App.num(l.cost) ? App.money(l.cost, 0) : '-']), [3]))];
-    R.show(`${a.name} service history`, R.spec('Service history', a.name, [['', a.reg || '']], flow));
+    R.show(`${a.name} service history`, R.spec('Service history', a.name, [['Rego', a.reg || '']], flow, 'workshop'));
   };
   App.Reports && (App.Reports.build.maintenance = r => {
     const R = App.Reports, D = App.Docs; const assets = live('assets'); const names = Object.fromEntries(assets.map(a => [a.id, a.name]));
@@ -149,6 +149,6 @@
     const flow = [D.blk(R.stats([['Overdue', String(assets.reduce((t, a) => t + a.tasks.filter(x => M.due(a, x).state === 'over').length, 0)), ''], ['Faults open', String(assets.reduce((t, a) => t + M.faults(a).length, 0)), ''], [`Spent, ${r.label}`, App.money(logs.reduce((t, l) => t + App.num(l.cost), 0), 0), '']]))];
     flow.push(R.section('Machines and vehicles', R.table(['Name', 'Task', 'Next'], assets.flatMap(a => a.tasks.map((t, k) => [k === 0 ? e(a.name) : '', e(t.name), e(M.due(a, t).label)])))));
     flow.push(R.section(`Service log, ${r.label}`, R.table(['Date', 'Machine or vehicle', 'What was done', 'Cost'], logs.map(l => [fdate(l.date), e(names[l.assetId] || ''), e([(l.tasks || []).join(', '), l.notes, l.fix].filter(Boolean).join('. ')), App.num(l.cost) ? App.money(l.cost, 0) : '-']), [3])));
-    R.show('Maintenance', R.spec('Maintenance summary', 'Maintenance', [['Period', r.label]], flow), `Maintenance ${r.label}`);
+    R.show('Maintenance', R.spec('Maintenance summary', 'Maintenance', [['Period', r.label]], flow, 'workshop'), `Maintenance ${r.label}`);
   });
 })();

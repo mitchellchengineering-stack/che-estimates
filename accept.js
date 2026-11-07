@@ -101,7 +101,7 @@
     const others = V.approved(est).filter(x => x.id !== v.id).reduce((t, x) => t + App.num(x.price), 0);
     flow.push(R.section('Job total', R.table(['', 'Excl GST'], [['Original price', App.money(st.totals(est).sub)], ['Other approved variations', App.money(others)], ['This variation', App.money(v.price)], ['<b>Job total with this variation</b>', `<b>${App.money(st.totals(est).sub + others + App.num(v.price))}</b>`]], [1])));
     flow.push(D.blk(v.status === 'approved' ? `<div class="note"><p><b>Approved</b> by ${e(v.approvedBy || '')} on ${App.fmtLong(v.approvedAt)}${v.online ? ' (online)' : ''}.</p></div>` : D.signRow([['Approved by', '2fr'], ['Signed', '2fr'], ['Date', '1fr']])));
-    return R.spec('Variation', `V${v.n} to ${st.displayNumber(est)}`, [['Client', est.client.company || est.client.name], ['Site', est.siteAddress || '']], flow);
+    return R.spec('Variation', `V${v.n} to ${st.displayNumber(est)}`, [['Client', est.client.company || est.client.name], ['Site', est.siteAddress || '']], flow, 'estimate');
   };
   A.varPdf = el => { const est = cur(); const v = vById(el.dataset.id); App.Reports.show(`Variation V${v.n}`, V.spec(est, v), `${st.displayNumber(est)} Variation V${v.n}`); };
   A.varSend = async el => {

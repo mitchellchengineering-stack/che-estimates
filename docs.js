@@ -29,10 +29,11 @@ App.Docs = {
   runHead(number, sub) {
     return `<div class="pg-run"><img src="logo.png" alt="CH Engineering"><div class="tb"><p class="num">${this.e(number)}</p><p class="sub">${this.e(sub)}<span class="cont">continued</span></p></div></div>`;
   },
-  footFull() {
+  /* partners = false leaves out the Axxis and NASH logos (they're only for estimates and dockets) */
+  footFull(partners = true) {
     const c = this.co();
     return `<div class="pg-foot"><div class="rule"></div><div class="row">
-      <div class="partners"><img class="ax" src="axxis.png" alt="Axxis steel for framing"><img class="na" src="nash.png" alt="NASH member"></div>
+      ${partners ? '<div class="partners"><img class="ax" src="axxis.png" alt="Axxis steel for framing"><img class="na" src="nash.png" alt="NASH member"></div>' : `<p class="coname"><b>${this.e(c.name || 'CH Engineering Ltd')}</b><br>${this.e(c.address || '')}</p>`}
       <p class="ctr">${this.e(c.phone)} &#160;|&#160; ${this.e(c.email)} &#160;|&#160; ${this.e(c.website)}</p>
       <p class="pgn">Page <span class="pn"></span> of <span class="pt"></span></p></div>
       <p class="cca">${this.e(c.ccaLine)}</p></div>`;
@@ -208,7 +209,7 @@ App.Docs = {
     groups.forEach(g => flow.push(this.blk(`<h2 class="h2" data-title="${this.e(g.t)}">${this.e(g.t)}${g.s ? `<span class="hs">${this.e(g.s)}</span>` : ''}</h2><div class="tgrid" data-items>${g.f.map(f => `<div class="tcell"><b>${this.e(f.name)}${f.qty > 1 ? `<i>x${f.qty}</i>` : ''}</b><span class="box">${ticks[f.id] ? '✓' : ''}</span></div>`).join('')}</div>`)));
     if (!frames.length) flow.push(this.blk('<p>No frames yet. Upload the PDF detailing on the job page.</p>'));
     const bottom = this.signRow([['Foreman sign-off, all frames complete and checked', '2fr'], ['Date', '1fr']], true);
-    return { head: this.fullHead('', 'Factory checklist', [], job.manufactureDate ? this.darkChip('Make from ' + App.fmtDate(job.manufactureDate, { weekday: 'short', day: 'numeric', month: 'short' })) : ''), run: this.runHead(st.displayNumber(est), 'Factory checklist'), foot: this.footSimple('CH Engineering Ltd, internal use'), flow, bottom, after: [], number: st.displayNumber(est) };
+    return { head: this.fullHead('', 'Factory checklist', [], job.manufactureDate ? this.darkChip('Make from ' + App.fmtDate(job.manufactureDate, { weekday: 'short', day: 'numeric', month: 'short' })) : ''), run: this.runHead(st.displayNumber(est), 'Factory checklist'), foot: this.footFull(false), theme: 'factory', flow, bottom, after: [], number: st.displayNumber(est) };
   },
   docket(est, load, copy) {
     const st = App.store; const job = est.job || {}; const loads = job.loads || []; const all = this.jobFrames(est);
@@ -245,7 +246,7 @@ App.Docs = {
       this.blk(`<table class="dt"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Total</th></tr></thead><tbody data-items>${po.lines.map(l => `<tr><td>${this.e(l.desc)}</td><td class="r">${this.e(l.qty)} ${this.e(l.unit || '')}</td><td class="r">${App.money(l.cost)}</td><td class="r">${App.money(App.num(l.qty) * App.num(l.cost))}</td></tr>`).join('')}</tbody></table>`)
     ];
     if (po.notes) flow.push(this.blk(`<div class="note"><p>${App.textToHtml(po.notes)}</p></div>`));
-    return { head: this.fullHead('Purchase order', po.number, [['Date', App.fmtLong(po.date)], ['Job', App.store.displayNumber(est)]]), run: this.runHead(po.number, 'Purchase order'), foot: this.footFull(), flow, bottom: `<div class="bottom"><div class="left"></div><div class="price"><p class="lbl">Total excl GST</p><p class="big">${App.money(tot)}</p></div></div>`, after: [], number: po.number };
+    return { head: this.fullHead('Purchase order', po.number, [['Date', App.fmtLong(po.date)], ['Job', App.store.displayNumber(est)]]), run: this.runHead(po.number, 'Purchase order'), foot: this.footFull(false), flow, bottom: `<div class="bottom"><div class="left"></div><div class="price"><p class="lbl">Total excl GST</p><p class="big">${App.money(tot)}</p></div></div>`, after: [], number: po.number };
   },
 
   /* ---------- page layout engine ---------- */
@@ -267,7 +268,7 @@ App.Docs = {
     const pages = [];
     const toEl = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
     const newPage = first => {
-      const p = toEl(`<div class="pg${spec.landscape ? ' land' : ''}"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
+      const p = toEl(`<div class="pg${spec.landscape ? ' land' : ''}${spec.theme && App.store.s().pdfThemes ? ' theme-' + spec.theme : ''}"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
       host.appendChild(p); pages.push(p); return p.querySelector('.pg-body');
     };
     const over = b => b.scrollHeight > b.clientHeight + 1;

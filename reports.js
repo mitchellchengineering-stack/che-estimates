@@ -14,9 +14,10 @@
     },
     section(title, inner) { return D().blk(`${D().h2(title)}${inner}`); },
     note(text) { return D().blk(`<div class="note"><p>${text}</p></div>`); },
-    spec(kicker, title, meta, flow) {
+    /* theme: office (default), safety, factory, workshop, or estimate (keeps the Axxis and NASH logos) */
+    spec(kicker, title, meta, flow, theme = 'office') {
       const by = st.me().name || '';
-      return { head: D().fullHead(kicker, title, meta.concat([['Printed', App.fmtStamp(Date.now())], ['By', by]])), run: D().runHead(title, kicker), foot: D().footFull(), flow, bottom: '', after: [], number: title };
+      return { theme, head: D().fullHead(kicker, title, meta.concat([['Printed', App.fmtStamp(Date.now())], ['By', by]])), run: D().runHead(title, kicker), foot: D().footFull(theme === 'estimate'), flow, bottom: '', after: [], number: title };
     },
     show(title, spec, fileName) { D().preview(title, spec, { pdfName: (fileName || title).replace(/[\\/:*?"<>|]+/g, '-') + '.pdf' }); },
     inRange(d, r) { if (!d) return false; const x = String(d).slice(0, 10); return x >= r.from && x <= r.to; },
@@ -38,7 +39,7 @@
     },
     /* which report each page offers */
     PAGES: {
-      tracker: ['Estimate tracker', 'tracker'], followups: ['Follow-ups', 'followups', { noPeriod: true }], sales: ['Sales', 'sales'], production: ['Production', 'production', { noPeriod: true }],
+      tracker: ['Estimate tracker', 'tracker'], clients: ['Clients', 'clientsAll', { noPeriod: true }], followups: ['Follow-ups', 'followups', { noPeriod: true }], sales: ['Sales', 'sales'], production: ['Production', 'production', { noPeriod: true }],
       detailing: ['Detailing', 'detailing', { def: 'all' }], calendar: ['Calendar', 'calendar', { def: 'month' }], coils: ['Coils', 'coils'], fasteners: ['Fasteners', 'fasteners'],
       safety: ['Health and safety', 'safety', { def: 'year' }], maintenance: ['Maintenance', 'maintenance', { def: 'year' }], pricing: ['Pricing', 'pricing', { noPeriod: true }], dashboard: ['Dashboard', 'dashboard', { def: 'month' }], '': ['Dashboard', 'dashboard', { def: 'month' }]
     },
@@ -46,6 +47,7 @@
       const r = App.route();
       if (r.name === 'job' && r.a) return R.addRecordButton(r);
       if (r.name === 'sales' && r.a === 'c') return R.addRecordButton(r);
+      if (r.name === 'clients' && r.a) return R.addRecordButton(r);
       if (r.a && !['coils', 'safety', 'maintenance'].includes(r.name)) return;
       const p = R.PAGES[r.name]; if (!p) return;
       const head = document.querySelector('#main .page-head'); if (!head || head.querySelector('[data-act="reportPdf"]')) return;
@@ -55,8 +57,8 @@
     addRecordButton(r) {
       const head = document.querySelector('#main .page-head'); if (!head || head.querySelector('[data-act="reportPdf"]')) return;
       let acts = head.querySelector('.head-actions'); if (!acts) { acts = document.createElement('div'); acts.className = 'head-actions'; head.appendChild(acts); }
-      const k = r.name === 'job' ? 'job' : 'contact';
-      acts.insertAdjacentHTML('afterbegin', `<button class="btn" data-act="reportPdf" data-k="${k}" data-id="${e(r.name === 'job' ? r.a : r.b)}">${k === 'job' ? 'Job summary PDF' : 'Download PDF'}</button>`);
+      const k = r.name === 'job' ? 'job' : r.name === 'clients' ? 'client' : 'contact';
+      acts.insertAdjacentHTML('afterbegin', `<button class="btn" data-act="reportPdf" data-k="${k}" data-id="${e(r.name === 'sales' ? r.b : r.a)}">${k === 'job' ? 'Job summary PDF' : 'Download PDF'}</button>`);
     },
     build: {}
   };
@@ -64,6 +66,7 @@
     const k = el.dataset.k; const id = el.dataset.id;
     if (k === 'job') return R.build.job(id);
     if (k === 'contact') return R.build.contact(id);
+    if (k === 'client') return R.build.client(id);
     const p = Object.values(R.PAGES).find(x => x[1] === k) || [k, k];
     R.pick(p[0], range => { try { R.build[k](range); } catch (er) { console.error(er); App.toast('Couldn\'t make that PDF: ' + er.message, 'err', 6000); } }, p[2] || {});
   };
@@ -78,6 +81,11 @@
     const flow = [D().blk(R.stats([['Estimates', String(list.length), money(sum(list))], ['Sent', String(sent.length), money(sum(sent))], ['Won', String(won.length), money(sum(won))], ['Win rate', won.length + lost.length ? Math.round(won.length / (won.length + lost.length) * 100) + '%' : '-', `${lost.length} lost`]]))];
     flow.push(R.section('Estimates', R.table(['Number', 'Client', 'Job', 'Type', 'Status', 'Value'], list.map(x => [e(st.displayNumber(x)), e(who(x)), e(x.heading || ''), x.type === 'ft' ? 'F&amp;T' : 'General', e(App.statusLabel ? App.statusLabel(x.status) : x.status), money(st.totals(x).sub)]), [5])));
     R.show('Estimate tracker', R.spec('Estimate tracker summary', r.label, [], flow), `Estimate tracker ${r.label}`);
+  };
+  R.build.clientsAll = () => {
+    const CL = App.Clients; const list = CL ? CL.list() : [];
+    const flow = [R.section('Regular clients', R.table(['Client', 'Contact', 'Jobs', 'Won', 'Steel sold'], list.map(c => { const s2 = CL.stats(c); return [e(CL.label(c)), e([c.name, c.phone].filter(Boolean).join(', ')), String(s2.won.length), money(s2.wonV), s2.lm ? fmt(s2.lm) + ' LM' : '-']; }), [2, 3, 4]))];
+    R.show('Clients', R.spec('Clients', 'Regular clients', [], flow), 'Clients');
   };
   R.build.followups = () => {
     const w = real().filter(x => x.status === 'sent' && !x.archived); const due = App.Track ? App.Track.due() : [];
@@ -106,12 +114,12 @@
     flow.push(R.section('Jobs', R.table(['Job', 'Client', 'Stage', 'Manufacture', 'Next delivery', 'Value'], jobs.filter(j => j.job.stage !== 'complete').map(j => { const nd = App.Jobs.nextDelivery(j); return [e(st.displayNumber(j)), e(who(j)), e(App.stageLabel(j.job.stage)), j.job.manufactureDate ? App.fmtShort(j.job.manufactureDate) : '', nd ? `${nd.n} of ${j.job.loads.length}, ${App.fmtShort(nd.date)}` : '', money(st.totals(j).sub)]; }), [5])));
     const steel = App.Jobs.steelNeeded ? App.Jobs.steelNeeded() : [];
     if (steel.length) flow.push(R.section('Steel needed, next 2 weeks', R.table(['Section', 'Gauge', 'Metres', 'For'], steel.map(x => [e(x.size), e(x.gauge) + ' BMT', fmt(x.lm) + ' LM', e(x.jobs.join(', '))]), [2])));
-    R.show('Production', R.spec('Production summary', 'Production', [['As at', App.fmtLong(App.today())]], flow), `Production ${App.today()}`);
+    R.show('Production', R.spec('Production summary', 'Production', [['As at', App.fmtLong(App.today())]], flow, 'factory'), `Production ${App.today()}`);
   };
   R.build.detailing = r => {
     const DL = App.Detailing; const list = DL ? DL.list().filter(x => R.inRange(App.iso(new Date(x.createdAt)), r)) : [];
     const flow = [R.section('Detailing', R.table(['Description', 'Job', 'Files', 'Uploaded'], list.map(x => { const est = DL.est(x); return [e(x.desc), est ? e(st.displayNumber(est) + ' ' + who(est)) : 'Not linked', e(x.files.map(f => f.label).join(', ')), App.fmtShort(App.iso(new Date(x.createdAt)))]; })))];
-    R.show('Detailing', R.spec('Detailing summary', 'Detailing', [['Period', r.label]], flow), `Detailing ${r.label}`);
+    R.show('Detailing', R.spec('Detailing summary', 'Detailing', [['Period', r.label]], flow, 'factory'), `Detailing ${r.label}`);
   };
   R.build.calendar = r => {
     const ev = (App.Jobs.events ? App.Jobs.events() : []).filter(x => R.inRange(x.date, r)).sort((a, b) => a.date.localeCompare(b.date));
@@ -124,7 +132,7 @@
     const flow = [D().blk(R.stats([['In stock', `${sm.ins.length} coils`, C.kg(sm.ins.reduce((t, c) => t + c.weight, 0))], [`Used, ${r.label}`, `${used.length} coils`, C.kg(used.reduce((t, c) => t + c.weight, 0))], ['Waiting for labels', String(sm.unlabelled.length), '']]))];
     flow.push(R.section('In stock by size', R.table(['Size', 'Coils', 'Weight'], Object.values(sm.ins.reduce((o, c) => { const k = `${c.width} × ${C.bmt(c.thickness)}`; o[k] = o[k] || [k, 0, 0]; o[k][1]++; o[k][2] += c.weight; return o; }, {})).map(([k, n, w]) => [k, String(n), C.kg(w)]), [1, 2])));
     flow.push(R.section(`Used, ${r.label}`, R.table(['Coil', 'Size', 'Scanned out', 'Jobs', 'Weight'], used.map(c => [e(c.coilId), `${c.width} × ${C.bmt(c.thickness)}`, App.fmtShort(App.iso(new Date(c.scannedOutAt))), e((c.jobs || []).join(', ')), C.kg(c.weight)]), [4])));
-    R.show('Coils', R.spec('Coils summary', 'Coils', [['Period', r.label]], flow), `Coils ${r.label}`);
+    R.show('Coils', R.spec('Coils summary', 'Coils', [['Period', r.label]], flow, 'factory'), `Coils ${r.label}`);
   };
   R.build.fasteners = r => {
     const F = App.Fast; if (!F || !F.S.loadedAt) return App.toast('Open the Fasteners tab first so the stock loads', 'err');
@@ -132,7 +140,7 @@
     const flow = [D().blk(R.stats([['Items', String(F.S.items.length), ''], ['Below minimum', String(low.length), ''], [`Signed out, ${r.label}`, String(Object.values(used).reduce((a, b) => a + b, 0)), 'items']]))];
     if (low.length) flow.push(R.section('Reorder these', R.table(['Item', 'In stock', 'Minimum'], low.map(i => [e(i.name), String(i.qty), String(i.min)]), [1, 2])));
     flow.push(R.section('Stock', R.table(['Item', 'In stock', 'Minimum', `Used, ${r.label}`], F.S.items.map(i => [e(i.name), String(i.qty), String(i.min), String(used[i.name] || 0)]), [1, 2, 3])));
-    R.show('Fasteners', R.spec('Fasteners summary', 'Fasteners', [['Period', r.label]], flow), `Fasteners ${r.label}`);
+    R.show('Fasteners', R.spec('Fasteners summary', 'Fasteners', [['Period', r.label]], flow, 'factory'), `Fasteners ${r.label}`);
   };
   R.build.pricing = () => {
     const list = App.Pricing ? Object.values(App.Pricing.list()) : [];

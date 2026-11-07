@@ -119,6 +119,21 @@ App.G = {
     return this.api('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw }) });
   },
 
+  /* ---------- Sharing the shared folder with team members ---------- */
+  async share(fileId, email, role = 'writer') {
+    return this.api(`${this.D}/${fileId}/permissions?sendNotificationEmail=true&supportsAllDrives=true`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'user', role, emailAddress: email }) });
+  },
+  async unshare(fileId, email) {
+    const r = await this.api(`${this.D}/${fileId}/permissions?fields=permissions(id,emailAddress,role)&supportsAllDrives=true`);
+    const p = (r.permissions || []).find(x => (x.emailAddress || '').toLowerCase() === email.toLowerCase() && x.role !== 'owner');
+    if (p) await this.api(`${this.D}/${fileId}/permissions/${p.id}?supportsAllDrives=true`, { method: 'DELETE' });
+    return !!p;
+  },
+  async sharedWith(fileId) {
+    const r = await this.api(`${this.D}/${fileId}/permissions?fields=permissions(id,emailAddress,role)&supportsAllDrives=true`);
+    return (r.permissions || []).map(p => ({ email: (p.emailAddress || '').toLowerCase(), role: p.role }));
+  },
+
   /* ---------- Sheets (read only) ---------- */
   async sheetValues(sheetId, ranges) {
     const q = ranges.map(r => 'ranges=' + encodeURIComponent(r)).join('&');

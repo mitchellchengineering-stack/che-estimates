@@ -1011,3 +1011,69 @@ a.practice-flag { text-decoration: none; }
 /* Accept online, variations */
 .accept-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--green-bg); border-color: transparent; }
 .var-tot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; background: var(--soft); border-radius: 12px; padding: 12px 14px; font-size: .92rem; }
+
+/* ================= PDF styles by type =================
+   Same colours, logo, watermark and footer as the estimates, each with its own twist. */
+.pg-foot .coname { font-size: 11px; line-height: 1.35; color: #4a5158; flex: none; }
+.pg-foot .coname b { color: #15171a; }
+
+/* Office (sales, tracker, follow-ups, dashboard, calendar, pricing, jobs): a yellow spine down the left */
+.pg.theme-office .pg-bar { height: 0; }
+.pg.theme-office::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 14px; background: #f5c400; z-index: 2; }
+.pg.theme-office .pg-head { padding-top: 34px; }
+.pg.theme-office .pg-head .logo { width: 230px; }
+.pg.theme-office .pg-head .lbl { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+.pg.theme-office .pg-head .num { display: inline-block; border-bottom: 6px solid #f5c400; padding-bottom: 2px; }
+.pg.theme-office .h2 { text-transform: uppercase; letter-spacing: .08em; font-size: 12.5px; }
+.pg.theme-office .h2::before { width: 10px; height: 10px; border-radius: 2px; }
+.pg.theme-office .stat { background: #fff; border: 1px solid #e3e6e8; border-top: 4px solid #f5c400; }
+.pg.theme-office .stat.dark { background: #15171a; border-color: #15171a; border-top-color: #f5c400; }
+.pg.theme-office .dt thead th { background: #f5f6f4; color: #15171a; border-bottom: 2px solid #15171a; border-radius: 0 !important; }
+
+/* Factory (production, coils, statements, fasteners, detailing, checklist): a black header band */
+.pg.theme-factory .pg-bar { height: 8px; background: #f5c400; }
+.pg.theme-factory .pg-head { background: #15171a; color: #fff; padding: 22px 48px 20px; margin-bottom: 18px; align-items: center; }
+.pg.theme-factory .pg-head .logo { width: 220px; background: #fff; padding: 10px 14px; border-radius: 12px; box-sizing: content-box; }
+.pg.theme-factory .pg-head .lbl { color: #c9ced3; text-transform: uppercase; letter-spacing: .1em; font-size: 11px; }
+.pg.theme-factory .pg-head .num { color: #f5c400; margin-bottom: 6px; }
+.pg.theme-factory .pg-head .meta span { color: #a9b0b6; } .pg.theme-factory .pg-head .meta b { color: #fff; }
+.pg.theme-factory .pg-run { background: #15171a; border-bottom: 0; } .pg.theme-factory .pg-run img { background: #fff; padding: 6px 10px; border-radius: 8px; }
+.pg.theme-factory .pg-run .num { color: #f5c400; } .pg.theme-factory .pg-run .sub { color: #c9ced3; }
+.pg.theme-factory .h2 { display: inline-flex; background: #15171a; color: #f5c400; padding: 5px 12px; border-radius: 8px; font-size: 13px; }
+.pg.theme-factory .h2::before { display: none; }
+.pg.theme-factory .stat { background: #15171a; } .pg.theme-factory .stat .l { color: #a9b0b6; } .pg.theme-factory .stat .v { color: #f5c400; }
+.pg.theme-factory .dt thead th { background: #f5c400; color: #15171a; }
+
+/* Safety (incidents, toolbox talks, H&S summary): a hazard-stripe band */
+.pg.theme-safety .pg-bar { height: 18px; background: repeating-linear-gradient(135deg, #f5c400 0 16px, #15171a 16px 32px); }
+.pg.theme-safety .pg-head .lbl { display: inline-block; background: #15171a; color: #f5c400; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+.pg.theme-safety .h2 { border-left: 6px solid #15171a; padding-left: 10px; background: linear-gradient(transparent 55%, #fff4c7 55%); }
+.pg.theme-safety .h2::before { display: none; }
+.pg.theme-safety .note { background: #fff; border: 1.5px solid #15171a; border-left-width: 6px; }
+.pg.theme-safety .stat { border: 1.5px solid #15171a; background: #fff; } .pg.theme-safety .stat.dark { background: #15171a; }
+.pg.theme-safety .pg-foot .rule { height: 6px; background: repeating-linear-gradient(135deg, #f5c400 0 8px, #15171a 8px 16px); border-radius: 3px; }
+
+/* Workshop (maintenance): graph-paper header */
+.pg.theme-workshop .pg-bar { height: 10px; background: #15171a; }
+.pg.theme-workshop .pg-head { background-color: #fafbf9; background-image: linear-gradient(#e6e9e6 1px, transparent 1px), linear-gradient(90deg, #e6e9e6 1px, transparent 1px); background-size: 18px 18px; padding: 24px 48px 20px; border-bottom: 3px solid #f5c400; margin-bottom: 16px; }
+.pg.theme-workshop .pg-head .lbl { text-transform: uppercase; letter-spacing: .1em; font-size: 11px; }
+.pg.theme-workshop .h2 { border-bottom: 2px dashed #15171a; padding-bottom: 6px; }
+.pg.theme-workshop .h2::before { width: 12px; height: 12px; border-radius: 50%; border: 3px solid #15171a; background: #f5c400; }
+.pg.theme-workshop .stat { background: #fff; border: 1.5px dashed #9aa1a7; } .pg.theme-workshop .stat.dark { background: #15171a; border: 0; }
+.pg.theme-workshop .dt thead th { background: #3d444b; }
+
+/* Team, Clients */
+.team-add { margin-top: 14px; background: var(--soft); border-radius: 12px; padding: 14px; }
+.grid4 { display: grid; grid-template-columns: 1fr 1.4fr 0.8fr auto; gap: 10px; align-items: end; margin-top: 8px; }
+.cl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.cl-card { margin: 0; text-decoration: none; display: flex; flex-direction: column; gap: 10px; }
+.cl-card .cn { font-size: 1.15rem; }
+.cl-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cl-stats span { background: var(--soft); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; }
+.cl-stats em { font-style: normal; font-size: .72rem; font-weight: 700; color: var(--ink-3); }
+.cl-cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.cl-cols aside .card { margin: 0 0 16px; }
+.cl-jobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.dthumb.none { background: var(--soft); }
+.cl-pick .fld { flex: 1 1 280px; margin: 0; }
+@media (max-width: 1000px) { .cl-cols, .grid4 { grid-template-columns: 1fr; } }

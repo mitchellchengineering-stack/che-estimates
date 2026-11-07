@@ -223,7 +223,7 @@
     if (k !== 'board') flow.push(App.Docs.blk(`${App.Docs.h2('This week and next')}<div class="pr-tl">${App.Jobs.timelineHtml(days, App.Jobs.timelineRows(days), true)}</div>`));
     if (k !== 'timeline') flow.push(`<section class="blk" ${k === 'plan' ? 'style="break-before:page"' : ''}>${App.Docs.h2('Job board')}<div class="pr-board">${App.Jobs.boardHtml(true)}</div></section>`);
     const title = k === 'board' ? 'Job board' : k === 'timeline' ? 'Production timeline' : 'Production plan';
-    return { landscape: true, head: App.Docs.fullHead('', title, [], App.Docs.darkChip('Week of ' + App.fmtDate(wk, { day: 'numeric', month: 'long', year: 'numeric' }))), run: App.Docs.runHead(title, 'Week of ' + App.fmtDate(wk, { day: 'numeric', month: 'long' })), foot: App.Docs.footSimple(`Printed ${App.fmtStamp(Date.now())}`), flow, bottom: '', after: [], number: title };
+    return { landscape: true, theme: 'factory', head: App.Docs.fullHead('Production', title, [], App.Docs.darkChip('Week of ' + App.fmtDate(wk, { day: 'numeric', month: 'long', year: 'numeric' }))), run: App.Docs.runHead(title, 'Week of ' + App.fmtDate(wk, { day: 'numeric', month: 'long' })), foot: App.Docs.footFull(false), flow, bottom: '', after: [], number: title };
   };
   A.prodPrint = el => {
     const k = el.dataset.k; const sp = k === 'plan' ? [App.Jobs.planSpec('timeline'), App.Jobs.planSpec('board')] : App.Jobs.planSpec(k);
