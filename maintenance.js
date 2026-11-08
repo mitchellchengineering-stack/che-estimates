@@ -146,9 +146,12 @@
   App.Reports && (App.Reports.build.maintenance = r => {
     const R = App.Reports, D = App.Docs; const assets = live('assets'); const names = Object.fromEntries(assets.map(a => [a.id, a.name]));
     const logs = live('servicelog').filter(l => R.inRange(l.date, r)).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    const flow = [D.blk(R.stats([['Overdue', String(assets.reduce((t, a) => t + a.tasks.filter(x => M.due(a, x).state === 'over').length, 0)), ''], ['Faults open', String(assets.reduce((t, a) => t + M.faults(a).length, 0)), ''], [`Spent, ${r.label}`, App.money(logs.reduce((t, l) => t + App.num(l.cost), 0), 0), '']]))];
-    flow.push(R.section('Machines and vehicles', R.table(['Name', 'Task', 'Next'], assets.flatMap(a => a.tasks.map((t, k) => [k === 0 ? e(a.name) : '', e(t.name), e(M.due(a, t).label)])))));
-    flow.push(R.section(`Service log, ${r.label}`, R.table(['Date', 'Machine or vehicle', 'What was done', 'Cost'], logs.map(l => [fdate(l.date), e(names[l.assetId] || ''), e([(l.tasks || []).join(', '), l.notes, l.fix].filter(Boolean).join('. ')), App.num(l.cost) ? App.money(l.cost, 0) : '-']), [3])));
-    R.show('Maintenance', R.spec('Maintenance summary', 'Maintenance', [['Period', r.label]], flow, 'workshop'), `Maintenance ${r.label}`);
+    const flow = [R.multi() ? D.blk(R.stats([['Overdue', String(assets.reduce((t, a) => t + a.tasks.filter(x => M.due(a, x).state === 'over').length, 0)), ''], ['Faults open', String(assets.reduce((t, a) => t + M.faults(a).length, 0)), ''], [`Spent, ${r.label}`, App.money(logs.reduce((t, l) => t + App.num(l.cost), 0), 0), '']])) : ''];
+    const rows = kind => assets.filter(a => a.kind === kind).flatMap(a => a.tasks.map((t, k) => [k === 0 ? e(a.name) + (a.reg ? `<br><span class="hint">${e(a.reg)}</span>` : '') : '', e(t.name), `${fmt(t.every)} ${UNITS[t.unit]}`, t.last ? fdate(t.last.date) : '-', e(M.due(a, t).label)]));
+    if (R.has('machines')) flow.push(R.section('Machines', R.table(['Machine', 'Task', 'Every', 'Last done', 'Next'], rows('machine'))));
+    if (R.has('vehicles')) flow.push(R.section('Vehicles', R.table(['Vehicle', 'Task', 'Every', 'Last done', 'Next'], rows('vehicle'))));
+    if (R.has('log')) flow.push(R.section(`Service log, ${r.label}`, R.table(['Date', 'Machine or vehicle', 'What was done', 'Cost'], logs.map(l => [fdate(l.date), e(names[l.assetId] || ''), e([l.kind === 'fault' ? 'Fault: ' + (l.notes || '') : (l.tasks || []).join(', '), l.kind === 'fault' ? l.fix : l.notes].filter(Boolean).join('. ')), App.num(l.cost) ? App.money(l.cost, 0) : '-']), [3])));
+    const t = R.titled('Maintenance', 'maintenance');
+    R.show(t, R.spec('Maintenance summary', t, [['Period', r.label]], flow, 'workshop'), `${t} ${r.label}`);
   });
 })();

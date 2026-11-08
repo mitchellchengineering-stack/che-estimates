@@ -249,12 +249,14 @@
   /* ---------- summary PDF ---------- */
   App.Reports && (App.Reports.build.safety = r => {
     const R = App.Reports, D = App.Docs; const inc = live('incidents').filter(i => R.inRange(i.when, r)); const lti = H.daysSinceLTI();
-    const flow = [D.blk(R.stats([['Days without a lost-time injury', lti ? String(lti.d) : '-', ''], [`Incidents, ${r.label}`, String(inc.length), `${inc.filter(i => i.type === 'Near miss').length} near misses`], ['Hazards', String(live('hazards').length), `${live('hazards').filter(h => h.risk === 'High').length} high`], ['Toolbox talks', String(live('talks').filter(t => R.inRange(t.date, r)).length), r.label]]))];
-    flow.push(R.section('Incidents', R.table(['Ref', 'Type', 'What happened', 'When', 'Status'], inc.map(i => [e(i.ref), e(i.type), e((i.what || '').slice(0, 90)), fdate(i.when), e(i.status || 'Open')]))));
-    flow.push(R.section('Hazard register', R.table(['Hazard', 'Where', 'Risk', 'Controls'], live('hazards').sort((a, b) => RISK.indexOf(a.risk) - RISK.indexOf(b.risk)).map(h => [e(h.hazard), e(h.where || ''), e(h.risk), e(h.controls || '')]))));
-    flow.push(R.section('Checks', R.table(['Check', 'Last done', 'Next due'], live('checks').map(c => { const d = H.checkDue(c); return [e(c.name), d.last ? fdate(d.last.date) + ', ' + e(d.last.by || '') : 'Not yet', e(d.label)]; }))));
-    const ppl = live('staff'); if (ppl.length) flow.push(R.section('Training', R.table(['Person', 'Tickets'], ppl.map(p => [e(p.name), e((p.tickets || []).filter(t => !t.na).map(t => t.name + (t.expiry ? ' (to ' + fdate(t.expiry) + ')' : '') + (t.training ? ' (in training)' : '')).join(', '))]))));
-    flow.push(R.section('Toolbox talks', R.table(['Date', 'Topic', 'Who was there'], live('talks').filter(t => R.inRange(t.date, r)).map(t => [fdate(t.date), e(t.topic), e((t.attendees || []).join(', '))]))));
-    R.show('Health and safety', R.spec('Health and safety summary', 'Health and safety', [['Period', r.label]], flow, 'safety'), `Health and safety ${r.label}`);
+    const flow = [R.multi() ? D.blk(R.stats([['Days without a lost-time injury', lti ? String(lti.d) : '-', ''], [`Incidents, ${r.label}`, String(inc.length), `${inc.filter(i => i.type === 'Near miss').length} near misses`], ['Hazards', String(live('hazards').length), `${live('hazards').filter(h => h.risk === 'High').length} high`], ['Toolbox talks', String(live('talks').filter(t => R.inRange(t.date, r)).length), r.label]])) : ''];
+    if (R.has('incidents')) flow.push(R.section('Incidents', R.table(['Ref', 'Type', 'What happened', 'When', 'Status'], inc.map(i => [e(i.ref), e(i.type), e((i.what || '').slice(0, 90)), fdate(i.when), e(i.status || 'Open')]))));
+    if (R.has('hazards')) flow.push(R.section('Hazard register', R.table(['Hazard', 'Where', 'Risk', 'Controls'], live('hazards').sort((a, b) => RISK.indexOf(a.risk) - RISK.indexOf(b.risk)).map(h => [e(h.hazard), e(h.where || ''), e(h.risk), e(h.controls || '')]))));
+    if (R.has('checks')) flow.push(R.section('Checks', R.table(['Check', 'Last done', 'Next due'], live('checks').map(c => { const d = H.checkDue(c); return [e(c.name), d.last ? fdate(d.last.date) + ', ' + e(d.last.by || '') : 'Not yet', e(d.label)]; }))));
+    if (R.has('training')) flow.push(R.section('Training', R.table(['Person', 'Ticket', 'Status', 'Expires'], live('staff').flatMap(p => (p.tickets || []).filter(t => !t.na).map((t, k) => [k === 0 ? e(p.name) : '', e(t.name), t.training ? 'In training' : 'Held', t.expiry ? fdate(t.expiry) : '-'])))));
+    if (R.has('talks')) flow.push(R.section(`Toolbox talks, ${r.label}`, R.table(['Date', 'Topic', 'Run by', 'Who was there'], live('talks').filter(t => R.inRange(t.date, r)).sort((a, b) => String(a.date).localeCompare(String(b.date))).map(t => [fdate(t.date), e(t.topic), e(t.by || ''), e((t.attendees || []).join(', '))]))));
+    if (R.has('substances')) flow.push(R.section('Hazardous substances', R.table(['Substance', 'Storage', 'Safety data sheet'], live('substances').map(x => [e(x.name), e(x.notes || ''), x.sdsDate ? 'Dated ' + fdate(x.sdsDate) : 'Not on file']))));
+    const t = R.titled('Health and safety', 'safety');
+    R.show(t, R.spec('Health and safety summary', t, [['Period', r.label]], flow, 'safety'), `${t} ${r.label}`);
   });
 })();
