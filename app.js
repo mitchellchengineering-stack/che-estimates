@@ -74,6 +74,7 @@
     if (keepScroll) window.scrollTo(0, y); else window.scrollTo(0, 0);
     App.state.staleView = false;
     if (App.Reports) { try { App.Reports.addButton(); } catch (er) { console.error(er); } }
+    if (App.Backup && !App.state.backupChecked && st.data) { App.state.backupChecked = true; App.Backup.maybe(); }
     if (App.Brief) setTimeout(() => App.Brief.maybe(), 800);
   };
   App.refresh = () => App.render(true);

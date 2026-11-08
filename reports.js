@@ -19,7 +19,20 @@
       const by = st.me().name || '';
       return { theme, head: D().fullHead(kicker, title, meta.concat([['Printed', App.fmtStamp(Date.now())], ['By', by]])), run: D().runHead(title, kicker), foot: D().footFull(theme === 'estimate'), flow, bottom: '', after: [], number: title };
     },
-    show(title, spec, fileName) { D().preview(title, spec, { pdfName: (fileName || title).replace(/[\\/:*?"<>|]+/g, '-') + '.pdf' }); },
+    show(title, spec, fileName) {
+      if (!spec.saveTo) spec.saveTo = ['Reports', R.folderFor(title)];
+      D().preview(title, spec, { pdfName: (fileName || title).replace(/[\\/:*?"<>|]+/g, '-') + '.pdf' });
+    },
+    folderFor(t) {
+      if (/^Incident|^Toolbox|^Health and safety/.test(t)) return 'Health and safety';
+      if (/service history|^Maintenance/.test(t)) return 'Maintenance';
+      if (/^Fasteners/.test(t)) return 'Fastener reports';
+      if (/^Variation/.test(t)) return 'Variations';
+      if (/job summary/.test(t)) return 'Jobs';
+      if (/^Coils/.test(t)) return 'Coil reports';
+      if (App.Clients && App.Clients.list().some(c => App.Clients.label(c) === t)) return 'Clients';
+      return t;
+    },
     inRange(d, r) { if (!d) return false; const x = String(d).slice(0, 10); return x >= r.from && x <= r.to; },
     /* ---------- period picker ---------- */
     pick(title, cb, opts = {}) {
@@ -138,7 +151,7 @@
     const F = App.Fast; if (!F || !F.S.loadedAt) return App.toast('Open the Fasteners tab first so the stock loads', 'err');
     const low = F.low(); const used = {}; F.S.log.filter(l => l.action === 'Sign out' && R.inRange(l.time, r)).forEach(l => used[l.item] = (used[l.item] || 0) + l.qty);
     const flow = [D().blk(R.stats([['Items', String(F.S.items.length), ''], ['Below minimum', String(low.length), ''], [`Signed out, ${r.label}`, String(Object.values(used).reduce((a, b) => a + b, 0)), 'items']]))];
-    if (low.length) flow.push(R.section('Reorder these', R.table(['Item', 'In stock', 'Minimum'], low.map(i => [e(i.name), String(i.qty), String(i.min)]), [1, 2])));
+    if (low.length) flow.push(R.section('Below minimum', R.table(['Item', 'In stock', 'Minimum'], low.map(i => [e(i.name), String(i.qty), String(i.min)]), [1, 2])));
     flow.push(R.section('Stock', R.table(['Item', 'In stock', 'Minimum', `Used, ${r.label}`], F.S.items.map(i => [e(i.name), String(i.qty), String(i.min), String(used[i.name] || 0)]), [1, 2, 3])));
     R.show('Fasteners', R.spec('Fasteners summary', 'Fasteners', [['Period', r.label]], flow, 'factory'), `Fasteners ${r.label}`);
   };

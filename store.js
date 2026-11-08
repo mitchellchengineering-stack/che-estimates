@@ -101,8 +101,8 @@ App.defaultSettings = () => ({
   helper: { studSpacing: 0.6, trussSpacing: 0.9, joistSpacing: 0.45, wallExtra: 15, waste: 5, internalPerM2: 0.3, keys: { walls: '89x41|0.75', trusses: '89x41|0.75', joists: '150x41|0.95' } },
   sales: { apiUrl: 'https://script.google.com/macros/s/AKfycbwayHN0oCE9qnWFcYadC4uGoMexbirj-kqBCDp8bp8Zf_dTN5bwrMGs97eVzu5x6LRMYA/exec', passcode: '', sheetId: '' },
   fasteners: {
-    lowEmails: 'operations.chengineering@gmail.com', monthlyTo: '', monthlyName: '', monthlyCheckFirst: true, reorderMultiple: 2,
-    lowNote: 'Please order more.', monthlyIntro: 'Here\'s our fastener stock at the end of {month}, and what we used this month. Could you please send through the items marked to reorder?',
+    lowEmails: 'operations.chengineering@gmail.com', monthlyTo: '', monthlyName: '', monthlyCheckFirst: true,
+    lowNote: 'Please order more.', monthlyIntro: 'Here\'s our fastener stock at the end of {month}, and what we used this month.',
     sheetId: '1wljKchKFiSzcOzHFh150yRn41T4XYOWZImUG_csJGIw',
     appUrl: 'https://script.google.com/macros/s/AKfycbzFSHtrG7MBAqq85qQna3gLCfi7u5qma0gENtZYylT-OVGSeN2iAhTpS7xY2Cg9E9jggA/exec'
   },
@@ -161,6 +161,7 @@ App.store = {
       d.settings.v6 = true; const at = d.settings.emails && d.settings.emails.templates && d.settings.emails.templates.accounts;
       if (at && at.body && !at.body.includes('{company_line}') && at.body.includes('Client email: {client_email}')) at.body = at.body.replace('Client email: {client_email}', 'Client email: {client_email}{company_line}');
     }
+    if (d.settings.fasteners && /marked to reorder/.test(d.settings.fasteners.monthlyIntro || '')) d.settings.fasteners.monthlyIntro = 'Here\'s our fastener stock at the end of {month}, and what we used this month.';
     if (!d.settings.v4) {
       d.settings.v4 = true; const c = d.settings.coils;
       if (c && Array.isArray(c.widths)) c.widths = [...new Set(c.widths.map(w => Number(w) === 188 ? 182 : Number(w)))].sort((a, b) => a - b);

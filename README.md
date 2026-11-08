@@ -1,6 +1,15 @@
 # CH Engineering Estimates
 
-## Latest update: Team, Clients, your own follow-ups, fastener emails
+## Latest update: New PDF style, Drive copies, backups
+
+1. **Upload all the files** to GitHub and commit.
+2. **PDFs:** everything except estimates, dockets, variations, workings and POs now uses the yellow cover style. Every PDF you download also saves a copy into Google Drive, in **Reports / (section)**, e.g. Reports / Fastener reports.
+3. **Backups:** once a week (when an admin opens the app) a spreadsheet of everything is saved in Google Drive, in **Backups**, with a full data copy. You can also click **Back up now** in Settings > Google and data.
+4. **Fastener script:** paste the new **Code-fasteners.gs** into the fastener stock app's Apps Script and Save. The reorder column is gone, and the monthly report PDF is saved to Reports / Fastener reports.
+
+---
+
+## Earlier update: Team, Clients, your own follow-ups, fastener emails
 
 1. **Upload all the files** to GitHub and commit (the .gs files go in Apps Script, not GitHub).
 2. **Make sure config.js has your folder ID:** `DRIVE_FOLDER_ID: "1SNzD7A4PwS6slrwomqORv5StlPQ0lk_A"`. The app also now finds the shared folder by itself if someone has shared it with you.

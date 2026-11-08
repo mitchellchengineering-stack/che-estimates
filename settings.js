@@ -171,8 +171,8 @@
       ${App.field('Line at the end of the low stock email', inp('fasteners.lowNote', f.lowNote))}
       <div class="grid2">${App.field('Monthly summary goes to (your supplier)', inp('fasteners.monthlyTo', f.monthlyTo, 'type="email"'))}${App.field('Their name', inp('fasteners.monthlyName', f.monthlyName))}</div>
       ${App.field('Monthly summary message (use {month})', `<textarea data-bind="fasteners.monthlyIntro" rows="3">${e(f.monthlyIntro || '')}</textarea>`)}
-      <div class="grid2">${App.field('Reorder up to', `<select data-bind="fasteners.reorderMultiple" data-type="num">${[1.5, 2, 3].map(n => App.opt(n, n + ' x the minimum', f.reorderMultiple)).join('')}</select>`)}<div class="fld"><span>&#160;</span><label class="check"><input type="checkbox" data-bind="fasteners.monthlyCheckFirst" ${f.monthlyCheckFirst !== false ? 'checked' : ''}> Send the monthly summary to us to check first, instead of straight to the supplier</label></div></div>
-      <p class="hint">The monthly summary goes on the last working day of the month at 4pm, with the full stock list attached as a PDF.</p></section>`;
+      <label class="check"><input type="checkbox" data-bind="fasteners.monthlyCheckFirst" ${f.monthlyCheckFirst !== false ? 'checked' : ''}> Send the monthly summary to us to check first, instead of straight to the supplier</label>
+      <p class="hint">The monthly summary goes on the last working day of the month at 4pm, with the stock list attached as a PDF. A copy is saved in Google Drive in Reports / Fastener reports. You can also download it any time from the Fasteners page (Download PDF, pick the month).</p></section>`;
   };
 
   App.Set.emails = s => {
@@ -192,7 +192,7 @@
       ${App.field('Shared Drive folder ID', `<input readonly value="${e(st.rootId)}" onclick="this.select()">`)}
       <p class="hint">Put this ID in <code>js/config.js</code> as DRIVE_FOLDER_ID and share the folder with everyone in "Who can use the app". <a href="https://drive.google.com/drive/folders/${e(st.rootId)}" target="_blank" rel="noopener">Open the folder</a></p>
       <div class="grid2">${App.field('Google Calendar ID', inp('google.calendarId', s.google.calendarId, 'placeholder="primary"'))}<div class="fld"><span>Calendar</span><label class="check"><input type="checkbox" data-bind="google.calendarSync" ${s.google.calendarSync ? 'checked' : ''}> Add manufacture and delivery dates to Google Calendar</label></div></div>
-      <button class="btn" data-act="signOut">Sign out</button>`
+      <button class="btn" data-act="signOut">Sign out</button>${App.Backup ? '</section>' + App.Backup.card() + '<section class="card" hidden>' : ''}`
     : `<p>The app is running in <b>this browser only</b> mode, so everything is saved on this computer. Follow the setup guide (README) to connect Google Drive, Gmail and Calendar.</p>`}</section>
     <section class="card"><h3>Backup</h3><p class="hint">Download everything as a single file, or load a backup back in (it merges, nothing is deleted).</p>
       <div class="row-btns"><button class="btn" data-act="backupDown">Download backup</button><label class="btn ghost">Load a backup<input type="file" accept="application/json" data-act-change="backupUp" hidden></label></div></section>`;

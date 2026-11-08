@@ -30,13 +30,14 @@ App.Docs = {
     return `<div class="pg-run"><img src="logo.png" alt="CH Engineering"><div class="tb"><p class="num">${this.e(number)}</p><p class="sub">${this.e(sub)}<span class="cont">continued</span></p></div></div>`;
   },
   /* partners = false leaves out the Axxis and NASH logos (they're only for estimates and dockets) */
-  footFull(partners = true) {
+  /* cca = true adds the Construction Contracts Act line (estimates only) */
+  footFull(partners = true, cca = false) {
     const c = this.co();
     return `<div class="pg-foot"><div class="rule"></div><div class="row">
       ${partners ? '<div class="partners"><img class="ax" src="axxis.png" alt="Axxis steel for framing"><img class="na" src="nash.png" alt="NASH member"></div>' : `<p class="coname"><b>${this.e(c.name || 'CH Engineering Ltd')}</b><br>${this.e(c.address || '')}</p>`}
       <p class="ctr">${this.e(c.phone)} &#160;|&#160; ${this.e(c.email)} &#160;|&#160; ${this.e(c.website)}</p>
       <p class="pgn">Page <span class="pn"></span> of <span class="pt"></span></p></div>
-      <p class="cca">${this.e(c.ccaLine)}</p></div>`;
+      ${cca ? `<p class="cca">${this.e(c.ccaLine)}</p>` : ''}</div>`;
   },
   footSimple(text) {
     return `<div class="pg-foot"><div class="rule"></div><div class="row"><p>${this.e(text)}</p><p class="pgn">Page <span class="pn"></span> of <span class="pt"></span></p></div></div>`;
@@ -173,7 +174,7 @@ App.Docs = {
     return {
       head: this.fullHead(est.type === 'ft' ? 'Frame and truss estimate' : 'Estimate', num, meta),
       run: this.runHead(num, [est.heading || (est.ft && est.ft.projectName), who].filter(Boolean).join(', ')),
-      foot: this.footFull(), flow, bottom, after, number: num
+      foot: this.footFull(true, true), flow, bottom, after, number: num
     };
   },
 
@@ -191,7 +192,7 @@ App.Docs = {
     if (w.notes) flow.push(this.blk(`${this.h2('Notes')}<div class="paras" data-items>${w.notes.split(/\n{2,}/).map(p => `<p>${App.textToHtml(p)}</p>`).join('')}</div>`));
     if (w.sketch && w.sketch.data) flow.push(this.blk(`${this.h2('Sketch')}<div class="img3d sketch"><img src="${w.sketch.data}" alt="Sketch"></div>`));
     const bottom = `<div class="bottom"><div class="left"></div><div class="price"><div class="sm"><span>Total cost</span><span>${App.money(c.cost)}</span></div><div class="sm"><span>Margin</span><span>${App.pct(c.margin)}</span></div><div class="rule"></div><p class="lbl">Sell from workings</p><p class="big">${App.money(c.sell)}</p><p class="dep">Estimate price: ${App.money(st.totals(est).sub)}</p></div></div>`;
-    return { head: this.fullHead('Workings', num, [['Client', est.client.company || est.client.name], ['Job', est.heading], ['Printed', App.fmtLong(App.today())]]), run: this.runHead(num, 'Workings'), foot: this.footSimple('CH Engineering Ltd, internal use'), flow, bottom, after: [], number: num + ' workings' };
+    return { head: this.fullHead('Workings', num, [['Client', est.client.company || est.client.name], ['Job', est.heading], ['Printed', App.fmtLong(App.today())]]), run: this.runHead(num, 'Workings'), foot: this.footFull(), flow, bottom, after: [], number: num + ' workings' };
   },
 
   /* ---------- jobs ---------- */
@@ -237,7 +238,7 @@ App.Docs = {
       this.blk(`<div class="cards4">${this.card('Job', st.displayNumber(est))}${this.card('Delivery date', date ? App.fmtDate(date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '')}${this.card('Client', est.client.company || est.client.name)}${this.card('Load weight', kg ? Math.round(kg).toLocaleString('en-NZ') + ' kg' : '')}</div><p class="site"><b>Site</b> ${this.e(est.siteAddress)}</p>`),
       this.blk(`<table class="dt docket"><thead><tr><th>Frame</th><th>Type</th><th class="r">Qty</th><th class="c">Loaded</th><th class="c">Unloaded</th></tr></thead><tbody data-items>${frames.map(f => `<tr><td><b>${this.e(f.name)}</b></td><td>${this.e(this.ftype(f))}</td><td class="r">${f.qty}</td><td class="c"><span class="box"></span></td><td class="c"><span class="box"></span></td></tr>`).join('') || '<tr><td colspan="5">No frames listed</td></tr>'}</tbody></table>`)
     ];
-    return { head, run, foot: this.footSimple(`${this.co().name}, ${this.co().address}`), flow, bottom: this.signRow([['Driver'], ['Received by'], ['Date and time']], true), after: [], number: st.displayNumber(est) };
+    return { head, run, foot: this.footFull(), flow, bottom: this.signRow([['Driver'], ['Received by'], ['Date and time']], true), after: [], number: st.displayNumber(est) };
   },
   po(est, po) {
     const tot = po.lines.reduce((a, l) => a + App.num(l.qty) * App.num(l.cost), 0);
@@ -246,7 +247,7 @@ App.Docs = {
       this.blk(`<table class="dt"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Total</th></tr></thead><tbody data-items>${po.lines.map(l => `<tr><td>${this.e(l.desc)}</td><td class="r">${this.e(l.qty)} ${this.e(l.unit || '')}</td><td class="r">${App.money(l.cost)}</td><td class="r">${App.money(App.num(l.qty) * App.num(l.cost))}</td></tr>`).join('')}</tbody></table>`)
     ];
     if (po.notes) flow.push(this.blk(`<div class="note"><p>${App.textToHtml(po.notes)}</p></div>`));
-    return { head: this.fullHead('Purchase order', po.number, [['Date', App.fmtLong(po.date)], ['Job', App.store.displayNumber(est)]]), run: this.runHead(po.number, 'Purchase order'), foot: this.footFull(false), flow, bottom: `<div class="bottom"><div class="left"></div><div class="price"><p class="lbl">Total excl GST</p><p class="big">${App.money(tot)}</p></div></div>`, after: [], number: po.number };
+    return { head: this.fullHead('Purchase order', po.number, [['Date', App.fmtLong(po.date)], ['Job', App.store.displayNumber(est)]]), run: this.runHead(po.number, 'Purchase order'), foot: this.footFull(), flow, bottom: `<div class="bottom"><div class="left"></div><div class="price"><p class="lbl">Total excl GST</p><p class="big">${App.money(tot)}</p></div></div>`, after: [], number: po.number };
   },
 
   /* ---------- page layout engine ---------- */
@@ -268,7 +269,7 @@ App.Docs = {
     const pages = [];
     const toEl = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
     const newPage = first => {
-      const p = toEl(`<div class="pg${spec.landscape ? ' land' : ''}${spec.theme && App.store.s().pdfThemes ? ' theme-' + spec.theme : ''}"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
+      const p = toEl(`<div class="pg${spec.landscape ? ' land' : ''}${spec.theme && spec.theme !== 'estimate' ? ' theme-cover' : ''}"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
       host.appendChild(p); pages.push(p); return p.querySelector('.pg-body');
     };
     const over = b => b.scrollHeight > b.clientHeight + 1;
@@ -359,6 +360,12 @@ App.Docs = {
     const fit = () => { const s = el.querySelector('.pg-stack'); if (!s) return; const wide = s.querySelector('.pg.land') ? this.H : this.W; s.style.zoom = Math.min(1, (el.clientWidth - 24) / wide); };
     fit(); window.addEventListener('resize', fit);
   },
+  /* every PDF you download is also saved into the shared Drive folder, e.g. Reports / Fastener reports */
+  async saveCopy(blob, name, path) {
+    const st = App.store; if (st.mode !== 'drive') return;
+    try { let parent = st.rootId; for (const p of path) parent = await App.G.folder(p, parent); await App.G.uploadOrReplace({ name, parent, blob, mime: 'application/pdf' }); App.toast(`A copy is saved in Google Drive: ${path.join(' / ')}`); }
+    catch (er) { App.toast('Downloaded, but saving a copy to Drive didn\'t work: ' + er.message, 'err', 6000); }
+  },
   preview(title, spec, { pdfName, onDrive } = {}) {
     const m = App.modal(title, `<div class="doc-preview" id="pv-box"></div>`, {
       wide: true,
@@ -366,7 +373,9 @@ App.Docs = {
     });
     this.fill(m.querySelector('#pv-box'), spec);
     m.querySelector('[data-k=print]').onclick = () => this.print(spec);
-    m.querySelector('[data-k=pdf]').onclick = async e => { const b = e.target; b.disabled = true; b.textContent = 'Making PDF…'; try { App.download(pdfName || 'document.pdf', await this.toPdf(spec)); } catch (er) { App.toast(er.message, 'err'); } b.disabled = false; b.textContent = 'Download PDF'; };
+    m.querySelector('[data-k=pdf]').onclick = async e => { const b = e.target; b.disabled = true; b.textContent = 'Making PDF…';
+      try { const blob = await this.toPdf(spec); App.download(pdfName || 'document.pdf', blob); if (spec.saveTo) this.saveCopy(blob, pdfName || 'document.pdf', spec.saveTo); } catch (er) { App.toast(er.message, 'err'); }
+      b.disabled = false; b.textContent = 'Download PDF'; };
     if (onDrive) m.querySelector('[data-k=drive]').onclick = async e => { const b = e.target; b.disabled = true; b.textContent = 'Saving…'; try { await onDrive(); App.toast('Saved to Drive'); } catch (er) { App.toast(er.message, 'err', 6000); } b.disabled = false; b.textContent = 'Save to Drive'; };
     return m;
   }
