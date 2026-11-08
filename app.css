@@ -1147,3 +1147,10 @@ a.practice-flag { text-decoration: none; }
 /* Download PDF, at the bottom of each page */
 .page-foot-actions { display: flex; justify-content: flex-end; margin: 28px 0 8px; padding-top: 16px; border-top: 1px solid var(--line-2); }
 .page-foot-actions .btn { display: inline-flex; align-items: center; gap: 8px; }
+
+/* "Assumed" on included lines */
+.ass-box { display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: .8rem; font-weight: 650; color: var(--ink-3); padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; white-space: nowrap; }
+.ass-box.on { background: var(--yellow-soft); border-color: #e8c84a; color: var(--ink); }
+.ass-box input { width: 16px; height: 16px; accent-color: var(--ink); }
+.pg .assumed { display: inline-block; margin-left: 8px; padding: 1px 7px; border: 1px solid #c4cacf; border-radius: 6px; font-size: 10px; font-weight: 700; color: #5c636b; letter-spacing: .03em; text-transform: uppercase; vertical-align: 2px; }
+.pg .ass-note { margin: 8px 0 0; font-size: 11px; color: #5c636b; }
