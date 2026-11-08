@@ -1,0 +1,30 @@
+{
+  "name": "CH Engineering",
+  "short_name": "CH Engineering",
+  "description": "Estimates, production and everything else at CH Engineering",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1f1f1f",
+  "theme_color": "#15171a",
+  "icons": [
+    {
+      "src": "ch-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "ch-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "ch-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
