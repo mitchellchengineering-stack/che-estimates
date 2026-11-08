@@ -1137,3 +1137,13 @@ a.practice-flag { text-decoration: none; }
 .pg.theme-side .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 .pg.theme-side .h2 { font-size: 15px; }
 .pg.theme-side .dt thead th { background: #f5c400; color: #15171a; }
+
+/* Morning brief button on Home */
+.brief-btn { font: inherit; display: inline-flex; align-items: center; gap: 12px; padding: 10px 20px 10px 12px; border: 1px solid var(--line); border-radius: 16px; background: #fff; cursor: pointer; text-align: left; box-shadow: 0 2px 8px rgba(21,23,26,.05); transition: box-shadow .15s, transform .15s; }
+.brief-btn:hover { box-shadow: 0 8px 20px rgba(21,23,26,.1); transform: translateY(-1px); }
+.brief-btn .sun { width: 42px; height: 42px; border-radius: 12px; background: var(--yellow); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.brief-btn b { display: block; font-size: 1rem; }
+.brief-btn em { display: block; font-style: normal; font-size: .82rem; color: var(--ink-3); }
+/* Download PDF, at the bottom of each page */
+.page-foot-actions { display: flex; justify-content: flex-end; margin: 28px 0 8px; padding-top: 16px; border-top: 1px solid var(--line-2); }
+.page-foot-actions .btn { display: inline-flex; align-items: center; gap: 8px; }

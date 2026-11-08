@@ -56,6 +56,11 @@
       detailing: ['Detailing', 'detailing', { def: 'all' }], calendar: ['Calendar', 'calendar', { def: 'month' }], coils: ['Coils', 'coils'], fasteners: ['Fasteners', 'fasteners'],
       safety: ['Health and safety', 'safety', { def: 'year' }], maintenance: ['Maintenance', 'maintenance', { def: 'year' }], pricing: ['Pricing', 'pricing', { noPeriod: true }], dashboard: ['Dashboard', 'dashboard', { def: 'month' }], '': ['Dashboard', 'dashboard', { def: 'month' }]
     },
+    /* the Download PDF button sits at the bottom of each page: there when you need it, out of the way when you don't */
+    foot(html) {
+      const main = document.getElementById('main'); if (!main || main.querySelector('.page-foot-actions')) return;
+      main.insertAdjacentHTML('beforeend', `<div class="page-foot-actions">${html}</div>`);
+    },
     addButton() {
       const r = App.route();
       if (r.name === 'job' && r.a) return R.addRecordButton(r);
@@ -63,15 +68,11 @@
       if (r.name === 'clients' && r.a) return R.addRecordButton(r);
       if (r.a && !['coils', 'safety', 'maintenance'].includes(r.name)) return;
       const p = R.PAGES[r.name]; if (!p) return;
-      const head = document.querySelector('#main .page-head'); if (!head || head.querySelector('[data-act="reportPdf"]')) return;
-      let acts = head.querySelector('.head-actions'); if (!acts) { acts = document.createElement('div'); acts.className = 'head-actions'; head.appendChild(acts); }
-      acts.insertAdjacentHTML('afterbegin', `<button class="btn" data-act="reportPdf" data-k="${p[1]}">Download PDF</button>`);
+      R.foot(`<button class="btn ghost" data-act="reportPdf" data-k="${p[1]}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg> Download PDF</button>`);
     },
     addRecordButton(r) {
-      const head = document.querySelector('#main .page-head'); if (!head || head.querySelector('[data-act="reportPdf"]')) return;
-      let acts = head.querySelector('.head-actions'); if (!acts) { acts = document.createElement('div'); acts.className = 'head-actions'; head.appendChild(acts); }
       const k = r.name === 'job' ? 'job' : r.name === 'clients' ? 'client' : 'contact';
-      acts.insertAdjacentHTML('afterbegin', `<button class="btn" data-act="reportPdf" data-k="${k}" data-id="${e(r.name === 'sales' ? r.b : r.a)}">${k === 'job' ? 'Job summary PDF' : 'Download PDF'}</button>`);
+      R.foot(`<button class="btn ghost" data-act="reportPdf" data-k="${k}" data-id="${e(r.name === 'sales' ? r.b : r.a)}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg> ${k === 'job' ? 'Download the job summary PDF' : 'Download PDF'}</button>`);
     },
     build: {}
   };
