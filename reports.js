@@ -96,7 +96,7 @@
       if (r.name === 'job' && r.a) return R.addRecordButton(r);
       if (r.name === 'sales' && r.a === 'c') return R.addRecordButton(r);
       if (r.name === 'clients' && r.a) return R.addRecordButton(r);
-      if (r.name === 'battens' && ['e', 'job', 'mf'].includes(r.a)) return;
+      if (r.name === 'battens' && ['e', 'job', 'mf', 'client'].includes(r.a)) return;
       if (r.a && !['coils', 'safety', 'maintenance', 'battens'].includes(r.name)) return;
       const p = R.PAGES[r.name]; if (!p) return;
       R.foot(`<button class="btn ghost" data-act="reportPdf" data-k="${p[1]}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg> Download PDF</button>`);

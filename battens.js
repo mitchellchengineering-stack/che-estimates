@@ -72,7 +72,7 @@
   };
 
   /* ---------- page ---------- */
-  const TABS = [['', 'Overview'], ['estimates', 'Estimates'], ['jobs', 'Jobs'], ['machine', 'Machine files']];
+  const TABS = [['', 'Overview'], ['estimates', 'Estimates'], ['jobs', 'Jobs'], ['clients', 'Clients'], ['machine', 'Machine files']];
   const head = (tab, extra = '') => `<div class="page-head"><div><p class="sub" style="margin:0 0 6px">Ceiling battens: supply and install</p><h1>Battens</h1></div><div class="head-actions">${extra}<button class="btn primary" data-act="batNew">+ New batten estimate</button></div></div>
     <nav class="tabs">${TABS.map(([k, l]) => `<a href="#/battens${k ? '/' + k : ''}" class="${tab === k ? 'on' : ''}">${l}</a>`).join('')}</nav>`;
   App.views.battens = (a, b) => {
@@ -82,6 +82,8 @@
     if (a === 'estimates') return head('estimates') + B.trackerView();
     if (a === 'jobs') return head('jobs') + B.jobsView();
     if (a === 'machine') return head('machine') + B.machineList();
+    if (a === 'clients') return head('clients', '<button class="btn" data-act="bcEdit">+ Add a batten client</button>') + B.clientsView();
+    if (a === 'client' && b) return B.clientView(b);
     return head('') + B.overview();
   };
   App.views.battens.mount = () => {
@@ -132,12 +134,13 @@
     const f = (l, k, attrs = '') => App.field(l, `<input data-bk="${k}" value="${e(x[k] ?? '')}" ${attrs} data-act-change="batSet">`);
     const fc = (l, k, attrs = '') => App.field(l, `<input data-bk="client.${k}" value="${e(x.client[k] || '')}" ${attrs} data-act-change="batSet">`);
     const tick = (k, l, sub) => `<label class="bat-tick ${x[k] ? 'on' : ''}"><input type="checkbox" data-bk="${k}" ${x[k] ? 'checked' : ''} data-act-change="batSet"><span><b>${l}</b>${sub ? `<em>${sub}</em>` : ''}</span></label>`;
-    const clients = App.Clients ? App.Clients.list() : [];
+    const bcl = B.clients(); const other = App.Clients ? App.Clients.list().filter(c => !c.batten) : [];
     return `<div class="page-head"><div><p class="crumbs"><a href="#/battens/estimates">Battens</a></p><h1>${e(x.number)} ${tag(x.status)}</h1><p class="sub">${e([B.who(x), B.name(x)].filter(Boolean).join(', ') || 'New batten estimate')}</p></div>
       <div class="head-actions"><button class="btn" data-act="batPdf">Preview</button>${x.status === 'accepted' ? `<a class="btn dark" href="#/battens/job/${x.id}">Open job</a>` : `<button class="btn primary" data-act="batEmail">Email estimate</button>`}
       <details class="menu"><summary class="btn" aria-label="More actions">More</summary><div class="menu-pop">${x.status !== 'sent' && x.status !== 'accepted' ? '<button data-act="batMark" data-s="sent">Mark as sent</button>' : ''}${x.status !== 'accepted' ? '<button data-act="batMark" data-s="accepted">Mark accepted</button>' : ''}${['draft', 'sent'].includes(x.status) ? '<button data-act="batMark" data-s="rejected">Mark lost</button>' : ''}<button data-act="batDup">Duplicate</button><button data-act="batDel" class="danger-text">Delete</button></div></details></div></div>
     <fieldset class="bat-edit" ${locked ? 'disabled' : ''}><div class="bat-cols"><div class="bat-main">
-      <section class="card"><h3>Client and site</h3>${clients.length ? App.field('Regular client', `<select data-act-change="batClient"><option value="">One-off client (type below)</option>${clients.map(c => App.opt(c.id, App.Clients.label(c), x.clientId)).join('')}</select>`) : ''}
+      <section class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap"><h3 style="margin:0">Client and site</h3>${!x.clientId && (x.client.company || x.client.name) && !locked ? '<button class="btn small ghost" type="button" data-act="bcFromEst">Save as a batten client</button>' : ''}</div>
+        ${bcl.length || other.length ? App.field('Client', `<select data-act-change="batClient"><option value="">One-off client (type below)</option>${bcl.length ? `<optgroup label="Batten clients">${bcl.map(c => App.opt(c.id, B.cLabel(c), x.clientId)).join('')}</optgroup>` : ''}${other.length ? `<optgroup label="Other regular clients">${other.map(c => App.opt(c.id, B.cLabel(c), x.clientId)).join('')}</optgroup>` : ''}</select>`) : ''}
         <div class="grid2">${fc('Company', 'company')}${fc('Contact name', 'name')}${fc('Email', 'email', 'type="email"')}${fc('Phone', 'phone', 'type="tel"')}${f('Lot number', 'lot', 'placeholder="e.g. Lot 35"')}${f('Address', 'address')}</div></section>
       <section class="card"><h3>The house</h3><div class="grid2">${f('House area (m²)', 'houseArea', 'inputmode="decimal"')}${App.field('Stud height', `<select data-bk="stud" data-act-change="batSet">${['2.4', '2.55', '2.7', '3.0', 'Other'].map(v => App.opt(v, v === 'Other' ? 'Other' : v + ' m', x.stud)).join('')}</select>`)}</div></section>
       <section class="card"><h3>What we're doing</h3><div class="fld"><span>Batten centres</span><div class="seg">${[600, 400].map(v => `<label><input type="radio" name="bc" value="${v}" data-bk="centres" data-act-change="batSet" ${x.centres === v ? 'checked' : ''}><span>${v} mm centres</span></label>`).join('')}</div></div>
@@ -160,7 +163,7 @@
     if (k === 'raking' && v) x.flashings = true;
     B.save(x); App.refresh();
   };
-  A.batClient = el => { const x = cur(); const c = App.Clients.get(el.value); if (!c) { x.clientId = ''; B.save(x); return; } x.clientId = c.id; Object.assign(x.client, { name: c.name || '', company: c.company || '', email: c.email || '', phone: c.phone || '' }); B.save(x); App.refresh(); };
+  A.batClient = el => { const x = cur(); const c = (st.data.customers || []).find(z => z.id === el.value); if (!c) { x.clientId = ''; B.save(x); return; } x.clientId = c.id; Object.assign(x.client, { name: c.name || '', company: c.company || '', email: c.email || '', phone: c.phone || '' }); B.save(x); App.refresh(); };
   A.batMark = async el => {
     const x = cur(); const s2 = el.dataset.s;
     if (s2 === 'accepted') { x.acceptedAt = App.today(); x.job = x.job || { stage: 'accepted', plans: [], machine: { rows: [], frameset: x.address || B.name(x) }, rooms: 30 }; }
@@ -174,6 +177,46 @@
     if (x.job && x.job.installDate) { x.job.installDate = ''; B.syncInstall(x); }
     x.deleted = true; x.deletedAt = Date.now(); x.deletedBy = st.me().name; B.save(x); location.hash = '#/battens/estimates';
   };
+
+  /* ---------- Batten clients: their own list, e.g. timber-frame builders who only buy battens ---------- */
+  B.clients = () => (st.data.customers || []).filter(c => c.batten && !c.deleted).sort((a, b) => B.cLabel(a).localeCompare(B.cLabel(b)));
+  B.cLabel = c => c.company || c.name || 'Client';
+  B.cEsts = c => { const n = s2 => String(s2 || '').trim().toLowerCase(); return live().filter(x => x.clientId === c.id || (!x.clientId && ((c.company && n(x.client.company) === n(c.company)) || (c.email && n(x.client.email) === n(c.email))))).sort((a, b) => String(b.number).localeCompare(String(a.number))); };
+  B.cStats = c => { const es = B.cEsts(c); const won = es.filter(x => x.status === 'accepted'); const lost = es.filter(x => x.status === 'rejected');
+    return { es, won, wonV: won.reduce((t, x) => t + B.calc(x).total, 0), quoted: es.filter(x => x.status !== 'draft').reduce((t, x) => t + B.calc(x).total, 0), m2: won.reduce((t, x) => t + App.num(x.houseArea), 0), rate: won.length + lost.length ? Math.round(won.length / (won.length + lost.length) * 100) : null }; };
+  B.clientsView = () => {
+    const list = B.clients();
+    return list.length ? `<div class="cl-grid">${list.map(c => { const s2 = B.cStats(c); return `<a class="card cl-card" href="#/battens/client/${c.id}"><div class="row" style="justify-content:space-between;align-items:flex-start"><span><b class="cn">${e(B.cLabel(c))}</b><span class="hint" style="display:block">${e([c.company ? c.name : '', c.phone].filter(Boolean).join(', '))}</span></span>${c.type ? `<span class="tag blue">${e(c.type)}</span>` : ''}</div>
+        <div class="cl-stats"><span><em>Jobs</em><b>${s2.won.length}</b></span><span><em>Won</em><b>${App.money(s2.wonV, 0)}</b></span><span><em>Battened</em><b>${s2.m2 ? fmt(s2.m2) + ' m²' : '-'}</b></span></div></a>`; }).join('')}</div>`
+      : '<div class="empty"><h2>No batten clients yet</h2><p>Add the builders you do battens for, like timber-frame builders. They\'re kept separate from your steel clients, and show first when you start a batten estimate.</p><button class="btn primary" data-act="bcEdit">+ Add a batten client</button></div>';
+  };
+  B.clientView = id => {
+    const c = (st.data.customers || []).find(z => z.id === id); if (!c) return '<div class="empty"><h2>Client not found</h2><a class="btn" href="#/battens/clients">Back</a></div>';
+    const s2 = B.cStats(c); const det = (k, v) => v ? `<div class="kvr2"><span class="hint">${k}</span><b>${e(v)}</b></div>` : '';
+    return `<div class="page-head"><div><p class="crumbs"><a href="#/battens/clients">Batten clients</a></p><h1>${e(B.cLabel(c))}</h1><p class="sub">${e(c.type || 'Batten client')}</p></div><div class="head-actions"><button class="btn primary" data-act="bcNewEst" data-id="${c.id}">+ New batten estimate for them</button></div></div>
+      <div class="statcards" style="grid-template-columns:repeat(4,minmax(0,1fr))"><div class="statcard dark"><p class="l">Won</p><p class="v">${App.money(s2.wonV, 0)}</p><p class="s">${s2.won.length} job${s2.won.length === 1 ? '' : 's'}</p></div><div class="statcard"><p class="l">Quoted</p><p class="v">${App.money(s2.quoted, 0)}</p><p class="s">${s2.es.length} estimates</p></div><div class="statcard"><p class="l">Win rate</p><p class="v">${s2.rate == null ? '-' : s2.rate + '%'}</p><p class="s">&#160;</p></div><div class="statcard"><p class="l">Battened</p><p class="v">${s2.m2 ? fmt(s2.m2) + ' m²' : '-'}</p><p class="s">house area on jobs won</p></div></div>
+      <div class="cl-cols"><section class="card" style="margin:0"><h3>Estimates and jobs</h3>${s2.es.length ? `<table class="wtable"><tbody>${s2.es.map(x => `<tr><td><a href="#/battens/${x.status === 'accepted' ? 'job' : 'e'}/${x.id}"><b>${e(x.number)}</b></a></td><td>${e(B.name(x))}</td><td class="r">${App.money(B.calc(x).total, 0)}</td><td>${x.status === 'accepted' && x.job ? stageTag(x) : tag(x.status)}</td></tr>`).join('')}</tbody></table>` : '<p class="hint">No batten estimates for them yet.</p>'}</section>
+      <aside><section class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Details</h3><button class="btn small" data-act="bcEdit" data-id="${c.id}">Edit</button></div>${det('Main contact', c.name)}${det('Phone', c.phone)}${det('Email', c.email)}${det('Accounts email', c.accountsEmail)}${det('Address', c.address)}${c.notes ? `<p class="hint" style="margin-top:8px">${e(c.notes)}</p>` : ''}
+        <p class="hint" style="margin-top:10px">${c.regular ? 'Also in your main Clients list.' : 'Battens only: not in your main Clients list.'}</p></section></aside></div>`;
+  };
+  A.bcEdit = (el, ev, preset) => {
+    const c = (el && el.dataset && el.dataset.id ? (st.data.customers || []).find(z => z.id === el.dataset.id) : null) || Object.assign({}, preset || {});
+    const isNew = !c.id; const f = (l, k, t = 'text') => App.field(l, `<input id="bc-${k}" type="${t}" value="${e(c[k] || '')}">`);
+    const m = App.modal(isNew ? 'Add a batten client' : `Edit ${B.cLabel(c)}`, `<div class="grid2">${f('Company', 'company')}${f('Main contact', 'name')}${f('Email', 'email', 'email')}${f('Phone', 'phone', 'tel')}${f('Accounts email (optional)', 'accountsEmail', 'email')}${f('Type, e.g. Timber-frame builder', 'type')}</div>${f('Address', 'address')}${App.field('Notes', `<textarea id="bc-notes" rows="3">${e(c.notes || '')}</textarea>`)}
+      <label class="check"><input type="checkbox" id="bc-reg" ${c.regular ? 'checked' : ''}> Also show them in the main Clients list (if they buy steel framing too)</label>`,
+      { wide: true, actions: `${!isNew ? '<button class="btn ghost danger" id="bc-x">Remove from batten clients</button>' : ''}<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="bc-ok">Save</button>` });
+    m.querySelector('#bc-ok').onclick = () => {
+      const v = k => m.querySelector('#bc-' + k).value.trim(); if (!v('company') && !v('name')) return App.toast('Add a company or a name', 'err');
+      ['company', 'name', 'email', 'phone', 'accountsEmail', 'type', 'address', 'notes'].forEach(k => c[k] = v(k)); c.batten = true; c.regular = m.querySelector('#bc-reg').checked;
+      if (isNew) { c.id = App.uid(); c.createdAt = Date.now(); st.data.customers = st.data.customers || []; st.data.customers.push(c); }
+      st.touch(c); st.save(); App.closeModal();
+      if (preset && preset.onSave) preset.onSave(c); else if (isNew) location.hash = `#/battens/client/${c.id}`;
+      App.refresh();
+    };
+    if (!isNew) m.querySelector('#bc-x').onclick = () => { c.batten = false; st.touch(c); st.save(); App.closeModal(); location.hash = '#/battens/clients'; };
+  };
+  A.bcFromEst = () => { const x = cur(); A.bcEdit(null, null, { company: x.client.company, name: x.client.name, email: x.client.email, phone: x.client.phone, onSave: c => { x.clientId = c.id; B.save(x); App.toast(`${B.cLabel(c)} saved as a batten client`); } }); };
+  A.bcNewEst = el => { const c = (st.data.customers || []).find(z => z.id === el.dataset.id); const x = B.create({ clientId: c.id, client: { name: c.name || '', company: c.company || '', email: c.email || '', phone: c.phone || '' } }); location.hash = `#/battens/e/${x.id}`; };
 
   /* ---------- the estimate PDF ---------- */
   B.spec = x => {
