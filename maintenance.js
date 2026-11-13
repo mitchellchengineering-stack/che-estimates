@@ -81,8 +81,8 @@
   };
   M.logView = () => {
     const logs = live('servicelog').sort((a, b) => String(b.date).localeCompare(String(a.date))); const names = Object.fromEntries(live('assets').map(a => [a.id, a.name]));
-    return `<section class="card"><h3>Service log</h3><div class="table-scroll"><table class="wtable"><thead><tr><th>Date</th><th>Machine or vehicle</th><th>What was done</th><th>By</th><th class="r">Cost</th></tr></thead><tbody>
-      ${logs.map(l => `<tr><td><b>${fdate(l.date)}</b></td><td>${e(names[l.assetId] || '')}</td><td class="small">${l.kind === 'fault' ? `<span class="tag ${l.status === 'closed' ? 'ok' : 'warn'}">Fault${l.status === 'closed' ? ', fixed' : ''}</span> ` : ''}${e([(l.tasks || []).join(', '), l.notes, l.fix].filter(Boolean).join('. '))}</td><td>${e(l.by || '')}</td><td class="r">${App.num(l.cost) ? App.money(l.cost, 0) : '-'}</td></tr>`).join('') || '<tr><td colspan="5" class="hint">Nothing logged yet.</td></tr>'}</tbody></table></div></section>`;
+    return `<section class="card"><h3>Service log</h3><div class="table-scroll"><table class="wtable"><thead><tr><th>Date</th><th>Machine or vehicle</th><th>What was done</th><th>By</th><th class="r">Cost</th><th></th></tr></thead><tbody>
+      ${logs.map(l => `<tr><td><b>${fdate(l.date)}</b></td><td>${e(names[l.assetId] || '')}</td><td class="small">${l.kind === 'fault' ? `<span class="tag ${l.status === 'closed' ? 'ok' : 'warn'}">Fault${l.status === 'closed' ? ', fixed' : ''}</span> ` : ''}${e([(l.tasks || []).join(', '), l.notes, l.fix].filter(Boolean).join('. '))}</td><td>${e(l.by || '')}</td><td class="r">${App.num(l.cost) ? App.money(l.cost, 0) : '-'}</td><td class="r"><button class="icon-btn" data-act="logDel" data-id="${l.id}" aria-label="Delete this entry">✕</button></td></tr>`).join('') || '<tr><td colspan="5" class="hint">Nothing logged yet.</td></tr>'}</tbody></table></div></section>`;
   };
   const asset = id => col('assets').find(x => x.id === id);
   A.serviceLog = el => {
@@ -113,6 +113,7 @@
       { actions: '<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="ff-ok">Save</button>' });
     m.querySelector('#ff-ok').onclick = () => { Object.assign(f, { status: 'closed', fix: m.querySelector('#ff-n').value.trim(), fixedBy: m.querySelector('#ff-b').value.trim(), fixedAt: App.today(), cost: App.num(m.querySelector('#ff-c').value) }); save(f); App.closeModal(); App.refresh(); };
   };
+  A.logDel = async el => { const l = col('servicelog').find(x => x.id === el.dataset.id); if (!(await App.confirm('Delete this entry from the service log?', '', 'Delete'))) return; l.deleted = true; save(l); App.refresh(); };
   A.meterSet = async el => { const a = asset(el.dataset.id); const v = await App.prompt(`${a.name}: ${a.unit} reading now`, a.meter || ''); if (v === null || v === undefined || v === '') return; a.meter = App.num(v); a.meterAt = App.today(); save(a); App.refresh(); };
   A.assetEdit = el => {
     const a = el.dataset.id ? asset(el.dataset.id) : { kind: el.dataset.kind || 'machine', unit: el.dataset.kind === 'vehicle' ? 'km' : 'hours', tasks: [] };

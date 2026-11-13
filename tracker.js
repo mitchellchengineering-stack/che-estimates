@@ -69,10 +69,13 @@
       <select data-act-change="trkFilter" data-k="who"><option value="">Everyone</option>${users.map(u => App.opt(u.email, u.name, q.who)).join('')}</select>
       <label class="check small"><input type="checkbox" data-act-change="trkToggle" data-k="archived" ${q.archived ? 'checked' : ''}> Archived</label>
       <label class="check small"><input type="checkbox" data-act-change="trkToggle" data-k="practice" ${q.practice ? 'checked' : ''}> Practice</label>
+      <button class="btn small ${q.selecting ? 'dark' : 'ghost'}" data-act="trkSelecting">${q.selecting ? 'Done selecting' : 'Select to delete'}</button>
     </div>
+    ${q.selecting ? `<div class="banner sel-bar"><span><b>${(q.sel || []).length} selected.</b> Tick the estimates to delete.</span><span class="row" style="flex:none"><button class="btn small ghost" data-act="trkSelAll">Tick all shown</button><button class="btn small danger" data-act="trkDelSel" ${(q.sel || []).length ? '' : 'disabled'}>Delete selected</button></span></div>` : ''}
     ${rows.length ? `<div class="table-wrap"><table class="tracker">
-      <thead><tr><th>Estimate</th><th>Client</th><th>Email</th><th>Description</th><th class="r">Price (excl GST)</th><th>Status</th><th>Follow-ups</th><th></th></tr></thead>
+      <thead><tr>${q.selecting ? '<th></th>' : ''}<th>Estimate</th><th>Client</th><th>Email</th><th>Description</th><th class="r">Price (excl GST)</th><th>Status</th><th>Follow-ups</th><th></th></tr></thead>
       <tbody>${rows.map(x => `<tr class="${x.archived ? 'muted' : ''}">
+        ${q.selecting ? `<td><input type="checkbox" class="sel-box" data-act-change="trkSel" data-id="${x.id}" ${(q.sel || []).includes(x.id) ? 'checked' : ''} aria-label="Select ${e(x.number)}"></td>` : ''}
         <td><b>${e(st.displayNumber(x))}</b><div class="tags"><span class="tag">${x.type === 'ft' ? 'F&amp;T' : 'General'}</span>${x.practice ? '<span class="tag practice">Practice</span>' : ''}${App.Est.ratesChanged(x) ? '<span class="tag warn" title="Rates changed since this was priced">Rates changed</span>' : ''}${x.openedAt ? '<span class="tag ok" title="Email opened">Opened</span>' : ''}</div></td>
         <td>${e(x.client.company || x.client.name) || '<i class="hint">No client yet</i>'}${x.client.company && x.client.name ? `<div class="hint">${e(x.client.name)}</div>` : ''}</td>
         <td>${x.client.email ? `<a href="mailto:${e(x.client.email)}">${e(x.client.email)}</a>` : ''}</td>
@@ -87,6 +90,15 @@
   A.trkSearch = App.debounce(el => { App.state.trk.search = el.value; App.refresh(); const i = document.getElementById('trk-search'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250);
   A.trkFilter = el => { App.state.trk[el.dataset.k] = el.value; App.refresh(); };
   A.trkToggle = el => { App.state.trk[el.dataset.k] = el.checked; App.refresh(); };
+  A.trkSelecting = () => { const q = App.state.trk; q.selecting = !q.selecting; q.sel = []; App.refresh(); };
+  A.trkSel = el => { const q = App.state.trk; q.sel = (q.sel || []).filter(id => id !== el.dataset.id); if (el.checked) q.sel.push(el.dataset.id); App.refresh(); };
+  A.trkSelAll = () => { const q = App.state.trk; q.sel = [...document.querySelectorAll('.sel-box')].map(b => b.dataset.id); App.refresh(); };
+  A.trkDelSel = async () => {
+    const q = App.state.trk; const list = (q.sel || []).map(id => st.get(id)).filter(Boolean);
+    if (!list.length) return;
+    if (!(await App.confirm(`Delete ${list.length} estimate${list.length === 1 ? '' : 's'}?`, `${list.slice(0, 8).map(x => st.displayNumber(x)).join(', ')}${list.length > 8 ? ' and more' : ''}. They're removed everywhere in the app, and their numbers won't be used again. You can restore them from Settings, Google and data, for 60 days.`, 'Delete them'))) return;
+    const n = App.Est.deleteEsts(list); q.sel = []; q.selecting = false; App.refresh(); App.toast(`${n} deleted`);
+  };
   A.trkStatus = async el => {
     const est = st.get(el.dataset.id); const v = el.value; App.cur = est;
     if (v === 'accepted') { el.value = est.status; return A.estAccept(); }

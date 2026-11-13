@@ -1154,3 +1154,9 @@ a.practice-flag { text-decoration: none; }
 .ass-box input { width: 16px; height: 16px; accent-color: var(--ink); }
 .pg .assumed { display: inline-block; margin-left: 8px; padding: 1px 7px; border: 1px solid #c4cacf; border-radius: 6px; font-size: 10px; font-weight: 700; color: #5c636b; letter-spacing: .03em; text-transform: uppercase; vertical-align: 2px; }
 .pg .ass-note { margin: 8px 0 0; font-size: 11px; color: #5c636b; }
+
+/* Deleting */
+.menu-pop .danger-text { color: var(--red); }
+.sel-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.btn.danger:not(.ghost) { background: var(--red); color: #fff; border-color: var(--red); }
+.btn.danger:not(.ghost):disabled { opacity: .45; }

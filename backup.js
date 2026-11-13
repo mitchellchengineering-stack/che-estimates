@@ -43,24 +43,61 @@
         form.append('file', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
         const sheet = await App.G.api(`${App.G.U}?uploadType=multipart&supportsAllDrives=true&fields=id,webViewLink`, { method: 'POST', body: form });
         await App.G.uploadOrReplace({ name: `che-app-data ${day}.json`, parent: folder, blob: new Blob([JSON.stringify(st.data)], { type: 'application/json' }), mime: 'application/json' });
-        S().backup = { last: Date.now(), link: sheet.webViewLink || '', folder }; S().updatedAt = Date.now(); st.touch(S()); st.save();
-        if (!quiet) App.toast('Backed up to Google Drive, in the Backups folder');
-      } catch (er) { if (!quiet) App.toast('Backup didn\'t work: ' + er.message, 'err', 7000); console.error(er); }
+        const first = !(S().backup || {}).last;
+        S().backup = { last: Date.now(), link: sheet.webViewLink || '', folder, error: '' }; S().updatedAt = Date.now(); st.touch(S()); st.save();
+        if (!quiet || first) App.toast('Backed up to Google Drive, in the Backups folder');
+        B.tidy(folder);
+      } catch (er) {
+        S().backup = Object.assign({}, S().backup || {}, { error: er.message, errorAt: Date.now() }); st.touch(S()); st.save();
+        App.toast('The backup to Google Drive didn\'t work: ' + er.message, 'err', 8000); console.error(er);
+      }
       B.running = false;
     },
-    /* once a week, quietly, when an admin opens the app */
+    /* once a day, quietly, the first time an admin opens the app */
     maybe() {
       if (st.mode !== 'drive' || !st.data) return;
-      const me = S().users.find(u => u.email === st.me().email); if (!me || !me.admin) return;
-      const last = (S().backup || {}).last || 0; if (Date.now() - last < 7 * 864e5) return;
-      setTimeout(() => B.run(true), 20000);
+      const me = S().users.find(u => (u.email || '').toLowerCase() === (st.me().email || '').toLowerCase()); if (!me || me.admin === false) return;
+      const last = (S().backup || {}).last || 0; if (App.iso(new Date(last)) === App.today()) return;
+      setTimeout(() => B.run(true), 5000);
+    },
+    /* keep the last 60 days of daily backups; older ones go to the Drive bin */
+    async tidy(folder) {
+      try {
+        const q = `'${folder}' in parents and trashed = false and name contains 'CH Engineering backup'`;
+        const r = await App.G.api(`${App.G.D}?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&pageSize=200&supportsAllDrives=true&includeItemsFromAllDrives=true`);
+        const cut = Date.now() - 60 * 864e5;
+        for (const f of (r.files || []).filter(f => Date.parse(f.createdTime) < cut)) await App.G.api(`${App.G.D}/${f.id}?supportsAllDrives=true`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) });
+      } catch (er) { /* not important */ }
     },
     card() {
       const b = S().backup || {};
-      return `<section class="card"><h3>Backups</h3><p class="hint">Once a week the app saves a spreadsheet of everything (estimates, jobs, variations, clients, detailing, follow-ups, maintenance, service log, hazards, incidents, toolbox talks, training, checks and substances) into a <b>Backups</b> folder in your Google Drive, with a full copy of the app's data alongside. Coils, fasteners and sales already live in their own Google Sheets.</p>
+      return `<section class="card"><h3>Backups</h3><p class="hint">Once a day the app saves a spreadsheet of everything (estimates, jobs, variations, clients, detailing, follow-ups, maintenance, service log, hazards, incidents, toolbox talks, training, checks and substances) into a <b>Backups</b> folder in your Google Drive, with a full copy of the app's data alongside. Coils, fasteners and sales already live in their own Google Sheets.</p>
+        ${b.error ? `<div class="banner warn">The last backup didn't work (${App.fmtStamp(b.errorAt)}): ${App.esc(b.error)}</div>` : ''}
         <p>${b.last ? `Last backup: <b>${App.fmtStamp(b.last)}</b>${b.link ? ` · <a href="${App.esc(b.link)}" target="_blank" rel="noopener">Open it</a>` : ''}${b.folder ? ` · <a href="https://drive.google.com/drive/folders/${App.esc(b.folder)}" target="_blank" rel="noopener">Backups folder</a>` : ''}` : 'No backup yet.'}</p>
         <button class="btn" data-act="backupNow" ${st.mode === 'drive' ? '' : 'disabled'}>Back up now</button></section>`;
     }
+  };
+  /* Recently deleted: put things back for 60 days */
+  B.deletedCard = () => {
+    const cut = Date.now() - 60 * 864e5;
+    const ests = st.data.estimates.filter(x => x.deleted && x.deletedAt && x.deletedAt > cut && !x.parentId).sort((a, b) => b.deletedAt - a.deletedAt);
+    const sales = (st.data.salesDeleted || []).filter(x => !x.restored && x.at > cut).sort((a, b) => b.at - a.at);
+    return `<section class="card"><h3>Recently deleted</h3><p class="hint">Deleted estimates and sales contacts can be put back for 60 days. Deleted estimate numbers are never used again.</p>
+      ${ests.length || sales.length ? `<table class="wtable"><thead><tr><th>What</th><th>Deleted</th><th></th></tr></thead><tbody>
+      ${ests.map(x => `<tr><td><b>${App.esc(st.displayNumber(x))}</b> ${App.esc(x.client.company || x.client.name || '')}<div class="hint">${App.esc(x.heading || '')}</div></td><td class="small">${App.fmtStamp(x.deletedAt)}${x.deletedBy ? ', ' + App.esc(x.deletedBy) : ''}</td><td class="r"><button class="btn small" data-act="restoreEst" data-id="${x.id}">Restore</button></td></tr>`).join('')}
+      ${sales.map(x => `<tr><td><b>${App.esc(x.name)}</b><div class="hint">Sales contact</div></td><td class="small">${App.fmtStamp(x.at)}${x.by ? ', ' + App.esc(x.by) : ''}</td><td class="r"><button class="btn small" data-act="restoreContact" data-id="${App.esc(x.id)}">Restore</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">Nothing deleted recently.</p>'}</section>`;
+  };
+  A.restoreEst = el => {
+    const x = st.get(el.dataset.id) || st.data.estimates.find(z => z.id === el.dataset.id); if (!x) return;
+    st.data.estimates.filter(z => z.deleted && (z.id === x.id || (z.parentId === x.id && Math.abs((z.deletedAt || 0) - x.deletedAt) < 5000))).forEach(z => { z.deleted = false; z.deletedAt = null; st.log(z, 'Restored'); st.touch(z); });
+    st.save(); App.refresh(); App.toast(`${x.number} restored`);
+  };
+  A.restoreContact = async el => {
+    const rec = (st.data.salesDeleted || []).find(z => z.id === el.dataset.id); if (!rec) return;
+    rec.restored = true; st.touch(rec); st.save();
+    const SL = App.Sales;
+    if (SL && SL.ready()) { try { await SL.load(true); const c = (SL.S.allContacts || []).find(z => z.id === rec.id); if (c) await SL.saveContact(Object.assign({}, c, { archived: !!rec.wasArchived }), { type: 'Note', outcome: 'Restored in the app' }); } catch (er) { App.toast(er.message, 'err'); } }
+    App.refresh(); App.toast(`${rec.name} restored`);
   };
   A.backupNow = async el => { el.disabled = true; el.textContent = 'Backing up…'; await B.run(false); App.refresh(); };
 })();

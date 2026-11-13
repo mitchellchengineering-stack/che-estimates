@@ -39,7 +39,9 @@
     },
     apply(d) {
       if (!d) return;
-      this.S.contacts = (d.contacts || []).map(c => Object.assign({ people: [], products: {} }, c));
+      const hidden = new Set((st.data && st.data.salesDeleted || []).filter(x => !x.restored).map(x => x.id));
+      this.S.allContacts = (d.contacts || []).map(c => Object.assign({ people: [], products: {} }, c));
+      this.S.contacts = this.S.allContacts.filter(c => !hidden.has(c.id));
       this.S.activity = d.activity || []; this.S.photos = d.photos || [];
     },
     async load(force) {
@@ -440,7 +442,7 @@
           <label class="check"><input type="checkbox" data-act-change="scConsent" ${c.emailConsent ? 'checked' : ''}> Happy to receive emails</label></section>
         <section class="card"><h3>Notes</h3><textarea rows="4" data-act-change="scSet" data-k="notes">${e(c.notes || '')}</textarea></section>
         ${photos.length ? `<section class="card"><h3>Photos</h3><div class="photo-row">${photos.map(x => `<a href="${e(x.url)}" target="_blank" rel="noopener" class="ph">${e(x.caption || 'Photo')}<span class="hint">${e(x.user || '')}, ${App.fmtShort(App.iso(new Date(x.at)))}</span></a>`).join('')}</div></section>` : ''}
-        <div class="row-btns"><button class="btn ghost" data-act="scArchive">${c.archived ? 'Unarchive' : 'Archive this contact'}</button></div>
+        <div class="row-btns"><button class="btn ghost" data-act="scArchive">${c.archived ? 'Unarchive' : 'Archive this contact'}</button><button class="btn ghost danger" data-act="scDelete">Delete this contact</button></div>
       </div>
       <aside class="ed-side">
         ${mail ? `<section class="mail-wait"><p class="k">Follow-up email ready, waiting for approval</p><p class="t">${e(mail.subject)}</p><p class="s">Due ${App.fmtShort(mail.due)}. Sends from your Gmail to ${e(mail.to)}.</p><div class="pre">${e(mail.body.slice(0, 180))}…</div>
@@ -467,6 +469,18 @@
   A.scPerson = el => { const n = Object.assign({}, curC()); n.people = App.clone(n.people || []); n.people[+el.dataset.i][el.dataset.k] = el.value; saveC(n); };
   A.scPersonAdd = () => { const n = Object.assign({}, curC()); n.people = App.clone(n.people || []).concat([{ name: '', role: '', phone: '', email: '' }]); saveC(n); };
   A.scPersonDel = el => { const n = Object.assign({}, curC()); n.people = App.clone(n.people || []); n.people.splice(+el.dataset.i, 1); saveC(n); };
+  /* Delete: gone from the app. In the sales sheet it's kept as an archived row (the sheet itself is your record). Restore from Settings for 60 days. */
+  A.scDelete = async () => {
+    const c = curC(); const name = c.company || SL.primary(c).name || 'this contact';
+    if (!(await App.confirm(`Delete ${name}?`, 'They\'re removed from the Sales page, follow-ups and reports. In the sales spreadsheet they\'re kept as an archived row. You can restore them from Settings, Google and data, for 60 days.', 'Delete'))) return;
+    try { await SL.saveContact(Object.assign({}, c, { archived: true }), { type: 'Note', outcome: 'Deleted from the app' }); } catch (er) { return App.toast(er.message, 'err'); }
+    st.data.salesDeleted = st.data.salesDeleted || [];
+    let rec = st.data.salesDeleted.find(x => x.id === c.id);
+    if (!rec) { rec = { id: c.id }; st.data.salesDeleted.push(rec); }
+    Object.assign(rec, { name, at: Date.now(), by: st.me().name, wasArchived: !!c.archived, restored: false }); st.touch(rec); st.save();
+    SL.S.contacts = SL.S.contacts.filter(x => x.id !== c.id); (st.data.salesMail || []).filter(m => m.contactId === c.id && m.status === 'waiting').forEach(m => { m.deleted = true; st.touch(m); });
+    location.hash = '#/sales'; App.toast(`${name} deleted`);
+  };
   A.scArchive = () => { const c = curC(); saveC(Object.assign({}, c, { archived: !c.archived })); };
   A.scEmail = () => {
     const c = curC(); const p = SL.primary(c); const t = SL.tpl('Follow-up') || { subject: '', body: '' }; const v = SL.vars(c);

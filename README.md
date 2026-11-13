@@ -1,6 +1,16 @@
 # CH Engineering Estimates
 
-## Latest update: New PDF style, Drive copies, backups
+## Latest update: Deleting, and daily backups
+
+1. **Upload all the files** to GitHub and commit (not the .gs files).
+2. **Delete an estimate:** open it, More > Delete this estimate. Or in the Estimate tracker, Select to delete, tick several, Delete selected. Numbers are never reused.
+3. **Delete a sales contact:** open it, Delete this contact.
+4. **Put something back:** Settings > Google and data > Recently deleted (60 days).
+5. **Backups:** now daily. Settings > Google and data shows the last backup, or what went wrong if it didn't work. Click Back up now to run one straight away.
+
+---
+
+## Earlier update: New PDF style, Drive copies, backups
 
 1. **Upload all the files** to GitHub and commit.
 2. **PDFs:** everything except estimates, dockets, variations, workings and POs now uses the yellow cover style. Every PDF you download also saves a copy into Google Drive, in **Reports / (section)**, e.g. Reports / Fastener reports.
