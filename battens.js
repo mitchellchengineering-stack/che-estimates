@@ -348,7 +348,7 @@
     return `<div class="page-head"><div><p class="crumbs"><a href="#/battens/machine">Machine files</a></p><h1>${e(x.number)} machine file</h1><p class="sub">${e([B.who(x), B.name(x)].filter(Boolean).join(', '))}</p></div><div class="head-actions"><a class="btn" href="#/battens/job/${x.id}">Open job</a></div></div>
       <div class="bat-cols"><div class="bat-main"><section class="card">
         <div class="grid3">${App.field('Frameset name (goes in the file)', `<input id="mf-fs" value="${e(m.frameset || '')}" data-act-change="batMfName">`)}${App.field('Rooms', `<input id="mf-n" inputmode="numeric" value="${e(n)}" data-act-change="batMfRooms">`)}<div class="fld"><span>&#160;</span><button class="btn" data-act="batMfPaste">Paste from Excel</button></div></div>
-        <p class="hint">One line per room, already numbered. Type the Qty and Length: Tab or Enter moves to the next box. Leave a room blank if it has nothing.</p>
+        <p class="hint">One line per room, already numbered. <b>Enter goes down</b> the column, so you can type all the quantities, then all the lengths (at the bottom of Qty, Enter jumps to the top of Length). Tab goes across. Leave a room blank if it has nothing.</p>
         <table class="mf-grid"><thead><tr><th>Room</th><th>Qty</th><th>Length (mm)</th></tr></thead><tbody>${m.rows.map((r, i) => `<tr><td>${i + 1}</td><td><input data-r="${i}" data-c="qty" inputmode="numeric" value="${e(r.qty)}"></td><td><input data-r="${i}" data-c="len" inputmode="numeric" value="${e(r.len)}"></td></tr>`).join('')}</tbody></table>
         <div class="row" style="justify-content:space-between;margin-top:14px;flex-wrap:wrap"><span id="mf-tot"><b>${fmt(t.n)} battens</b>, ${t.lm.toFixed(1)} LM, about ${fmt(t.kg)} kg of coil</span><span class="row"><button class="btn" data-act="batMfCheck">Check it</button><button class="btn primary" data-act="batCsv" data-id="${x.id}">Download CSV</button></span></div></section></div>
       <aside class="bat-side"><section class="card"><h3>The CSV it makes</h3><pre class="csv-pre" id="mf-pre">${e(B.csv(x).split('\r\n').slice(0, 10).join('\n'))}${(m.rows || []).filter(r => App.num(r.qty) && App.num(r.len)).length > 7 ? '\n…' : ''}</pre><p class="hint">Same layout as your machine's files.</p></section>
@@ -362,7 +362,12 @@
     const totals = () => { const t = B.mfTotals(x); const el = document.getElementById('mf-tot'); if (el) el.innerHTML = `<b>${fmt(t.n)} battens</b>, ${t.lm.toFixed(1)} LM, about ${fmt(t.kg)} kg of coil`; const pre = document.getElementById('mf-pre'); if (pre) pre.textContent = B.csv(x).split('\r\n').slice(0, 10).join('\n'); };
     grid.addEventListener('input', ev => { const i = ev.target; if (!i.dataset.r) return; x.job.machine.rows[+i.dataset.r][i.dataset.c] = i.value.replace(/[^\d.]/g, ''); totals(); });
     grid.addEventListener('change', () => { B.save(x); });
-    grid.addEventListener('keydown', ev => { if (ev.key !== 'Enter') return; ev.preventDefault(); const all = inputs(); const k = all.indexOf(ev.target); if (all[k + 1]) all[k + 1].focus(); });
+    /* Enter (and the down arrow) go down the same column, so you can do all the quantities, then all the lengths. Tab still goes across. */
+    grid.addEventListener('keydown', ev => {
+      const t = ev.target; if (!t.dataset || t.dataset.r === undefined) return;
+      const go = d => { const n = grid.querySelector(`input[data-r="${+t.dataset.r + d}"][data-c="${t.dataset.c}"]`); if (n) { ev.preventDefault(); n.focus(); n.select(); } else if (d > 0 && ev.key === 'Enter') { ev.preventDefault(); const other = grid.querySelector(`input[data-r="0"][data-c="${t.dataset.c === 'qty' ? 'len' : 'qty'}"]`); if (other) { other.focus(); other.select(); } } };
+      if (ev.key === 'Enter' && !ev.shiftKey) go(1); else if (ev.key === 'Enter' && ev.shiftKey) go(-1); else if (ev.key === 'ArrowDown') go(1); else if (ev.key === 'ArrowUp') go(-1);
+    });
     grid.addEventListener('paste', ev => {
       const txt = (ev.clipboardData || window.clipboardData).getData('text'); if (!/[\t\n]/.test(txt)) return;
       ev.preventDefault(); B.pasteRows(x, txt, +ev.target.dataset.r || 0); B.save(x); App.refresh();

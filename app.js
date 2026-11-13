@@ -40,6 +40,7 @@
     const t = document.getElementById('topbar'); if (!st.data) { t.innerHTML = ''; return; }
     const q = (App.state.trk && App.state.trk.search) || '';
     t.innerHTML = `<button class="icon-btn menu-btn" data-act="toggleMenu" aria-label="Menu">☰</button>
+      ${App.Care && App.Care.canBack() ? '<button class="back-btn" data-act="goBack" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Back</button>' : ''}
       <label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="position:absolute;left:-9999px">Search estimates</span><input id="top-q" type="search" placeholder="Search estimates, clients or addresses" value="${e(q)}" data-act-input="topSearch"></label>
       ${App.state.practice ? '<a class="practice-flag" href="#/settings/estimates">Practice mode is on: TEST numbers, kept out of the stats</a>' : ''}
       <div class="top-right">
@@ -223,7 +224,7 @@
   const STAGE_ORDER = j => App.STAGES.findIndex(s => s.value === j.job.stage);
   A.homeScan = () => { if (App.Coil && App.Coil.ready()) App.Coil.openScan('out'); else location.hash = '#/coils'; };
 
-  App.views.help = () => `<div class="page-head"><div><h1>Help</h1><p class="sub">How the app fits together.</p></div></div>
+  App.views.help = () => `<div class="page-head"><div><h1>Help</h1><p class="sub">How the app fits together.${App.Care && App.Care.version ? ` Version ${App.Care.version}.` : ''}</p></div><div class="head-actions"><button class="btn" data-act="reportProblem">Report a problem</button></div></div>
     <div class="help">
     <section class="card"><h3>Making an estimate</h3><ol>
       <li>On the home screen, pick <b>General</b> or <b>Full frame and truss</b>. The number and date fill in automatically.</li>

@@ -1225,3 +1225,12 @@ a.practice-flag { text-decoration: none; }
 .pg.measure .mtable th:first-child { width: 18%; } .pg.measure .mtable th:nth-child(2) { width: 25%; }
 .pg.measure .mtable td { height: 23px; border-top: 1px solid #c4cacf; padding: 0 12px; font-weight: 800; font-size: 13px; }
 .pg.measure .mtable td + td { border-left: 1px solid #c4cacf; }
+
+/* Back button, new version banner, restore */
+.back-btn { font: inherit; display: inline-flex; align-items: center; gap: 4px; height: 42px; padding: 0 14px 0 8px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font-weight: 700; font-size: .92rem; cursor: pointer; flex: none; }
+.back-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.back-btn:hover { background: var(--soft); }
+#ver-banner { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 70; display: flex; align-items: center; gap: 14px; background: var(--ink); color: #fff; padding: 12px 14px 12px 18px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: calc(100vw - 32px); }
+#ver-banner b { color: var(--yellow); }
+.restore-list { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow: auto; }
+.restore-list .btn { justify-content: space-between; width: 100%; }

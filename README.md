@@ -1,6 +1,16 @@
 # CH Engineering Estimates
 
-## Latest update: Battens
+## Latest update (version 15): Back button, new version banner, restore, archive, report a problem
+
+1. **Upload all the files** to GitHub and commit, including **version.json** (not the .gs files).
+2. Press **Ctrl + Shift + R** one last time. From now on, when there's an update everyone sees a "new version is ready" banner with a Refresh button.
+3. **Back button** in the top bar on every page except Home.
+4. **Settings > Google and data:** Restore from a backup, Archive finished years, and Report a problem (also on the Help page).
+5. **Battens machine file:** Enter now goes down the column.
+
+---
+
+## Earlier update: Battens
 
 1. **Upload all the files** to GitHub and commit (not the .gs files).
 2. **Settings > Battens:** check the next number (set to carry on from CHIB26057), add your rates per m² (or leave blank and type prices), check the standard lines, and set your batten terms (there's a button to copy your main terms to start from).
