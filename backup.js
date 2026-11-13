@@ -89,7 +89,7 @@
   };
   A.restoreEst = el => {
     const x = st.get(el.dataset.id) || st.data.estimates.find(z => z.id === el.dataset.id); if (!x) return;
-    st.data.estimates.filter(z => z.deleted && (z.id === x.id || (z.parentId === x.id && Math.abs((z.deletedAt || 0) - x.deletedAt) < 5000))).forEach(z => { z.deleted = false; z.deletedAt = null; st.log(z, 'Restored'); st.touch(z); });
+    st.data.estimates.filter(z => z.deleted && (z.id === x.id || (z.parentId === x.id && Math.abs((z.deletedAt || 0) - x.deletedAt) < 5000))).forEach(z => { z.deleted = false; z.deletedAt = null; st.log(z, 'Restored'); st.touch(z); if (z.job && App.Jobs) { z.job.cal = {}; (z.job.loads || []).forEach(l => { l.calId = null; }); App.Jobs.syncCal(z); } });
     st.save(); App.refresh(); App.toast(`${x.number} restored`);
   };
   A.restoreContact = async el => {

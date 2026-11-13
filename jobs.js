@@ -329,9 +329,22 @@
     const body = { overview: App.Jobs.overview, estimate: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/preview">Open estimate</a></div><div class="doc-preview" id="job-doc"></div>`, workings: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/workings">Open workings</a></div><div class="doc-preview" id="job-doc"></div>`, files: App.Jobs.filesTab, deliveries: App.Jobs.delTab, checklist: App.Jobs.checkTab, backcost: App.Jobs.backTab, pos: App.Jobs.poTab, coils: x => App.Coil.jobTab(x), variations: x => App.Var.tab(x) }[tab] || App.Jobs.overview;
     return `<div class="page-head"><div><div class="crumbs"><a href="#/production">Production</a></div>
       <h1>${e(st.displayNumber(est))} <span class="pill stage">${e(App.stageLabel(est.job.stage))}</span></h1>
-      <p class="sub">${e(est.client.company || est.client.name)}, ${e(est.heading)}${est.siteAddress ? ', ' + e(est.siteAddress) : ''}</p></div></div>
+      <p class="sub">${e(est.client.company || est.client.name)}, ${e(est.heading)}${est.siteAddress ? ', ' + e(est.siteAddress) : ''}</p></div>
+      <div class="head-actions"><details class="menu"><summary class="btn" aria-label="More actions">More</summary><div class="menu-pop"><a href="#/e/${est.id}">Open the estimate</a><button data-act="jobDelete" class="danger-text">Delete this job</button></div></details></div></div>
       <div class="tabs">${tabs.map(([k, l]) => `<a href="#/job/${est.id}/${k}" class="${tab === k ? 'on' : ''}">${l}</a>`).join('')}</div>
       <div class="tab-body">${body(est)}</div>`;
+  };
+  /* Delete a job (e.g. a practice job marked accepted): removes the job and its estimate everywhere, takes its dates off Google Calendar, and never reuses the number */
+  App.Jobs.removeCal = async est => {
+    if (st.mode !== 'drive' || !est.job || !est.job.cal) return;
+    const cal = S().google.calendarId || 'primary';
+    try { if (est.job.cal.mfg) await App.G.deleteEvent(cal, est.job.cal.mfg); for (const l of est.job.loads || []) if (l.calId) await App.G.deleteEvent(cal, l.calId); } catch (er) { /* already gone */ }
+  };
+  A.jobDelete = async () => {
+    const est = App.cur;
+    if (!(await App.confirm(`Delete job ${st.displayNumber(est)}?`, `It comes off the production board, calendar, coils, reports and the estimate tracker, and the number ${est.number} won't be used again. Its files stay in Google Drive. You can restore it from Settings, Google and data, for 60 days.`, 'Delete job'))) return;
+    App.Est.deleteEsts([est.parentId ? st.get(est.parentId) || est : est], 'Job deleted');
+    location.hash = '#/production'; App.toast(`Job ${est.number} deleted`);
   };
   App.views.job.mount = (id, tab) => { const est = st.get(id); if (!est) return; if (tab === 'files') App.Jobs.loadFiles(est); if (tab === 'estimate') App.Docs.ensureImage(est).then(() => App.Docs.fill(document.getElementById('job-doc'), App.Docs.estimate(est))); if (tab === 'workings') App.Docs.fill(document.getElementById('job-doc'), App.Docs.workings(est)); if (tab === 'coils') { if (!App.Coil.S.token) App.Coil.mountLogin(); else if (!App.Coil.S.loadedAt) App.Coil.load().then(() => App.refresh()).catch(er => App.toast(er.message, 'err')); } };
 

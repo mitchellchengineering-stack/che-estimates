@@ -686,7 +686,7 @@
     const ids = new Set(list.map(x => x.id)); const all = [];
     st.data.estimates.forEach(x => { if (!x.deleted && (ids.has(x.id) || ids.has(x.parentId))) all.push(x); });
     const now = Date.now(), by = st.me().name;
-    all.forEach(x => { x.deleted = true; x.deletedAt = now; x.deletedBy = by; st.log(x, why || 'Deleted'); st.touch(x); });
+    all.forEach(x => { x.deleted = true; x.deletedAt = now; x.deletedBy = by; st.log(x, why || 'Deleted'); st.touch(x); if (x.job && App.Jobs && App.Jobs.removeCal) App.Jobs.removeCal(x); });
     st.save(); if (App.Sales) App.Sales.syncFromEstimates && App.Sales.syncFromEstimates();
     return all.length;
   };
