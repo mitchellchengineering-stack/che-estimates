@@ -20,6 +20,8 @@
         'Follow-ups': live('manualfu').map(x => ({ Name: x.name, Company: x.company, Email: x.email, About: x.about, Due: x.due, Status: x.status })),
         'Maintenance': live('assets').flatMap(a => a.tasks.map(t => ({ 'Machine or vehicle': a.name, Rego: a.reg || '', Task: t.name, Every: `${t.every} ${t.unit}`, 'Last done': t.last ? d(t.last.date) : '', Next: App.Maint ? App.Maint.due(a, t).label : '' }))),
         'Service log': live('servicelog').map(l => ({ Date: d(l.date), 'Machine or vehicle': asset[l.assetId] || '', Type: l.kind === 'fault' ? 'Fault' : 'Service', 'What was done': [(l.tasks || []).join(', '), l.notes, l.fix].filter(Boolean).join('. '), By: l.by || '', Cost: l.cost || 0, Status: l.kind === 'fault' ? (l.status === 'closed' ? 'Fixed' : 'Open') : '' })),
+        'Battens': live('battens').map(x => ({ Number: x.number, Date: x.date, Client: x.client.company || x.client.name, Contact: x.client.name, Email: x.client.email, Lot: x.lot, Address: x.address, 'House area': x.houseArea, Centres: x.centres, Raking: x.raking ? 'Yes' : 'No', Acoustic: x.acoustic ? 'Yes' : 'No', 'Price excl GST': App.Battens ? App.Battens.calc(x).total : x.price, Status: x.status, Stage: x.job ? x.job.stage : '', 'Install date': x.job ? x.job.installDate || '' : '' })),
+        'Batten machine files': live('battens').filter(x => x.job && x.job.machine).flatMap(x => (x.job.machine.rows || []).map((r, i) => ({ Job: x.number, Address: x.address, Room: i + 1, Qty: r.qty, 'Length (mm)': r.len })).filter(r => r.Qty)),
         'Hazards': live('hazards').map(h => ({ Hazard: h.hazard, Where: h.where, Risk: h.risk, Controls: h.controls, Reviewed: h.reviewed })),
         'Incidents': live('incidents').map(i => ({ Ref: i.ref, Type: i.type, When: String(i.when || '').replace('T', ' '), Where: i.where, Who: i.who, 'Reported by': i.reportedBy, 'What happened': i.what, Why: i.why, Injury: i.injury, 'Lost time': i.lostTime ? 'Yes' : 'No', Actions: (i.actions || []).map(a => `${a.text} (${a.who || ''}, due ${a.due || '-'}${a.done ? ', done' : ''})`).join('; '), Notifiable: i.notifiable ? 'Yes' : 'No', Status: i.status })),
         'Toolbox talks': live('talks').map(t => ({ Date: t.date, Topic: t.topic, 'Run by': t.by, Attendees: (t.attendees || []).join(', '), Notes: t.notes, Actions: t.actions })),
@@ -82,9 +84,11 @@
     const cut = Date.now() - 60 * 864e5;
     const ests = st.data.estimates.filter(x => x.deleted && x.deletedAt && x.deletedAt > cut && !x.parentId).sort((a, b) => b.deletedAt - a.deletedAt);
     const sales = (st.data.salesDeleted || []).filter(x => !x.restored && x.at > cut).sort((a, b) => b.at - a.at);
+    const bats = (st.data.battens || []).filter(x => x.deleted && x.deletedAt > cut);
     return `<section class="card"><h3>Recently deleted</h3><p class="hint">Deleted estimates and sales contacts can be put back for 60 days. Deleted estimate numbers are never used again.</p>
-      ${ests.length || sales.length ? `<table class="wtable"><thead><tr><th>What</th><th>Deleted</th><th></th></tr></thead><tbody>
+      ${ests.length || sales.length || bats.length ? `<table class="wtable"><thead><tr><th>What</th><th>Deleted</th><th></th></tr></thead><tbody>
       ${ests.map(x => `<tr><td><b>${App.esc(st.displayNumber(x))}</b> ${App.esc(x.client.company || x.client.name || '')}<div class="hint">${App.esc(x.heading || '')}</div></td><td class="small">${App.fmtStamp(x.deletedAt)}${x.deletedBy ? ', ' + App.esc(x.deletedBy) : ''}</td><td class="r"><button class="btn small" data-act="restoreEst" data-id="${x.id}">Restore</button></td></tr>`).join('')}
+      ${bats.map(x => `<tr><td><b>${App.esc(x.number)}</b> ${App.esc(x.client.company || x.client.name || '')}<div class="hint">Batten ${x.job ? 'job' : 'estimate'}, ${App.esc(x.address || '')}</div></td><td class="small">${App.fmtStamp(x.deletedAt)}${x.deletedBy ? ', ' + App.esc(x.deletedBy) : ''}</td><td class="r"><button class="btn small" data-act="restoreBatten" data-id="${x.id}">Restore</button></td></tr>`).join('')}
       ${sales.map(x => `<tr><td><b>${App.esc(x.name)}</b><div class="hint">Sales contact</div></td><td class="small">${App.fmtStamp(x.at)}${x.by ? ', ' + App.esc(x.by) : ''}</td><td class="r"><button class="btn small" data-act="restoreContact" data-id="${App.esc(x.id)}">Restore</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">Nothing deleted recently.</p>'}</section>`;
   };
   A.restoreEst = el => {
@@ -92,6 +96,7 @@
     st.data.estimates.filter(z => z.deleted && (z.id === x.id || (z.parentId === x.id && Math.abs((z.deletedAt || 0) - x.deletedAt) < 5000))).forEach(z => { z.deleted = false; z.deletedAt = null; st.log(z, 'Restored'); st.touch(z); if (z.job && App.Jobs) { z.job.cal = {}; (z.job.loads || []).forEach(l => { l.calId = null; }); App.Jobs.syncCal(z); } });
     st.save(); App.refresh(); App.toast(`${x.number} restored`);
   };
+  A.restoreBatten = el => { const x = (st.data.battens || []).find(z => z.id === el.dataset.id); if (!x) return; x.deleted = false; x.deletedAt = null; st.touch(x); st.save(); App.refresh(); App.toast(`${x.number} restored`); };
   A.restoreContact = async el => {
     const rec = (st.data.salesDeleted || []).find(z => z.id === el.dataset.id); if (!rec) return;
     rec.restored = true; st.touch(rec); st.save();

@@ -273,7 +273,7 @@ App.Docs = {
     const pages = [];
     const toEl = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
     const newPage = first => {
-      const p = toEl(`<div class="pg${spec.landscape ? ' land' : ''}${spec.theme && spec.theme !== 'estimate' ? ' theme-cover' : ''}${spec.compact ? ' compact' : ''}"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
+      const p = toEl(`<div class="pg${spec.landscape ? ' land' : ''}${spec.theme && spec.theme !== 'estimate' ? ' theme-cover' : ''}${spec.compact ? ' compact' : ''}${spec.batten ? ' batten' : ''}${spec.measure ? ' measure' : ''}"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
       host.appendChild(p); pages.push(p); return p.querySelector('.pg-body');
     };
     const over = b => b.scrollHeight > b.clientHeight + 1;

@@ -1,6 +1,15 @@
 # CH Engineering Estimates
 
-## Latest update: General estimate layout and the 3D picture
+## Latest update: Battens
+
+1. **Upload all the files** to GitHub and commit (not the .gs files).
+2. **Settings > Battens:** check the next number (set to carry on from CHIB26057), add your rates per m² (or leave blank and type prices), check the standard lines, and set your batten terms (there's a button to copy your main terms to start from).
+3. **Battens** (menu): estimates (CHIB numbers), jobs, measure sheets, plans, coils on each job, and machine files.
+4. **Machine files** download in exactly the same layout as your machine's CSV files, and save to Google Drive in Battens / Machine files and the job's folder.
+
+---
+
+## Earlier update: General estimate layout and the 3D picture
 
 1. **Upload all the files** to GitHub and commit (not the .gs files).
 2. **General estimates:** a little tighter, with the notes beside the price, so up to 8 lines, the notes and the price fit on page 1. Longer lists are shared evenly over two pages.

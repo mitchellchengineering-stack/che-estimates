@@ -98,6 +98,14 @@ App.defaultSettings = () => ({
     widths: [92, 135, 166, 182], thicknesses: [0.55, 0.75, 0.95, 1.15], defaultGrade: 'G550', lowPerGauge: 1
   },
   brief: { hour: 9, off: false },
+  battens: {
+    prefix: 'CHIB', startSeq: { '26': 58 }, validDays: 30, profileLabel: '30 mm top hat, 0.55 BMT', kgPerM: 0.59,
+    rates: { r600: '', r400: '', acousticPerM2: '', raking: '', flashings: '', supplyOnlyPct: 100 },
+    lines: ['Ceiling battens 30mm (0.55BMT)', 'Installed level with a laser at {centres} centres and suspended on clips', 'All screws for installation included', 'All batten lengths cut to size', 'Perimeter channel installation', 'Delivery of battens to site'],
+    acousticLine: 'Acoustic clips to suit', flashingLine: 'Custom angle flashings for raked ceiling',
+    tcs: [{ t: 'Validity', d: 'This estimate is valid for 30 days from the date of issue.' }, { t: 'Pricing', d: 'Pricing is based on the plans supplied. Final lengths are confirmed by our site measure.' }, { t: 'Site readiness', d: 'The ceiling framing must be complete and ready, with clear access, before we start.' }, { t: 'Payment', d: 'Payment is due on completion unless agreed otherwise in writing.' }],
+    coils: { batten: '135|0.55', purlin: '135|0.75' }, clips: { batten: 'Batten clips', acoustic: 'Acoustic clips' }
+  },
   helper: { studSpacing: 0.6, trussSpacing: 0.9, joistSpacing: 0.45, wallExtra: 15, waste: 5, internalPerM2: 0.3, keys: { walls: '89x41|0.75', trusses: '89x41|0.75', joists: '150x41|0.95' } },
   sales: { apiUrl: 'https://script.google.com/macros/s/AKfycbwayHN0oCE9qnWFcYadC4uGoMexbirj-kqBCDp8bp8Zf_dTN5bwrMGs97eVzu5x6LRMYA/exec', passcode: '', sheetId: '' },
   fasteners: {
@@ -124,7 +132,7 @@ App.defaultSettings = () => ({
   }
 });
 
-App.defaultData = () => ({ v: 1, settings: App.defaultSettings(), counters: { practice: 0 }, estimates: [], customers: [], templates: [], events: [], salesMail: [], detailing: [], hazards: [], incidents: [], talks: [], staff: [], checks: [], substances: [], assets: [], servicelog: [], manualfu: [], salesDeleted: [] });
+App.defaultData = () => ({ v: 1, settings: App.defaultSettings(), counters: { practice: 0 }, estimates: [], customers: [], templates: [], events: [], salesMail: [], detailing: [], hazards: [], incidents: [], talks: [], staff: [], checks: [], substances: [], assets: [], servicelog: [], manualfu: [], salesDeleted: [], battens: [] });
 
 App.store = {
   data: null, mode: 'local', rootId: null, fileId: null, saving: false, pending: false, lastSync: 0, logs: [],
@@ -143,7 +151,7 @@ App.store = {
     const ds = App.defaultSettings();
     const deep = (target, src) => { Object.keys(src).forEach(k => { if (target[k] === undefined) target[k] = src[k]; else if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k]) && target[k] && typeof target[k] === 'object' && !Array.isArray(target[k])) deep(target[k], src[k]); }); };
     deep(d.settings, ds);
-    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing', 'hazards', 'incidents', 'talks', 'staff', 'checks', 'substances', 'assets', 'servicelog', 'manualfu', 'salesDeleted'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
+    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing', 'hazards', 'incidents', 'talks', 'staff', 'checks', 'substances', 'assets', 'servicelog', 'manualfu', 'salesDeleted', 'battens'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
     if (!d.settings.v2) { d.settings.v2 = true; d.settings.estimate.showAcceptanceGeneral = false; }
     if (!d.settings.v3) {
       d.settings.v3 = true; const si = d.settings.ft.scopeItems;
@@ -201,7 +209,7 @@ App.store = {
     let changed = false;
     if ((remote.settings.updatedAt || 0) > (local.settings.updatedAt || 0)) { local.settings = remote.settings; changed = true; }
     Object.keys(remote.counters || {}).forEach(k => { if ((remote.counters[k] || 0) > (local.counters[k] || 0)) { local.counters[k] = remote.counters[k]; changed = true; } });
-    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing', 'hazards', 'incidents', 'talks', 'staff', 'checks', 'substances', 'assets', 'servicelog', 'manualfu', 'salesDeleted'].forEach(k => {
+    ['estimates', 'customers', 'templates', 'events', 'salesMail', 'detailing', 'hazards', 'incidents', 'talks', 'staff', 'checks', 'substances', 'assets', 'servicelog', 'manualfu', 'salesDeleted', 'battens'].forEach(k => {
       const idx = new Map(local[k].map((r, i) => [r.id, i]));
       (remote[k] || []).forEach(r => {
         if (!idx.has(r.id)) { local[k].push(r); changed = true; }

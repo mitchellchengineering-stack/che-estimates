@@ -1173,3 +1173,55 @@ a.practice-flag { text-decoration: none; }
 .pg.compact .inclist .inc { padding: 4px 2px; font-size: 14px; line-height: 1.35; }
 .pg.compact .bottom .left { display: flex; flex-direction: column; gap: 10px; justify-content: flex-end; }
 .pg.compact .bottom .left .note { margin: 0; padding: 9px 14px; }
+
+/* ================= Battens ================= */
+.bat-cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.bat-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; } .bat-main .card, .bat-side .card { margin: 0; }
+.bat-side { display: flex; flex-direction: column; gap: 16px; }
+.bat-edit { border: 0; padding: 0; margin: 0; min-width: 0; }
+.bat-ticks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.bat-tick { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; cursor: pointer; }
+.bat-tick.on { border-color: var(--ink); background: #fff9e0; }
+.bat-tick input { width: 20px; height: 20px; accent-color: var(--ink); flex: none; margin-top: 1px; }
+.bat-tick em { display: block; font-style: normal; font-size: .8rem; color: var(--ink-3); font-weight: 500; }
+.bat-price { background: var(--ink); color: #fff; border-radius: 18px; padding: 20px; }
+.bat-price .k { margin: 0; font-size: .75rem; font-weight: 800; color: var(--yellow); }
+.bat-price .l { margin: 6px 0 0; color: #c9ced3; font-size: .85rem; }
+.bat-price .v { margin: 2px 0 10px; font-size: 2.1rem; font-weight: 800; color: var(--yellow); }
+.bat-price .r { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid #2c3136; font-size: .84rem; } .bat-price .r span { color: #c9ced3; }
+.bat-steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.bat-steps button { font: inherit; font-size: .84rem; font-weight: 700; padding: 8px 13px; border-radius: 20px; border: 0; background: var(--soft); color: var(--ink-2); cursor: pointer; }
+.bat-steps button.done { background: var(--green-bg); color: var(--green); } .bat-steps button.now { background: var(--ink); color: var(--yellow); }
+.mf-grid { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.mf-grid th { background: var(--ink); color: #fff; text-align: left; padding: 9px 12px; font-size: .85rem; }
+.mf-grid th:first-child { border-radius: 10px 0 0 0; width: 80px; } .mf-grid th:last-child { border-radius: 0 10px 0 0; }
+.mf-grid td { border-bottom: 1px solid var(--line-2); padding: 4px 6px; } .mf-grid td:first-child { font-weight: 800; padding-left: 14px; }
+.mf-grid input { height: 38px; font-size: 1rem; }
+.csv-pre { margin: 0; background: var(--ink); color: #e6e9ec; border-radius: 12px; padding: 14px; font-size: .78rem; line-height: 1.6; white-space: pre-wrap; overflow-x: auto; }
+.tc-row { display: grid !important; grid-template-columns: 180px 1fr auto auto; gap: 8px; align-items: start; }
+@media (max-width: 1000px) { .bat-cols, .bat-ticks { grid-template-columns: 1fr; } .tc-row { grid-template-columns: 1fr; } }
+/* batten estimate PDF: bigger text so a short estimate fills page 1 (10 lines fit) */
+.pg.batten .pg-head .num { font-size: 36px; }
+.pg.batten .pg-head .meta { font-size: 13px; }
+.pg.batten .blk { margin-top: 15px; }
+.pg.batten .cards3 .card .v { font-size: 17px; } .pg.batten .cards3 .card .l { font-size: 12px; }
+.pg.batten .h2 { font-size: 18px; }
+.pg.batten .stats .stat .v { font-size: 23px; } .pg.batten .stats .stat .l { font-size: 12px; }
+.pg.batten .stats .stat.prof .v { font-size: 16px; margin-top: 6px; }
+.pg.batten .inclist .inc { font-size: 16px; padding: 7px 2px; }
+.pg.batten .bottom-wrap { padding-top: 10px; }
+.pg.batten .price .big { font-size: 34px; }
+.pg.batten .price .gstl { display: flex; justify-content: space-between; gap: 16px; font-size: 12.5px; color: #c9ced3; padding-top: 3px; } .pg.batten .price .gstl b { color: #fff; }
+.pg.batten .price .gstl:first-of-type { border-top: 1px solid #2c3136; margin-top: 4px; padding-top: 6px; }
+.pg.batten .nl { font-size: 13px; } .pg.batten .note p { font-size: 13px; }
+/* measure sheet */
+.pg.measure .mgrid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; }
+.pg.measure .mbox { border: 1.5px solid #15171a; border-radius: 10px; padding: 6px 12px; min-height: 44px; }
+.pg.measure .mbox .l { margin: 0; font-size: 10px; font-weight: 800; color: #5c636b; text-transform: uppercase; letter-spacing: .04em; }
+.pg.measure .mbox .v { margin: 2px 0 0; font-size: 14px; font-weight: 700; }
+.pg.measure .mplans { margin: 0; font-size: 12px; font-weight: 700; }
+.pg.measure .mtable { width: 100%; border-collapse: collapse; border: 2px solid #15171a; }
+.pg.measure .mtable th { background: #15171a; color: #fff; text-align: left; padding: 7px 12px; font-size: 12px; }
+.pg.measure .mtable th:first-child { width: 18%; } .pg.measure .mtable th:nth-child(2) { width: 25%; }
+.pg.measure .mtable td { height: 23px; border-top: 1px solid #c4cacf; padding: 0 12px; font-weight: 800; font-size: 13px; }
+.pg.measure .mtable td + td { border-left: 1px solid #c4cacf; }

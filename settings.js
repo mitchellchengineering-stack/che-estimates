@@ -1,7 +1,7 @@
 /* Settings */
 (() => {
   const e = App.esc, S = () => App.store.s(), st = App.store, A = App.actions;
-  const SECTIONS = [['company', 'Company'], ['team', 'Team'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['sales', 'Sales'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
+  const SECTIONS = [['company', 'Company'], ['team', 'Team'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['battens', 'Battens'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['sales', 'Sales'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
   const inp = (path, val, attrs = '') => `<input data-bind="${path}" value="${e(val ?? '')}" ${attrs}>`;
   const list = (path, items, ph, rows = 1) => `<div class="list-ed">${items.map((it, i) => `<div class="row">${rows > 1 ? `<textarea data-bind="${path}.${i}" rows="${rows}" placeholder="${e(ph)}">${e(it)}</textarea>` : `<input data-bind="${path}.${i}" value="${e(it)}" placeholder="${e(ph)}">`}
     <span class="move"><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="-1" aria-label="Move up">↑</button><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="1" aria-label="Move down">↓</button></span>
@@ -16,7 +16,7 @@
       <fieldset class="set-body" ${me.admin ? '' : 'disabled'}>${body}</fieldset></div>`;
   };
   App.Set = {};
-  App.views.settings.mount = sec => { if (sec === 'team') A.teamLoad(); };
+  App.views.settings.mount = sec => { if (sec === 'team') A.teamLoad(); if (sec === 'battens' && App.Fast && App.Fast.ready() && !App.Fast.S.loadedAt && !App.Fast.S.loading) App.Fast.load().then(() => App.refresh()).catch(() => {}); };
 
   App.Set.company = s => `<section class="card"><h3>Company details</h3><p class="hint">These show on every estimate, docket and purchase order.</p>
     <div class="grid2">${App.field('Company name', inp('company.name', s.company.name))}${App.field('Address', inp('company.address', s.company.address))}
@@ -88,6 +88,34 @@
     <section class="card"><h3>Client address book</h3><p class="hint">Clients are added automatically when an estimate is sent.</p>${st.data.customers.filter(c => !c.deleted).length ? `<table class="wtable"><tbody>${st.data.customers.filter(c => !c.deleted).sort((a, b) => a.name.localeCompare(b.name)).map(c => `<tr><td>${e(c.name)}</td><td>${e(c.company || '')}</td><td>${e(c.email || '')}</td><td>${e(c.phone || '')}</td><td><button class="icon-btn" data-act="custDel" data-id="${c.id}" aria-label="Remove">✕</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">Empty for now.</p>'}</section>`;
   };
 
+  /* ---------- Battens ---------- */
+  App.Set.battens = s => {
+    const b = s.battens; const yy = App.today().slice(2, 4);
+    const coilOpts = (path, val) => `<select data-bind="${path}">${['135|0.55', '135|0.75', '135|0.95', '120|0.55', '150|0.55'].concat([val]).filter((v, i, a) => v && a.indexOf(v) === i).map(v => App.opt(v, v.replace('|', ' mm × ') + ' BMT', val)).join('')}</select>`;
+    const fItems = App.Fast && App.Fast.S.loadedAt ? App.Fast.S.items.map(i => i.name) : [];
+    const clipSel = (path, val) => fItems.length ? `<select data-bind="${path}">${fItems.concat([val]).filter((v, i, a) => v && a.indexOf(v) === i).map(v => App.opt(v, v, val)).join('')}</select>` : inp(path, val);
+    const tcs = b.tcs || [];
+    return `<section class="card"><h3>Batten estimates</h3><div class="grid3">${App.field('Numbers start with', inp('battens.prefix', b.prefix))}${App.field(`Next number this year (${yy})`, `<input data-bind="battens.startSeq.${yy}" data-type="num" value="${e((b.startSeq || {})[yy] || '')}" inputmode="numeric">`)}${App.field('Valid for (days)', inp('battens.validDays', b.validDays, 'data-type="num" inputmode="numeric"'))}</div>
+      <p class="hint">The next number goes up by itself. Set it here once so it carries on from your current batten quotes (e.g. 58 makes the next one ${e(b.prefix || 'CHIB')}${yy}058).</p>
+      ${App.field('Profile line on the estimate', inp('battens.profileLabel', b.profileLabel))}</section>
+    <section class="card"><h3>Batten rates</h3><p class="hint">Used to work out the price from the house area. Leave them blank if you'd rather type the price on each estimate.</p>
+      <div class="grid3">${App.field('Per m² at 600 centres ($)', inp('battens.rates.r600', b.rates.r600, 'data-type="num" inputmode="decimal"'))}${App.field('Per m² at 400 centres ($)', inp('battens.rates.r400', b.rates.r400, 'data-type="num" inputmode="decimal"'))}${App.field('Acoustic clips, extra per m² ($)', inp('battens.rates.acousticPerM2', b.rates.acousticPerM2, 'data-type="num" inputmode="decimal"'))}
+      ${App.field('Raking ceilings, extra ($)', inp('battens.rates.raking', b.rates.raking, 'data-type="num" inputmode="decimal"'))}${App.field('Raked ceiling flashings ($)', inp('battens.rates.flashings', b.rates.flashings, 'data-type="num" inputmode="decimal"'))}${App.field('Supply only, % of the full rate', inp('battens.rates.supplyOnlyPct', b.rates.supplyOnlyPct, 'data-type="num" inputmode="decimal"'))}</div></section>
+    <section class="card"><h3>Standard lines on every batten estimate</h3><p class="hint">{centres} is filled in with 600mm or 400mm. Lines mentioning perimeter, delivery or install drop off when you untick those. The acoustic clips and raked flashings lines below are added when you tick them.</p>${list('battens.lines', b.lines || [], 'Line')}
+      <div class="grid2">${App.field('Acoustic clips line', inp('battens.acousticLine', b.acousticLine))}${App.field('Raked ceiling flashings line', inp('battens.flashingLine', b.flashingLine))}</div></section>
+    <section class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap"><h3 style="margin:0">Batten terms and conditions</h3><button class="btn small" data-act="batTcsCopy">Copy from the main estimate terms</button></div>
+      <p class="hint">These go on page 2 of every batten estimate, separate from your frame and truss terms.</p>
+      <div class="list-ed">${tcs.map((t, i) => `<div class="row tc-row"><input data-bind="battens.tcs.${i}.t" value="${e(t.t || '')}" placeholder="Title"><textarea data-bind="battens.tcs.${i}.d" rows="2" placeholder="Wording">${e(t.d || '')}</textarea><span class="move"><button class="icon-btn" data-act="rowMove" data-path="battens.tcs" data-i="${i}" data-d="-1" aria-label="Move up">↑</button><button class="icon-btn" data-act="rowMove" data-path="battens.tcs" data-i="${i}" data-d="1" aria-label="Move down">↓</button></span><button class="icon-btn" data-act="rowDel" data-path="battens.tcs" data-i="${i}" aria-label="Remove">✕</button></div>`).join('')}
+      <button class="btn small ghost" data-act="rowAdd" data-path="battens.tcs" data-tpl='{"t":"","d":""}'>Add a term</button></div></section>
+    <section class="card"><h3>Coils and clips</h3><div class="grid2">${App.field('Batten coil', coilOpts('battens.coils.batten', b.coils.batten))}${App.field('Purlin coil', coilOpts('battens.coils.purlin', b.coils.purlin))}
+      ${App.field('Batten clips (fastener item)', clipSel('battens.clips.batten', b.clips.batten))}${App.field('Acoustic clips (fastener item)', clipSel('battens.clips.acoustic', b.clips.acoustic))}
+      ${App.field('Batten weight (kg per metre)', inp('battens.kgPerM', b.kgPerM, 'data-type="num" inputmode="decimal"'))}</div><p class="hint">The weight turns coil kilos into metres of batten on the Battens page.</p></section>`;
+  };
+  A.batTcsCopy = async () => {
+    if (S().battens.tcs.some(t => t.t || t.d) && !(await App.confirm('Replace the batten terms?', 'This copies your main estimate terms over the batten terms. You can then edit them.', 'Copy them'))) return;
+    S().battens.tcs = (S().tcs || []).filter(Boolean).map(t => { const m = String(t).match(/^([^:]{2,40}):\s*(.*)$/); return m ? { t: m[1], d: m[2] } : { t: '', d: t }; });
+    save(); App.refresh();
+  };
   App.Set.tcs = s => `<section class="card"><h3>Terms and conditions</h3><p class="hint">These print on the last page of every estimate. Start a line with a short title and a colon (e.g. "Delivery: …") to make the title bold. These are a sensible starting point, but it's worth having them checked by a lawyer.</p>${list('tcs', s.tcs, 'Term', 3)}</section>`;
 
   App.Set.ft = s => `<section class="card"><h3>Scope items</h3><p class="hint">Each F&amp;T estimate lets you mark these as included or not included.</p>${list('ft.scopeItems', s.ft.scopeItems, 'Scope item')}</section>
