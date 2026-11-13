@@ -142,9 +142,10 @@ App.Docs = {
       flow.push(this.blk(`${this.h2('The building')}${L.stats.length ? `<div class="stats" style="grid-template-columns:repeat(${L.stats.length},minmax(0,1fr))">${L.stats.map(x => `<div class="stat"><p class="l">${x[0]}</p><p class="v">${red(this.e(x[1]), isNew('statVals', x[0] + ':' + x[1]))}</p></div>`).join('')}</div>` : ''}
         ${chips()}`));
       if (L.incl.length) flow.push(this.blk(`${this.h2('What\'s included')}<div class="inclist" data-items>${L.incl.map(t => `<div class="inc${isNew('incl', t) ? ' rv' : ''}">${this.e(t)}${ass(t)}</div>`).join('')}</div>${assNote(L.incl)}`));
-      if (est.notes) flow.push(this.blk(`<div class="note"><p class="t">Notes</p><p>${red(App.textToHtml(est.notes), changed('notes'))}</p></div>`));
+      /* the notes sit beside the price, so 8 included lines, the notes and the price fit on page 1 */
+      const notesBox = est.notes ? `<div class="note"><p class="t">Notes</p><p>${red(App.textToHtml(est.notes), changed('notes'))}</p></div>` : '';
       const sd = this.shutdownNote(); if (sd) flow.push(sd);
-      bottom = `<div class="bottom"><div class="left">${optBox}${notListed}</div>${price()}</div>${est.showAcceptance ? this.signRow([['Signed', '2fr'], ['Name', '2fr'], ['Date', '1fr']]) : ''}`;
+      bottom = `<div class="bottom"><div class="left">${notesBox}${optBox}${notListed}</div>${price()}</div>${est.showAcceptance ? this.signRow([['Signed', '2fr'], ['Name', '2fr'], ['Date', '1fr']]) : ''}`;
     } else {
       const ft = est.ft; const c = ft.criteria;
       flow.push(this.blk(`<div class="cards3">${card('Customer', 'who', L.who, 'whoSub', L.whoSub)}${card('Project', 'project', L.project, 'site', est.siteAddress)}${card('Plans', 'plans', L.plans, 'plansDate', L.plansDate)}</div>`));
@@ -174,6 +175,7 @@ App.Docs = {
     const tcs = s.tcs.filter(Boolean);
     const after = tcs.length ? [`<section class="blk tcs"><h1 class="h1" data-title="Terms and conditions">Terms and conditions</h1><ol data-items>${tcs.map(t => { const m = t.match(/^([^:]{2,40}):\s*(.*)$/); return `<li>${m ? `<b>${this.e(m[1])}.</b> ${this.e(m[2])}` : this.e(t)}</li>`; }).join('')}</ol></section>`] : [];
     return {
+      compact: est.type !== 'ft', balance: est.type !== 'ft',
       head: this.fullHead(est.type === 'ft' ? 'Frame and truss estimate' : 'Estimate', num, meta),
       run: this.runHead(num, [est.heading || (est.ft && est.ft.projectName), who].filter(Boolean).join(', ')),
       foot: this.footFull(true, true), flow, bottom, after, number: num
@@ -271,11 +273,12 @@ App.Docs = {
     const pages = [];
     const toEl = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
     const newPage = first => {
-      const p = toEl(`<div class="pg${spec.landscape ? ' land' : ''}${spec.theme && spec.theme !== 'estimate' ? ' theme-cover' : ''}"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
+      const p = toEl(`<div class="pg${spec.landscape ? ' land' : ''}${spec.theme && spec.theme !== 'estimate' ? ' theme-cover' : ''}${spec.compact ? ' compact' : ''}"><img class="pg-wm" src="logo.png" alt=""><div class="pg-bar"></div>${first ? spec.head : spec.run}<div class="pg-body"></div>${spec.foot}</div>`);
       host.appendChild(p); pages.push(p); return p.querySelector('.pg-body');
     };
     const over = b => b.scrollHeight > b.clientHeight + 1;
     const imgsReady = el => Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+    const splits = [];
     const flowEls = spec.flow.map(toEl);
     const tmp = document.createElement('div'); tmp.style.display = 'none'; flowEls.forEach(x => tmp.appendChild(x)); host.appendChild(tmp);
     await imgsReady(tmp); tmp.remove();
@@ -300,7 +303,7 @@ App.Docs = {
         if (!rest.length) return;
         const next = el.cloneNode(true); const nItems = next.querySelector('[data-items]'); nItems.innerHTML = ''; rest.forEach(r => nItems.appendChild(r));
         if (!moved && wasEmpty) { body.appendChild(next); return; }
-        if (moved) markCont(next);
+        if (moved) { markCont(next); splits.push({ a: sItems, b: nItems, page: pages.length }); }
         body = newPage(false);
         return place(next, guard + 1);
       }
@@ -314,17 +317,46 @@ App.Docs = {
       if (over(body)) {
         body.removeChild(wrap);
         /* keep the last section company on the new page, so the price never sits on a page by itself */
-        const last = body.children.length > 1 ? body.lastElementChild : null;
+        let last = body.children.length > 1 ? body.lastElementChild : null;
         const prev = body;
-        body = newPage(false);
+        /* General estimates: if the price doesn't fit, share the included lines evenly over the two pages (11 lines go 6 and 5) */
+        const li = spec.balance && last && last.querySelector('[data-items]');
+        if (li && li.children.length > 1) {
+          const kids = [...li.children]; const keep = Math.ceil(kids.length / 2);
+          const next = last.cloneNode(true); const nItems = next.querySelector('[data-items]'); nItems.innerHTML = '';
+          kids.slice(keep).forEach(k => nItems.appendChild(k)); markCont(next);
+          const an = last.querySelector('.ass-note'); if (an) an.remove();
+          body = newPage(false); body.appendChild(next); body.appendChild(wrap);
+          last = null;
+        } else body = newPage(false);
         if (last) { body.appendChild(last); body.appendChild(wrap); if (over(body)) { prev.appendChild(last); } }
         if (!wrap.parentNode) body.appendChild(wrap);
       }
     }
+    if (spec.balance) splits.forEach(s2 => {
+      const nb = s2.b.closest('.pg-body'); if (!nb) return;
+      while (s2.a.children.length > s2.b.children.length + 1) {
+        const k = s2.a.lastElementChild; s2.b.insertBefore(k, s2.b.firstChild);
+        if (over(nb)) { s2.a.appendChild(k); break; }
+      }
+    });
     (spec.after || []).forEach(h => { body = newPage(false); place(toEl(h)); });
     pages.forEach((p, i) => { p.querySelectorAll('.pn').forEach(x => x.textContent = i + 1); p.querySelectorAll('.pt').forEach(x => x.textContent = pages.length); });
     await imgsReady(host);
     return { host, pages };
+  },
+  /* draw contained or covered pictures at exactly their box shape, so nothing is squashed in the PDF */
+  async fixImages(page) {
+    for (const img of page.querySelectorAll('img')) {
+      const fit = getComputedStyle(img).objectFit; if (fit !== 'contain' && fit !== 'cover') continue;
+      if (!img.complete || !img.naturalWidth) continue;
+      const bw = img.clientWidth, bh = img.clientHeight; if (!bw || !bh) continue;
+      const k = 2, c = document.createElement('canvas'); c.width = bw * k; c.height = bh * k; const ctx = c.getContext('2d');
+      const bg = getComputedStyle(img.parentElement).backgroundColor; ctx.fillStyle = bg && bg !== 'rgba(0, 0, 0, 0)' ? bg : '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+      const r = fit === 'contain' ? Math.min(bw / img.naturalWidth, bh / img.naturalHeight) : Math.max(bw / img.naturalWidth, bh / img.naturalHeight);
+      const w = img.naturalWidth * r, h = img.naturalHeight * r;
+      try { ctx.drawImage(img, (bw - w) / 2 * k, (bh - h) / 2 * k, w * k, h * k); img.src = c.toDataURL('image/jpeg', 0.92); img.style.objectFit = 'fill'; await new Promise(res => { if (img.complete) res(); else img.onload = img.onerror = res; }); } catch (er) { /* leave it */ }
+    }
   },
   async pagesHtml(spec) { const { host, pages } = await this.paginate(spec); const html = pages.map(p => p.outerHTML).join(''); host.remove(); return html; },
 
@@ -337,6 +369,7 @@ App.Docs = {
       const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: land ? 'landscape' : 'portrait', compress: true });
       for (let i = 0; i < pages.length; i++) {
         const L = pages[i].classList.contains('land'); const w = L ? this.H : this.W, h = L ? this.W : this.H;
+        await this.fixImages(pages[i]);
         const canvas = await window.html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: w, height: h, windowWidth: w, logging: false });
         if (i) pdf.addPage('a4', L ? 'landscape' : 'portrait');
         pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, L ? 297 : 210, L ? 210 : 297);

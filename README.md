@@ -1,6 +1,14 @@
 # CH Engineering Estimates
 
-## Latest update: Deleting, and daily backups
+## Latest update: General estimate layout and the 3D picture
+
+1. **Upload all the files** to GitHub and commit (not the .gs files).
+2. **General estimates:** a little tighter, with the notes beside the price, so up to 8 lines, the notes and the price fit on page 1. Longer lists are shared evenly over two pages.
+3. **3D picture:** no longer stretched in downloaded PDFs (General and F&T). Any space around it stays light grey, like the preview.
+
+---
+
+## Earlier update: Deleting, and daily backups
 
 1. **Upload all the files** to GitHub and commit (not the .gs files).
 2. **Delete an estimate:** open it, More > Delete this estimate. Or in the Estimate tracker, Select to delete, tick several, Delete selected. Numbers are never reused.

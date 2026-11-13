@@ -1160,3 +1160,16 @@ a.practice-flag { text-decoration: none; }
 .sel-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .btn.danger:not(.ghost) { background: var(--red); color: #fff; border-color: var(--red); }
 .btn.danger:not(.ghost):disabled { opacity: .45; }
+
+/* General estimates: a little tighter so 8 included lines, the notes and the price fit on page 1 */
+.pg.compact .pg-head { padding-top: 24px; }
+.pg.compact .blk { margin-top: 11px; }
+.pg.compact .cards3 > * { padding-top: 8px; padding-bottom: 8px; }
+.pg.compact .img3d { height: 132px; }
+.pg.compact .desc { margin: 0; font-size: 12.5px; }
+.pg.compact .stats .stat { padding-top: 7px; padding-bottom: 7px; }
+.pg.compact .stats .stat .v { font-size: 20px; }
+.pg.compact .h2 { margin-bottom: 6px; }
+.pg.compact .inclist .inc { padding: 4px 2px; font-size: 14px; line-height: 1.35; }
+.pg.compact .bottom .left { display: flex; flex-direction: column; gap: 10px; justify-content: flex-end; }
+.pg.compact .bottom .left .note { margin: 0; padding: 9px 14px; }
