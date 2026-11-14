@@ -5,7 +5,7 @@
   const fmt = n => Math.round(App.num(n)).toLocaleString('en-NZ');
   const col = () => (st.data.battens = st.data.battens || []);
   const live = () => col().filter(x => !x.deleted);
-  const STAGES = [['accepted', 'Accepted'], ['booked', 'Measure booked'], ['measured', 'Measured'], ['file', 'Machine file made'], ['made', 'Made'], ['installed', 'Installed']];
+  const STAGES = [['accepted', 'Accepted'], ['booked', 'Measure booked'], ['measured', 'Measured'], ['file', 'Machine file made'], ['made', 'Made'], ['installed', 'Installed'], ['complete', 'Completed']];
   const STATUS = { draft: ['Draft', ''], sent: ['Sent', 'blue'], accepted: ['Accepted', 'ok'], rejected: ['Lost', 'bad'], cancelled: ['Cancelled', ''] };
   const cfg = () => S().battens;
   const B = App.Battens = {
@@ -67,7 +67,8 @@
     clip(name) { const F = App.Fast; if (!F || !F.S.loadedAt) return null; const n = String(name || '').toLowerCase(); return F.S.items.find(i => i.name.toLowerCase() === n) || F.S.items.find(i => i.name.toLowerCase().includes(n)) || null; },
     needs() {
       return B.jobs().filter(x => x.job && x.job.stage === 'accepted').map(x => ({ lvl: 'amber', t: `${x.number}: book the batten measure`, s: B.name(x), b: 'Open', href: `#/battens/job/${x.id}` }))
-        .concat(B.jobs().filter(x => x.job && x.job.stage === 'measured').map(x => ({ lvl: 'blue', t: `${x.number}: make the machine file`, s: B.name(x), b: 'Open', href: `#/battens/mf/${x.id}` })));
+        .concat(B.jobs().filter(x => x.job && x.job.stage === 'measured').map(x => ({ lvl: 'blue', t: `${x.number}: make the machine file`, s: B.name(x), b: 'Open', href: `#/battens/mf/${x.id}` })))
+        .concat(B.jobs().filter(x => x.job && x.job.stage === 'complete' && !x.job.invoiceSentAt).map(x => ({ lvl: 'amber', t: `${x.number}: send the invoice to CH Accounts`, s: B.name(x), b: 'Open', href: `#/battens/job/${x.id}` })));
     }
   };
 
@@ -91,7 +92,7 @@
     if (App.Fast && App.Fast.ready() && !App.Fast.S.loadedAt && !App.Fast.S.loading) App.Fast.load().then(() => App.route().name === 'battens' && App.refresh()).catch(() => {});
   };
   const tag = s2 => `<span class="tag ${STATUS[s2][1]}">${STATUS[s2][0]}</span>`;
-  const stageTag = x => { const s2 = STAGES.find(z => z[0] === (x.job || {}).stage) || STAGES[0]; return `<span class="tag ${s2[0] === 'installed' ? 'ok' : s2[0] === 'accepted' ? 'warn' : 'blue'}">${s2[1]}</span>`; };
+  const stageTag = x => { const s2 = STAGES.find(z => z[0] === (x.job || {}).stage) || STAGES[0]; return `<span class="tag ${['installed', 'complete'].includes(s2[0]) ? 'ok' : s2[0] === 'accepted' ? 'warn' : 'blue'}">${s2[1]}</span>${x.job && x.job.stage === 'complete' ? (x.job.invoiceSentAt ? ' <span class="tag ok">Invoice sent</span>' : ' <span class="tag warn">Not invoiced</span>') : ''}`; };
 
   B.overview = () => {
     const c = cfg(); const bat = B.coilStock(c.coils.batten), pur = B.coilStock(c.coils.purlin);
@@ -103,7 +104,7 @@
     const clipK = (lbl, i) => kpi(lbl, i ? fmt(i.qty) : '-', i ? `in stock, minimum ${fmt(i.min)}${i.qty <= i.min ? ' <span class="tag warn">Low</span>' : ''}` : (App.Fast && App.Fast.ready() ? `No "${e(lbl)}" item found in Fasteners` : 'Fasteners not connected'));
     const ests = live(); const month = App.today().slice(0, 7);
     const out = ests.filter(x => x.status === 'sent'); const won = ests.filter(x => x.status === 'accepted' && String(x.acceptedAt || '').startsWith(month));
-    const jobs = B.jobs().filter(x => x.job.stage !== 'installed');
+    const jobs = B.jobs().filter(x => x.job.stage !== 'complete');
     const coilRows = (bat ? bat.list : []).concat(pur ? pur.list : []);
     return `<div class="statcards" style="grid-template-columns:repeat(4,minmax(0,1fr))">${coilK('Batten coils, ' + c.coils.batten.split('|')[1] + ' BMT', bat, true, c.coils.batten)}${coilK('Purlin coils, ' + c.coils.purlin.split('|')[1] + ' BMT', pur, false, c.coils.purlin)}${clipK(c.clips.batten, bc)}${clipK(c.clips.acoustic, ac)}</div>
       <div class="statcards" style="grid-template-columns:repeat(4,minmax(0,1fr))">${kpi('Estimates out', out.length, App.money(out.reduce((t, x) => t + B.calc(x).total, 0), 0) + ' waiting')}${kpi('Won this month', won.length, App.money(won.reduce((t, x) => t + B.calc(x).total, 0), 0))}${kpi('To measure', B.jobs().filter(x => ['accepted', 'booked'].includes(x.job.stage)).length, 'book or do the measure')}${kpi('Machine files to make', B.jobs().filter(x => x.job.stage === 'measured').length, 'measured, ready for the CSV')}</div>
@@ -249,20 +250,30 @@
 
   /* ---------- jobs ---------- */
   B.jobsView = () => {
-    const list = B.jobs().sort((a, b) => STAGES.findIndex(s2 => s2[0] === a.job.stage) - STAGES.findIndex(s2 => s2[0] === b.job.stage));
+    const done = B.jobs().filter(x => x.job.stage === 'complete').sort((a, b) => (b.job.completedAt || 0) - (a.job.completedAt || 0));
+    const list = B.jobs().filter(x => x.job.stage !== 'complete').sort((a, b) => STAGES.findIndex(s2 => s2[0] === a.job.stage) - STAGES.findIndex(s2 => s2[0] === b.job.stage));
+    return B.jobsTable(list, 'No batten jobs on the go.') + `<h3 style="margin:22px 0 10px">Completed jobs</h3>` + (done.length ? `<div class="table-wrap"><table class="tracker"><thead><tr><th>Job</th><th>Client</th><th>Lot and address</th><th>Completed</th><th>Invoice</th><th></th></tr></thead><tbody>
+      ${done.map(x => `<tr><td><b>${e(x.number)}</b></td><td>${e(B.who(x))}</td><td>${e(B.name(x))}</td><td class="small">${x.job.completedAt ? App.fmtShort(App.iso(new Date(x.job.completedAt))) : ''}</td><td>${x.job.invoiceSentAt ? `<span class="tag ok">Sent ${App.fmtShort(App.iso(new Date(x.job.invoiceSentAt)))}</span>` : `<button class="btn small primary" data-act="batInvoice" data-id="${x.id}">Send invoice to CH Accounts</button>`}</td><td class="r"><a class="btn small" href="#/battens/job/${x.id}">Open</a></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Completed jobs go here, with everything about the job.</p>');
+  };
+  B.jobsTable = (list, empty) => {
     return list.length ? `<div class="table-wrap"><table class="tracker"><thead><tr><th>Job</th><th>Client</th><th>Lot and address</th><th>Stage</th><th>Install</th><th></th></tr></thead><tbody>
       ${list.map(x => `<tr><td><b>${e(x.number)}</b></td><td>${e(B.who(x))}</td><td>${e(B.name(x))}</td><td>${stageTag(x)}</td><td class="small">${x.job.installDate ? App.fmtShort(x.job.installDate) : '-'}</td><td class="r"><a class="btn small" href="#/battens/job/${x.id}">Open</a></td></tr>`).join('')}</tbody></table></div>`
-      : '<div class="empty"><h2>No batten jobs yet</h2><p>Jobs appear when a batten estimate is accepted.</p></div>';
+      : `<div class="empty"><h2>${empty}</h2><p>Jobs appear when a batten estimate is accepted.</p></div>`;
   };
   B.jobView = id => {
     const x = B.get(id); if (!x || !x.job || x.deleted) return '<div class="empty"><h2>Job not found</h2><a class="btn" href="#/battens/jobs">Back</a></div>';
     App.state.batCur = x; const j = x.job; const si = STAGES.findIndex(s2 => s2[0] === j.stage);
     const coils = App.Coil && App.Coil.S.loadedAt ? App.Coil.forJob(x.number) : null;
     const mf = j.machine || {}; const filled = (mf.rows || []).filter(r => App.num(r.qty) && App.num(r.len));
+    const ex = (j.extras || []).filter(z => z.desc || App.num(z.amount));
+    const doneCard = j.stage === 'complete' ? `<section class="card bat-done"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><span><b>Job completed</b> ${j.completedAt ? App.fmtStamp(j.completedAt) : ''}${j.completedBy ? ', ' + e(j.completedBy) : ''}<span class="hint" style="display:block">${j.summaryLink ? `<a href="${e(j.summaryLink)}" target="_blank" rel="noopener">Job summary</a> saved in Battens / Completed jobs and the client's folder.` : 'Filed under Completed jobs and the client\'s jobs.'}</span></span>
+        ${j.invoiceSentAt ? `<span class="tag ok">Invoice sent ${App.fmtStamp(j.invoiceSentAt)}</span><button class="btn small ghost" data-act="batInvoice" data-id="${x.id}">Send again</button>` : `<button class="btn primary" data-act="batInvoice" data-id="${x.id}">Send invoice to CH Accounts</button>`}</div>
+        ${ex.length ? `<div style="margin-top:10px">${ex.map(z => `<div class="kvr2"><span>Extra: ${e(z.desc)}</span><b>${App.money(z.amount)}</b></div>`).join('')}</div>` : ''}</section>`
+      : `<section class="card bat-done"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><span><b>Finished on site?</b><span class="hint" style="display:block">Marking it complete files the job under Completed jobs and the client's jobs, saves a job summary to Google Drive, then you can send it to CH Accounts to invoice.</span></span><button class="btn dark" data-act="batComplete">Job complete</button></div></section>`;
     return `<div class="page-head"><div><p class="crumbs"><a href="#/battens/jobs">Battens</a></p><h1>${e(x.number)}</h1><p class="sub">${e([B.who(x), B.name(x)].filter(Boolean).join(', '))}</p></div>
       <div class="head-actions"><a class="btn" href="#/battens/e/${x.id}">Estimate</a><details class="menu"><summary class="btn" aria-label="More actions">More</summary><div class="menu-pop"><button data-act="batDel" class="danger-text">Delete this job</button></div></details></div></div>
       <div class="bat-steps">${STAGES.map(([k, l], i) => `<button class="${i < si ? 'done' : i === si ? 'now' : ''}" data-act="batStage" data-s="${k}">${i < si ? '✓ ' : ''}${l}</button>`).join('')}</div>
-      <div class="bat-cols"><div class="bat-main">
+      ${doneCard}<div class="bat-cols"><div class="bat-main">
         <section class="card"><h3>Measure</h3><div class="grid3">${App.field('Measured by', `<input data-jk="measuredBy" value="${e(j.measuredBy || '')}" data-act-change="batJobSet">`)}${App.field('Measure date', `<input type="date" data-jk="measureDate" value="${e(j.measureDate || '')}" data-act-change="batJobSet">`)}${App.field('Rooms (lines on the sheet)', `<input data-jk="rooms" inputmode="numeric" value="${e(j.rooms || 30)}" data-act-change="batJobSet">`)}</div>
           <div class="row-btns"><button class="btn primary" data-act="batMeasurePdf" data-id="${x.id}">Print measure sheet</button></div></section>
         <section class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Plans</h3><label class="btn small">+ Attach plans<input type="file" accept="application/pdf,image/*" multiple hidden data-act-change="batPlans"></label></div>
@@ -288,6 +299,77 @@
     if (!ev) { ev = { id: App.uid(), battenId: x.id, createdAt: Date.now() }; st.data.events.push(ev); }
     Object.assign(ev, { title: `Batten install ${x.number}, ${B.name(x)}`, date: x.job.installDate, notes: `${B.who(x)}${x.houseArea ? ', ' + fmt(x.houseArea) + ' m²' : ''}`, deleted: false });
     st.touch(ev); if (App.Jobs && App.Jobs.syncEvent) App.Jobs.syncEvent(ev);
+  };
+  /* ---------- Job complete: file it, and save a summary of the whole job ---------- */
+  B.summarySpec = x => {
+    const R = App.Reports, D = App.Docs; const j = x.job; const p = B.calc(x); const t = B.mfTotals(x); const ex = (j.extras || []).filter(z => z.desc || App.num(z.amount));
+    const coils = App.Coil && App.Coil.S.loadedAt ? App.Coil.forJob(x.number) : [];
+    const flow = [D.blk(R.stats([['Price excl GST', App.money(p.total), ''], ['Extras', ex.length ? App.money(ex.reduce((s2, z) => s2 + App.num(z.amount), 0)) : '-', ''], ['Battens made', t.n ? fmt(t.n) : '-', t.lm ? t.lm.toFixed(1) + ' LM' : ''], ['Completed', j.completedAt ? App.fmtShort(App.iso(new Date(j.completedAt))) : '-', j.completedBy || '']])),
+      R.section('The job', R.table(['', ''], [['Client', e(B.who(x))], ['Contact', e([x.client.name, x.client.phone, x.client.email].filter(Boolean).join(', '))], ['Lot', e(x.lot || '')], ['Address', e(x.address || '')], ['House area', x.houseArea ? fmt(x.houseArea) + ' m²' : ''], ['Batten centres', x.centres + ' mm'], ['Raking ceilings', x.raking ? (x.flashings ? 'Yes, with custom angle flashings' : 'Yes') : 'No'], ['Acoustic clips', x.acoustic ? 'Yes' : 'No'], ['Stud height', x.stud ? x.stud + ' m' : ''], ['Estimate', `${e(x.number)}, accepted ${x.acceptedAt ? App.fmtShort(x.acceptedAt) : ''}`]])),
+      R.section('Dates', R.table(['', ''], [['Measured', [j.measureDate ? App.fmtShort(j.measureDate) : '', j.measuredBy || ''].filter(Boolean).join(', ') || '-'], ['Machine file', j.machine && j.machine.madeAt ? App.fmtStamp(j.machine.madeAt) : '-'], ['Installed', j.installDate ? App.fmtShort(j.installDate) : '-']]))];
+    if (ex.length) flow.push(R.section('Extras charged', R.table(['Extra', 'Amount'], ex.map(z => [e(z.desc), App.money(z.amount)]), [1])));
+    if (coils.length) flow.push(R.section('Coils used', R.table(['Coil', 'Size', 'Weight'], coils.map(c => [e(c.coilId), `${c.width} × ${App.Coil.bmt(c.thickness)}`, App.Coil.kg(c.weight)]))));
+    if ((j.plans || []).length) flow.push(R.section('Plans', R.table(['File', 'Added'], j.plans.map(pl => [e(pl.name), App.fmtShort(App.iso(new Date(pl.at)))]))));
+    const rows = ((j.machine || {}).rows || []).map((r, i) => [String(i + 1), String(r.qty || ''), String(r.len || '')]).filter(r => r[1]);
+    if (rows.length) flow.push(R.section('Machine file', R.table(['Room', 'Qty', 'Length (mm)'], rows, [1, 2])));
+    return R.spec('Batten job summary', `${x.number}`, [['Site', B.name(x)], ['Client', B.who(x)]], flow);
+  };
+  B.fileJob = async x => {
+    if (st.mode !== 'drive') return;
+    const name = `${x.number} ${B.name(x)}`.replace(/[\\/:*?"<>|]+/g, '-').slice(0, 120);
+    const blob = await App.Docs.toPdf(B.summarySpec(x)); const pdf = `${name} job summary.pdf`;
+    const root = await App.G.folder('Battens', st.rootId);
+    const done = await App.G.folder(name, await App.G.folder('Completed jobs', root));
+    const cl = await App.G.folder(name, await App.G.folder(B.who(x).replace(/[\\/:*?"<>|]+/g, '-') || 'No client', await App.G.folder('Clients', root)));
+    const up = await App.G.uploadOrReplace({ name: pdf, parent: done, blob, mime: 'application/pdf' });
+    await App.G.uploadOrReplace({ name: pdf, parent: cl, blob, mime: 'application/pdf' });
+    if (x.job.machine && B.mfTotals(x).n) { const csv = new Blob([B.csv(x)], { type: 'text/csv' }); for (const f of [done, cl]) await App.G.uploadOrReplace({ name: B.mfName(x) + '.csv', parent: f, blob: csv, mime: 'text/csv' }); }
+    x.job.summaryLink = up.webViewLink || `https://drive.google.com/file/d/${up.id}/view`; x.job.summaryFolder = done;
+  };
+  A.batComplete = async () => {
+    const x = cur();
+    if (!(await App.confirm(`Mark ${x.number} as complete?`, 'It moves to Completed jobs and the client\'s jobs, and a summary of the whole job is saved to Google Drive (Battens / Completed jobs, and Battens / Clients / ' + (B.who(x) || 'the client') + '). Then you can send it to CH Accounts.', 'Job complete'))) return;
+    x.job.stage = 'complete'; x.job.completedAt = Date.now(); x.job.completedBy = st.me().name; if (!x.job.installDate) x.job.installDate = App.today();
+    B.log(x, 'Job completed'); B.save(x); App.refresh();
+    try { App.toast('Saving the job summary to Google Drive…'); await B.fileJob(x); B.save(x); App.refresh(); App.toast('Job filed. Next: send the invoice to CH Accounts.'); }
+    catch (er) { App.toast('Marked complete, but saving to Drive didn\'t work: ' + er.message, 'err', 7000); }
+  };
+
+  /* ---------- Send invoice to CH Accounts: check first, then a draft to review ---------- */
+  A.batInvoice = el => {
+    const x = B.get(el.dataset.id) || cur(); App.state.batCur = x; const inv = cfg().invoice || {};
+    if (!inv.to && !S().emails.accountsEmail) return App.toast('Add who invoices go to in Settings, Battens, Batten invoices', 'err', 6000);
+    const p = B.calc(x); const extras = App.clone(x.job.extras || []);
+    const exRow = (z, i) => `<div class="row ex-row" data-i="${i}" style="margin-bottom:6px"><input class="ex-d" value="${e(z.desc || '')}" placeholder="What was the extra?" style="flex:2"><input class="ex-a" value="${e(z.amount || '')}" inputmode="decimal" placeholder="$ excl GST" style="flex:1"><button class="icon-btn ex-x" type="button" aria-label="Remove">✕</button></div>`;
+    const m = App.modal(`Before you send ${x.number} to CH Accounts`, `<p class="hint">Tick each one to check it. Nothing is sent from here: the next step is a draft email for you to review.</p>
+      <div class="inv-checks">
+        <label class="inv-check"><input type="checkbox" class="ic"><span><b>Is the price correct?</b><span class="row" style="margin-top:6px"><input id="inv-price" value="${e(App.round(p.total, 2))}" inputmode="decimal" style="max-width:180px"> <span class="hint">excl GST</span></span></span></label>
+        <label class="inv-check"><input type="checkbox" class="ic"><span><b>Were there any extras during the job to charge for?</b><span class="hint" style="display:block">Add them below, or leave it empty if there weren't any.</span><span id="inv-ex" style="display:block;margin-top:6px">${extras.map(exRow).join('')}</span><button class="btn small" type="button" id="inv-ex-add">+ Add an extra</button></span></label>
+        <label class="inv-check"><input type="checkbox" class="ic"><span><b>Are the lot number and address right?</b><span class="grid2" style="margin-top:6px">${App.field('Lot', `<input id="inv-lot" value="${e(x.lot || '')}">`)}${App.field('Address', `<input id="inv-addr" value="${e(x.address || '')}">`)}</span></span></label>
+        <label class="inv-check"><input type="checkbox" class="ic"><span><b>Is the company name right?</b><span style="display:block;margin-top:6px"><input id="inv-co" value="${e(x.client.company || x.client.name || '')}"></span></span></label>
+      </div>`, { wide: true, actions: '<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="inv-ok" disabled>Draft the email</button>' });
+    const ok = m.querySelector('#inv-ok'); const checks = [...m.querySelectorAll('.ic')];
+    checks.forEach(c => c.onchange = () => { c.closest('.inv-check').classList.toggle('on', c.checked); ok.disabled = !checks.every(z => z.checked); });
+    const bindEx = () => m.querySelectorAll('.ex-x').forEach(b2 => b2.onclick = ev => { ev.preventDefault(); b2.closest('.ex-row').remove(); });
+    m.querySelector('#inv-ex-add').onclick = ev => { ev.preventDefault(); m.querySelector('#inv-ex').insertAdjacentHTML('beforeend', exRow({}, Date.now())); bindEx(); };
+    bindEx();
+    ok.onclick = () => {
+      x.job.extras = [...m.querySelectorAll('.ex-row')].map(r => ({ desc: r.querySelector('.ex-d').value.trim(), amount: App.num(r.querySelector('.ex-a').value) })).filter(z => z.desc || z.amount);
+      const price = App.num(m.querySelector('#inv-price').value);
+      if (Math.abs(price - B.calc(x).total) > 0.004) { x.priceManual = true; x.price = price; }
+      x.lot = m.querySelector('#inv-lot').value.trim(); x.address = m.querySelector('#inv-addr').value.trim();
+      const co = m.querySelector('#inv-co').value.trim(); if (x.client.company || !x.client.name) x.client.company = co; else x.client.name = co;
+      B.save(x); App.closeModal(); B.invoiceEmail(x);
+    };
+  };
+  B.invoiceEmail = x => {
+    const inv = cfg().invoice || {}; const p = B.calc(x); const ex = (x.job.extras || []);
+    const exTot = ex.reduce((s2, z) => s2 + App.num(z.amount), 0);
+    const v = { number: x.number, lot: x.lot || '', address: x.address || '', company: B.who(x), name: (inv.name || '').split(' ')[0] || 'there',
+      price: App.money(p.total), extras: ex.length ? ex.map(z => `${z.desc}: ${App.money(z.amount)}`).join('\n') : 'None', total: App.money(p.total + exTot) };
+    const fill = s2 => String(s2 || '').replace(/\{(\w+)\}/g, (mm, k) => v[k] !== undefined ? v[k] : mm);
+    App.mail.compose({ title: `Send ${x.number} to CH Accounts`, to: inv.to || S().emails.accountsEmail, cc: inv.cc || '', subject: fill(inv.subject), body: fill(inv.body), kind: 'accounts',
+      onSent: () => { x.job.invoiceSentAt = Date.now(); x.job.invoiceSentBy = st.me().name; B.log(x, 'Sent to CH Accounts to invoice'); B.save(x); App.refresh(); App.toast('Sent to CH Accounts'); } });
   };
   B.folder = async (x, sub) => {
     let p = await App.G.folder('Battens', st.rootId);
@@ -429,7 +511,7 @@
     App.Reports.SECTIONS.battens = [['estimates', 'Estimates'], ['jobs', 'Jobs']];
     App.Reports.build.battens = r => {
       const R = App.Reports, D = App.Docs; const list = live().filter(x => R.inRange(x.date, r));
-      const flow = [R.multi() ? D.blk(R.stats([['Estimates', String(list.length), App.money(list.reduce((t, x) => t + B.calc(x).total, 0), 0)], ['Won', String(list.filter(x => x.status === 'accepted').length), ''], ['Jobs on the go', String(B.jobs().filter(x => x.job.stage !== 'installed').length), '']])) : ''];
+      const flow = [R.multi() ? D.blk(R.stats([['Estimates', String(list.length), App.money(list.reduce((t, x) => t + B.calc(x).total, 0), 0)], ['Won', String(list.filter(x => x.status === 'accepted').length), ''], ['Jobs on the go', String(B.jobs().filter(x => x.job.stage !== 'complete').length), '']])) : ''];
       if (R.has('estimates')) flow.push(R.section('Estimates', R.table(['Number', 'Client', 'Lot and address', 'Price', 'Status'], list.map(x => [e(x.number), e(B.who(x)), e(B.name(x)), App.money(B.calc(x).total, 0), STATUS[x.status][0]]), [3])));
       if (R.has('jobs')) flow.push(R.section('Jobs', R.table(['Job', 'Client', 'Lot and address', 'Stage', 'Install'], B.jobs().map(x => [e(x.number), e(B.who(x)), e(B.name(x)), (STAGES.find(s2 => s2[0] === x.job.stage) || [, ''])[1], x.job.installDate ? App.fmtShort(x.job.installDate) : '-']))));
       const t = R.titled('Battens', 'battens');

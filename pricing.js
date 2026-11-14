@@ -99,7 +99,8 @@
     const stale = P.stale();
     const head = `<div class="page-head"><div><p class="sub" style="margin:0 0 6px">Cost and sell price per lineal metre, for every machine</p><h1>Pricing</h1></div>
       <div class="head-actions"><button class="btn" data-act="prAdd">+ Add a machine</button></div></div>`;
-    const banner = stale.length ? `<div class="banner warn pr-stale"><span><b>${stale.length} open estimate${stale.length === 1 ? ' was' : 's were'} priced with different steel prices.</b> ${e(stale.slice(0, 4).map(x => st.displayNumber(x)).join(', '))}${stale.length > 4 ? '…' : ''}</span><button class="btn small dark" data-act="prStale">Review and update them</button></div>` : '';
+    const sk = 'stale-' + stale.map(x => x.id).sort().join('.').slice(0, 300);
+    const banner = stale.length && !App.Dismiss.is(sk) ? `<div class="banner warn pr-stale dismissable"><span><b>${stale.length} open estimate${stale.length === 1 ? ' was' : 's were'} priced with different steel prices.</b> ${e(stale.slice(0, 4).map(x => st.displayNumber(x)).join(', '))}${stale.length > 4 ? '…' : ''}</span><span class="row" style="flex:none"><button class="btn small dark" data-act="prStale">Review and update them</button>${App.Dismiss.x(sk, 'Leave them as they are')}</span></div>` : '';
     if (!m) return head + '<div class="empty"><h2>No machines yet</h2><button class="btn primary" data-act="prAdd">+ Add a machine</button></div>';
     const opts = P.options(m);
     const coilChips = [...new Set(ms.map(x => App.num(x.coilWidth)).filter(Boolean))].sort((a, b) => b - a);

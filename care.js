@@ -4,6 +4,14 @@
   const e = App.esc, A = App.actions, st = App.store, S = () => st.s();
   const K = App.Care = {};
 
+  /* ---------- Dismiss: an x on suggestions and warnings, remembered for each person ---------- */
+  const mine = () => { const d = S().dismissed = S().dismissed || {}; const k = (st.me().email || 'me').toLowerCase(); return (d[k] = d[k] || {}); };
+  App.Dismiss = {
+    is: key => !!(st.data && mine()[key]),
+    x: (keys, label = 'Dismiss') => `<button class="dismiss-x" data-act="dismiss" data-k="${App.esc([].concat(keys).join('|'))}" aria-label="${App.esc(label)}" title="${App.esc(label)}">✕</button>`
+  };
+  A.dismiss = el => { el.dataset.k.split('|').forEach(k => { if (k) mine()[k] = Date.now(); }); S().updatedAt = Date.now(); st.touch(S()); st.save(); App.refresh(); };
+
   /* ---------- Back button ---------- */
   K.steps = 0;
   window.addEventListener('hashchange', () => { if (K.goingBack) { K.goingBack = false; K.steps = Math.max(0, K.steps - 1); } else K.steps++; });

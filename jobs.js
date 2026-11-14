@@ -367,7 +367,7 @@
       ${S().emails.accountsEmail && st.mode === 'drive' ? `<button class="btn small" data-act="accountsEmail">${j.deposit.invoiceRequested ? 'Email accounts again' : 'Email accounts about the deposit'}</button>${j.deposit.invoiceRequested ? `<span class="hint"> Sent ${App.fmtStamp(j.deposit.invoiceRequested)}</span>` : ''}` : ''}
       <label class="check"><input type="checkbox" data-bind="job.deposit.invoiced" ${j.deposit.invoiced ? 'checked' : ''}> Deposit invoiced</label>
       <label class="check"><input type="checkbox" data-bind="job.deposit.received" ${j.deposit.received ? 'checked' : ''}> Deposit received</label>
-      ${!j.deposit.received && STAGE_IDX(j.stage) >= 3 ? '<div class="banner warn">This job is in manufacture but the deposit isn\'t marked as received.</div>' : ''}
+      ${!j.deposit.received && !j.deposit.notRequired && STAGE_IDX(j.stage) >= 3 && !App.Dismiss.is('dep-' + est.id) ? `<div class="banner warn dismissable"><span>This job is in manufacture but the deposit isn't marked as received.</span>${App.Dismiss.x('dep-' + est.id)}</div>` : ''}
     </section>
     <section class="card"><h3>Progress</h3>
       <div class="kv-list"><div><span>Factory checklist</span><b>${ck.total ? `${ck.done} of ${ck.total} frames` : 'No frames yet'}</b></div><div><span>Deliveries</span><b>${ld.total ? `${ld.done} of ${ld.total} delivered` : 'Not planned'}</b></div></div>

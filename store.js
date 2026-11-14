@@ -104,7 +104,8 @@ App.defaultSettings = () => ({
     lines: ['Ceiling battens 30mm (0.55BMT)', 'Installed level with a laser at {centres} centres and suspended on clips', 'All screws for installation included', 'All batten lengths cut to size', 'Perimeter channel installation', 'Delivery of battens to site'],
     acousticLine: 'Acoustic clips to suit', flashingLine: 'Custom angle flashings for raked ceiling',
     tcs: [{ t: 'Validity', d: 'This estimate is valid for 30 days from the date of issue.' }, { t: 'Pricing', d: 'Pricing is based on the plans supplied. Final lengths are confirmed by our site measure.' }, { t: 'Site readiness', d: 'The ceiling framing must be complete and ready, with clear access, before we start.' }, { t: 'Payment', d: 'Payment is due on completion unless agreed otherwise in writing.' }],
-    coils: { batten: '135|0.55', purlin: '135|0.75' }, clips: { batten: 'Batten clips', acoustic: 'Acoustic clips' }
+    coils: { batten: '135|0.55', purlin: '135|0.75' }, clips: { batten: 'Batten clips', acoustic: 'Acoustic clips' },
+    invoice: { to: '', name: '', cc: '', subject: '{number}, {lot}, {address}, {company}', body: 'Hi {name},\n\nPlease invoice this job out:\n\nJob: {number}\nCompany: {company}\nLot: {lot}\nAddress: {address}\nPrice (excl GST): {price}\nExtras: {extras}\nTotal to invoice (excl GST): {total}\n\nCheers,' }
   },
   helper: { studSpacing: 0.6, trussSpacing: 0.9, joistSpacing: 0.45, wallExtra: 15, waste: 5, internalPerM2: 0.3, keys: { walls: '89x41|0.75', trusses: '89x41|0.75', joists: '150x41|0.95' } },
   sales: { apiUrl: 'https://script.google.com/macros/s/AKfycbwayHN0oCE9qnWFcYadC4uGoMexbirj-kqBCDp8bp8Zf_dTN5bwrMGs97eVzu5x6LRMYA/exec', passcode: '', sheetId: '' },

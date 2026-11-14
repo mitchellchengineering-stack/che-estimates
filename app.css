@@ -1234,3 +1234,19 @@ a.practice-flag { text-decoration: none; }
 #ver-banner b { color: var(--yellow); }
 .restore-list { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow: auto; }
 .restore-list .btn { justify-content: space-between; width: 100%; }
+
+/* Dismiss (x) on suggestions and warnings */
+.banner.dismissable { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.banner.dismissable > span:first-child { flex: 1; min-width: 0; }
+.dismiss-x { font: inherit; flex: none; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(21,23,26,.08); color: var(--ink-2); font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.dismiss-x:hover { background: rgba(21,23,26,.16); color: var(--ink); }
+.chip-x { display: inline-flex; align-items: center; gap: 2px; margin: 2px 4px 2px 0; }
+.chip-x .dismiss-x { width: 24px; height: 24px; font-size: 11px; }
+
+/* batten job complete and invoice check */
+.bat-done { margin: 0 0 16px; border-left: 5px solid var(--green); }
+.inv-checks { display: flex; flex-direction: column; gap: 10px; }
+.inv-check { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.inv-check.on { border-color: var(--green); background: var(--green-bg); }
+.inv-check > input { width: 22px; height: 22px; flex: none; accent-color: var(--ink); margin-top: 2px; }
+.inv-check > span { flex: 1; min-width: 0; }

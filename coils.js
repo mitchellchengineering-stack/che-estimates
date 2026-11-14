@@ -189,7 +189,7 @@
     const sel = S.sel && S.coils.find(c => c.key === S.sel);
     const consIn = ins.filter(c => c.consignment);
     const wrong = admin ? S.coils.filter(x => Number(x.width) === 188) : [];
-    return `${wrong.length ? `<div class="banner warn"><b>${wrong.length} coil${wrong.length === 1 ? ' is' : 's are'} recorded as 188mm wide.</b> The correct width is 182mm. <button class="btn small primary" data-act="coilFix188">Change ${wrong.length === 1 ? 'it' : 'them'} to 182mm</button></div>` : ''}
+    return `${wrong.length && !App.Dismiss.is('coil188-' + wrong.length) ? `<div class="banner warn dismissable"><span><b>${wrong.length} coil${wrong.length === 1 ? ' is' : 's are'} recorded as 188mm wide.</b> The correct width is 182mm. <button class="btn small primary" data-act="coilFix188">Change ${wrong.length === 1 ? 'it' : 'them'} to 182mm</button></span>${App.Dismiss.x('coil188-' + wrong.length)}</div>` : ''}
     <div class="statcards">
       <div class="statcard dark"><p class="l">In stock</p><p class="v">${ins.length} coil${ins.length === 1 ? '' : 's'}</p><p class="s">${kg(ins.reduce((s, c) => s + c.weight, 0))}</p></div>
       <div class="statcard"><p class="l">Used this month</p><p class="v">${used.length} coil${used.length === 1 ? '' : 's'}</p><p class="s">${kg(used.reduce((s, c) => s + c.weight, 0))}</p></div>
@@ -400,7 +400,7 @@
     };
     const moveBtn = c => c.countsIn ? `<button class="btn small" data-act="coilMonth" data-key="${e(c.key)}" data-push="">Move back</button>` : isCurrent ? `<button class="btn small" data-act="coilMonth" data-key="${e(c.key)}" data-push="1">Push to next month</button>` : '';
     return `<div class="row" style="flex-wrap:wrap;margin-bottom:14px"><select data-act-change="coilMonthSel" style="width:auto">${S.months.map(m => App.opt(m.key, m.label, r.month)).join('')}</select><button class="btn dark" data-act="coilPdf" data-type="usage">Usage PDF</button></div>
-      ${!isCurrent && r.files.some(f => !/Estimates app/.test(f.trigger || '')) ? `<div class="banner">The PDFs saved for ${e(r.label)} are the old style, without the watermark. <button class="btn small primary" data-act="coilPdfAll">Replace them with the new-style PDFs</button></div>` : ''}
+      ${!isCurrent && r.files.some(f => !/Estimates app/.test(f.trigger || '')) && !App.Dismiss.is('coilpdf-' + r.month) ? `<div class="banner dismissable"><span>The PDFs saved for ${e(r.label)} are the old style, without the watermark. <button class="btn small primary" data-act="coilPdfAll">Replace them with the new-style PDFs</button></span>${App.Dismiss.x('coilpdf-' + r.month)}</div>` : ''}
       ${isCurrent ? '<p class="hint">This month is still running. Plain PDFs save to Drive automatically at 5pm on the last working day. Open this page after that and you can swap them for the watermarked versions in one click.</p>' : ''}
       <div class="statcards" style="grid-template-columns:repeat(2,minmax(0,1fr));max-width:620px"><div class="statcard dark"><p class="l">Coils used</p><p class="v">${r.used.length}</p></div><div class="statcard"><p class="l">Total weight</p><p class="v">${kg(r.usedKg)}</p></div></div>
       ${r.consignment.map(b => `<section class="card"><h3>${e(b.supplier)} consignment</h3>${consTable(b)}<div class="row-btns"><button class="btn primary" data-act="coilPdf" data-type="consignment" data-sup="${e(b.supplier)}">${e(b.supplier)} statement PDF</button></div></section>`).join('')}

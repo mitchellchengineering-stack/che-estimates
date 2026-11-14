@@ -331,7 +331,7 @@
     let list = f === 'opened' ? tracked.filter(x => x.openedAt) : f === 'not' ? tracked.filter(x => !x.openedAt) : all;
     const kindL = { followup: 'Follow-up', review: 'Review request', manual: 'Email', phone: 'Logged from the phone app' };
     const noTrack = !S().emails.trackingUrl;
-    return `${noTrack ? '<div class="banner warn">Open tracking isn\'t switched on yet, so emails will show as not opened. Set it up in Settings, Emails (see the README, open tracking).</div>' : ''}
+    return `${noTrack && !App.Dismiss.is('opentrack') ? `<div class="banner warn dismissable"><span>Open tracking isn't switched on yet, so emails will show as not opened. Set it up in Settings, Emails (see the README, open tracking).</span>${App.Dismiss.x('opentrack')}</div>` : ''}
       <div class="statcards" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="statcard dark"><p class="l">Emails sent, last 30 days</p><p class="v">${recent.length}</p><p class="s">${rt.length} sent from the hub</p></div>
         <div class="statcard"><p class="l">Opened</p><p class="v">${rt.length ? Math.round(ro.length / rt.length * 100) + '%' : '-'}</p><p class="s">${ro.length} of ${rt.length} from the hub</p></div>
         <div class="statcard"><p class="l">Not opened yet</p><p class="v">${rt.length - ro.length}</p><p class="s">worth a call?</p></div></div>

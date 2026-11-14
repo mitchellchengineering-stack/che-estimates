@@ -1,6 +1,14 @@
 # CH Engineering Estimates
 
-## Latest update (version 15): Back button, new version banner, restore, archive, report a problem
+## Latest update (version 17): batten jobs complete, and invoices to CH Accounts
+
+1. **Upload all the files** (including version.json) and commit.
+2. **Settings > Battens > Batten invoices:** add who invoices go to, their name, and check the email wording.
+3. On a batten job: **Job complete**, then **Send invoice to CH Accounts** (a checklist, then a draft email to review).
+
+---
+
+## Earlier update (version 15): Back button, new version banner, restore, archive, report a problem
 
 1. **Upload all the files** to GitHub and commit, including **version.json** (not the .gs files).
 2. Press **Ctrl + Shift + R** one last time. From now on, when there's an update everyone sees a "new version is ready" banner with a Refresh button.

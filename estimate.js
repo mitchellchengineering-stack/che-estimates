@@ -113,8 +113,8 @@
       <div class="head-actions">${App.Est.actionButtons(est)}</div>
     </div>
     ${locked ? `<div class="banner">This estimate has been ${est.status}, so it's locked. ${['sent', 'expired', 'rejected'].includes(est.status) ? `<button class="btn small" data-act="estRevise">${est.status === 'expired' ? 'Re-quote' : 'Create revision'}</button>` : ''}</div>` : ''}
-    ${App.Est.ratesChanged(est) ? `<div class="banner warn">Your rates were updated after this estimate was priced. Check the workings before it goes out.</div>` : ''}
-    ${dup.length ? `<div class="banner warn">Heads up: ${dup.map(d => `<a href="#/e/${d.id}">${e(st.displayNumber(d))}</a> (${e(d.status)})`).join(', ')} looks like the same job.</div>` : ''}
+    ${App.Est.ratesChanged(est) && !App.Dismiss.is('rates-' + est.id) ? `<div class="banner warn dismissable"><span>Your rates were updated after this estimate was priced. Check the workings before it goes out.</span>${App.Dismiss.x('rates-' + est.id)}</div>` : ''}
+    ${dup.length && !App.Dismiss.is('dup-' + est.id + '-' + dup.map(d => d.id).join('.')) ? `<div class="banner warn dismissable"><span>Heads up: ${dup.map(d => `<a href="#/e/${d.id}">${e(st.displayNumber(d))}</a> (${e(d.status)})`).join(', ')} looks like the same job.</span>${App.Dismiss.x('dup-' + est.id + '-' + dup.map(d => d.id).join('.'), 'It\'s not the same job')}</div>` : ''}
     <nav class="tabs" aria-label="Estimate sections">${tabs.map(([k, l]) => `<a href="#/e/${est.id}/${k}" class="${tab === k ? 'on' : ''}">${l}</a>`).join('')}</nav>
     <div class="tab-body">${tab === 'workings' ? App.Est.workingsTab(est, locked) : tab === 'preview' ? App.Est.previewTab(est) : tab === 'activity' ? App.Est.activityTab(est) : App.Est.detailsTab(est, locked)}</div>`;
   };
