@@ -209,7 +209,7 @@
   };
 
   App.Set.emails = s => {
-    const em = s.emails; const names = { estimate: 'Sending an estimate', fu1: 'First follow-up (1 week)', fu2: 'Second follow-up (2 weeks)', expiry: 'Expiry reminder (3 days before)', thanks: 'Thank you on acceptance', accounts: 'To accounts on acceptance', delivery: 'Delivery booked', review: 'Review request', po: 'Purchase order', manual: 'Your own follow-ups (use {about} and {first_name})' };
+    const em = s.emails; const names = { estimate: 'Sending an estimate', fu1: 'First follow-up (1 week)', fu2: 'Second follow-up (2 weeks)', expiry: 'Expiry reminder (3 days before)', thanks: 'Thank you on acceptance', accounts: 'To accounts on acceptance', delivery: 'Delivery booked', review: 'Review request', po: 'Purchase order', manual: 'Your own follow-ups (use {about} and {first_name})', final: 'Final invoice to accounts (job complete)' };
     return `<section class="card"><h3>Email settings</h3><div class="grid2">
       ${App.field('Accounts email (for deposit invoices in Xero)', inp('emails.accountsEmail', em.accountsEmail, 'type="email"'))}
       ${App.field('Helper web app link (for open tracking and online acceptance)', inp('emails.trackingUrl', em.trackingUrl, 'placeholder="https://script.google.com/macros/s/…/exec"'))}</div>

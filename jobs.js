@@ -175,12 +175,13 @@
     if (App.Coil && App.Coil.ready() && App.Coil.S.loadedAt) App.Coil.summary().low.forEach(x => att.push({ lvl: 'amber', t: `${App.Coil.bmt(x.t)} BMT coils running low`, s: `${x.n} coil${x.n === 1 ? '' : 's'} left in stock`, b: 'Coils', href: '#/coils' }));
     const steel = App.Jobs.steelNeeded();
     const days = App.Jobs.timelineDays(today);
-    const views = `<div class="seg">${[['overview', 'Overview'], ['board', 'Board only'], ['timeline', 'Timeline only']].map(([k, l]) => `<label><input type="radio" name="pv" value="${k}" data-act-change="prodView" ${v === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
+    const views = `<div class="seg">${[['overview', 'Overview'], ['board', 'Board only'], ['timeline', 'Timeline only'], ['completed', 'Completed jobs']].map(([k, l]) => `<label><input type="radio" name="pv" value="${k}" data-act-change="prodView" ${v === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
     const head = `<div class="page-head"><div><p class="sub" style="margin:0 0 6px">Week of ${App.fmtDate(wk, { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>Production</h1></div>
       <div class="head-actions">${views}<details class="menu"><summary class="btn primary">Print or PDF</summary><div class="menu-pop"><button data-act="prodPrint" data-k="plan">This week's plan (timeline and board)</button><button data-act="prodPrint" data-k="timeline">Timeline only</button><button data-act="prodPrint" data-k="board">Job board only</button></div></details></div></div>`;
     const timeline = `<section class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap"><h3 style="margin:0">This week and next</h3><div class="legend" style="margin:0"><span><i style="background:#c4cacf"></i>Detailing</span><span><i style="background:#e8890c"></i>Manufacture</span><span><i style="background:var(--blue);border-radius:6px"></i>Delivery</span></div></div><div class="table-scroll" style="margin-top:12px">${App.Jobs.timelineHtml(days, App.Jobs.timelineRows(days))}</div></section>`;
     const board = `<section><div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 style="margin:0">Job board</h3><span class="hint">Drag a card to move it along. A red outline means it needs a look.</span></div>${App.Jobs.boardHtml()}</section>`;
     if (v === 'board') return head + board;
+    if (v === 'completed') return head + (App.Finish ? App.Finish.completedView() : '');
     if (v === 'timeline') return head + timeline;
     return head + `
     <div class="statcards six">
@@ -325,8 +326,8 @@
     const est = st.get(id);
     if (!est || !est.job) return `<div class="empty"><h2>That job doesn't exist yet</h2><p>Jobs appear once an estimate is accepted.</p><a class="btn" href="#/production">Production board</a></div>`;
     App.cur = est;
-    const tabs = [['overview', 'Overview'], ['estimate', 'Estimate'], ['variations', 'Variations'], ['workings', 'Workings'], ['files', 'Plans and files'], ['deliveries', 'Frames and deliveries'], ['coils', 'Coils'], ['checklist', 'Factory checklist'], ['backcost', 'Back-costing'], ['pos', 'Purchase orders']];
-    const body = { overview: App.Jobs.overview, estimate: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/preview">Open estimate</a></div><div class="doc-preview" id="job-doc"></div>`, workings: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/workings">Open workings</a></div><div class="doc-preview" id="job-doc"></div>`, files: App.Jobs.filesTab, deliveries: App.Jobs.delTab, checklist: App.Jobs.checkTab, backcost: App.Jobs.backTab, pos: App.Jobs.poTab, coils: x => App.Coil.jobTab(x), variations: x => App.Var.tab(x) }[tab] || App.Jobs.overview;
+    const tabs = [['overview', 'Overview'], ['estimate', 'Estimate'], ['variations', 'Variations'], ['extras', 'Extras'], ['workings', 'Workings'], ['files', 'Plans and files'], ['deliveries', 'Frames and deliveries'], ['coils', 'Coils'], ['checklist', 'Factory checklist'], ['backcost', 'Back-costing'], ['pos', 'Purchase orders']];
+    const body = { overview: App.Jobs.overview, estimate: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/preview">Open estimate</a></div><div class="doc-preview" id="job-doc"></div>`, workings: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/workings">Open workings</a></div><div class="doc-preview" id="job-doc"></div>`, files: App.Jobs.filesTab, deliveries: App.Jobs.delTab, checklist: App.Jobs.checkTab, backcost: App.Jobs.backTab, pos: App.Jobs.poTab, coils: x => App.Coil.jobTab(x), variations: x => App.Var.tab(x), extras: x => App.Finish.extrasTab(x) }[tab] || App.Jobs.overview;
     return `<div class="page-head"><div><div class="crumbs"><a href="#/production">Production</a></div>
       <h1>${e(st.displayNumber(est))} <span class="pill stage">${e(App.stageLabel(est.job.stage))}</span></h1>
       <p class="sub">${e(est.client.company || est.client.name)}, ${e(est.heading)}${est.siteAddress ? ', ' + e(est.siteAddress) : ''}</p></div>
@@ -352,7 +353,7 @@
     const j = est.job; const i = STAGE_IDX(j.stage); const ld = App.Jobs.loadsDone(est); const ck = App.Jobs.checkDone(est);
     const vars = st.live().filter(v => v.parentId === est.id);
     const t = st.totals(est);
-    return `${App.Accept ? App.Accept.banner(est) : ''}<section class="card"><h3>Where it's at</h3>
+    return `${App.Accept ? App.Accept.banner(est) : ''}${App.Finish ? App.Finish.card(est) : ''}<section class="card"><h3>Where it's at</h3>
       <ol class="stepper">${App.STAGES.map((s, k) => `<li class="${k < i ? 'past' : k === i ? 'now' : ''}"><button data-act="jobStage" data-s="${s.value}"><span class="n">${k + 1}</span>${s.label}</button></li>`).join('')}</ol>
       <ul class="activity small">${j.stageLog.slice().reverse().map(l => `<li><time>${App.fmtStamp(l.at)}</time> ${e(App.stageLabel(l.stage))} <span class="hint">${e(l.by)}</span></li>`).join('')}</ul></section>
     <div class="grid2">

@@ -1,6 +1,14 @@
 # CH Engineering Estimates
 
-## Latest update (version 18): batten invoices with the estimate attached, raking rates per m², back-costing
+## Latest update (version 19): Extras, Job complete and final invoices for frame and truss and General jobs
+
+1. **Upload all the files** (including version.json) and commit.
+2. On a job: the **Extras** tab for unquoted extras, **Job complete** on the Overview, then **Send final invoice to CH Accounts** (checklist, then a draft to review).
+3. **Production > Completed jobs** lists them. The email wording is in Settings > Emails (Final invoice to accounts).
+
+---
+
+## Earlier update (version 18): batten invoices with the estimate attached, raking rates per m², back-costing
 
 1. **Upload all the files** (including version.json) and commit.
 2. **Settings > Battens:** set raking and flashing rates per m², and your Back-costing costs (channel, clips, screws, labour).

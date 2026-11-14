@@ -1260,3 +1260,12 @@ a.practice-flag { text-decoration: none; }
 .bat-bc > summary::-webkit-details-marker { display: none; }
 .bat-bc > summary::after { content: '▾'; margin-left: auto; color: var(--ink-3); } .bat-bc[open] > summary::after { content: '▴'; }
 .bat-bc tr.tot td { border-top: 2px solid var(--ink); }
+
+/* finishing jobs */
+.fin-card { margin: 0 0 16px; border-left: 5px solid var(--ink-3); } .fin-card.done { border-left-color: var(--green); }
+.fin-bal { margin-top: 14px; background: var(--ink); color: #fff; border-radius: 14px; padding: 14px 16px; }
+.fin-bal > div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: .92rem; } .fin-bal > div span { color: #c9ced3; }
+.fin-bal > div.red span, .fin-bal > div.red b { color: #ff8a80; }
+.fin-bal > div.big { border-top: 1px solid #2c3136; margin-top: 6px; padding-top: 8px; font-size: 1.05rem; } .fin-bal > div.big b { color: var(--yellow); font-size: 1.3rem; }
+.pg .ex-red, .pg .ex-red * { color: #c8102e !important; }
+.pg .ex-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border: 1px solid #c8102e; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: #c8102e; vertical-align: 2px; }

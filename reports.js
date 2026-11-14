@@ -206,7 +206,7 @@
     if (R.has('sources')) flow.push(R.section('Where the work came from', R.table(['Source', 'Estimates', 'Won'], Object.entries(bySrc).sort((a, b) => b[1][0] - a[1][0]).map(([k, v]) => [e(k), String(v[0]), String(v[1])]), [1, 2])));
     R.show('Dashboard', R.spec('Monthly report', r.label, [], flow), `Report ${r.label}`);
   };
-  R.build.job = id => {
+  R.jobSpec = id => {
     const est = st.get(id); if (!est || !est.job) return;
     const t = st.totals(est); const j = est.job; const pf = App.Pricing ? App.Pricing.profit(est) : null;
     const flow = [R.multi() ? D().blk(R.stats([['Job value', money(t.sub), est.type === 'ft' ? 'Frame and truss' : 'General'], ['Stage', App.stageLabel(j.stage), ''], ['Deposit', j.deposit.notRequired ? 'Not required' : j.deposit.received ? 'Paid' : 'Not paid', est.clientPo ? 'PO ' + est.clientPo : ''], ['Margin', pf ? Math.round(pf.margin * 100) + '%' : '-', pf ? money(pf.profit) + ' profit' : '']])) : ''];
@@ -214,8 +214,9 @@
     if ((j.loads || []).length) flow.push(R.section('Deliveries', R.table(['Load', 'Date', 'Status'], j.loads.map(l => [`${l.n} of ${j.loads.length}`, l.date ? App.fmtShort(l.date) : 'Not booked', l.delivered ? 'Delivered' : 'To come']))));
     if (App.Coil && App.Coil.S.loadedAt) { const cs = App.Coil.forJob(est.number); if (cs.length) flow.push(R.section('Coils used', R.table(['Coil', 'Size', 'Weight'], cs.map(c => [e(c.coilId), `${c.width} × ${App.Coil.bmt(c.thickness)}`, App.Coil.kg(c.weight)])))); }
     flow.push(R.section('History', R.table(['When', 'What'], (est.activity || []).slice(-25).reverse().map(a => [App.fmtStamp(a.at), e(a.text)]))));
-    R.show(`${st.displayNumber(est)} job summary`, R.spec('Job summary', st.displayNumber(est), [['Client', who(est)]], flow));
+    return R.spec('Job summary', st.displayNumber(est), [['Client', who(est)]], flow);
   };
+  R.build.job = id => { const est = st.get(id); if (!est || !est.job) return; R.show(`${st.displayNumber(est)} job summary`, R.jobSpec(id)); };
   R.build.contact = id => {
     const SL = App.Sales; const c = SL && SL.get(id); if (!c) return;
     const p = SL.primary(c); const acts = SL.S.activity.filter(a => a.contactId === c.id).sort((a, b) => String(b.at).localeCompare(String(a.at)));

@@ -57,7 +57,7 @@
       /* 3. Needs a look */
       const look = [];
       (App.Jobs ? App.Jobs.attention() : []).forEach(a => look.push(item(a.t, a.s, a.href)));
-      (App.Safety ? App.Safety.needs() : []).concat(App.Maint ? App.Maint.needs() : []).concat(App.Battens ? App.Battens.needs() : []).forEach(a => look.push(item(a.t, a.s, a.href)));
+      (App.Safety ? App.Safety.needs() : []).concat(App.Maint ? App.Maint.needs() : []).concat(App.Battens ? App.Battens.needs() : []).concat(App.Finish ? App.Finish.needs() : []).forEach(a => look.push(item(a.t, a.s, a.href)));
       if (App.Fast && App.Fast.S.loadedAt && !App.Fast.S.error) { const low = App.Fast.low(); if (low.length) look.push(item(`${low.length} fastener${low.length === 1 ? '' : 's'} to reorder`, low.map(i => i.name).join(', '), '#/fasteners')); }
       if (App.Coil && App.Coil.ready() && App.Coil.S.loadedAt) App.Coil.summary().low.forEach(x => look.push(item(`${App.Coil.bmt(x.t)} BMT coils running low`, `${x.n} left in stock`, '#/coils')));
       if (App.Pricing) { const sp = App.Pricing.stale(); if (sp.length) look.push(item(`${sp.length} estimate${sp.length === 1 ? '' : 's'} priced with old steel prices`, sp.slice(0, 3).map(x => st.displayNumber(x)).join(', '), '#/pricing')); }

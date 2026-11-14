@@ -162,6 +162,7 @@
     if (App.Accept) App.Accept.needs().forEach(a => needs.push(a));
     if (App.ManualFU) App.ManualFU.needs().forEach(a => needs.push(a));
     if (App.Battens) App.Battens.needs().forEach(a => needs.push(a));
+    if (App.Finish) App.Finish.needs().forEach(a => needs.push(a));
     if (SLs) SLs.needs().forEach(a => needs.push(a));
     App.Jobs.attention().forEach(a => needs.push(a));
     if (App.Safety) App.Safety.needs().forEach(x => needs.push(x));
