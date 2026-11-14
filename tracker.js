@@ -97,7 +97,9 @@
     const q = App.state.trk; const list = (q.sel || []).map(id => st.get(id)).filter(Boolean);
     if (!list.length) return;
     if (!(await App.confirm(`Delete ${list.length} estimate${list.length === 1 ? '' : 's'}?`, `${list.slice(0, 8).map(x => st.displayNumber(x)).join(', ')}${list.length > 8 ? ' and more' : ''}. They're removed everywhere in the app, and their numbers won't be used again. You can restore them from Settings, Google and data, for 60 days.`, 'Delete them'))) return;
-    const n = App.Est.deleteEsts(list); q.sel = []; q.selecting = false; App.refresh(); App.toast(`${n} deleted`);
+    const before = st.data.estimates.filter(x => !x.deleted).map(x => x.id);
+    const n = App.Est.deleteEsts(list); q.sel = []; q.selecting = false; App.refresh();
+    App.undo(`${n} deleted`, () => st.data.estimates.filter(x => x.deleted && before.includes(x.id)).forEach(x => { x.deleted = false; x.deletedAt = null; st.touch(x); }));
   };
   A.trkStatus = async el => {
     const est = st.get(el.dataset.id); const v = el.value; App.cur = est;
@@ -148,7 +150,7 @@
     </div>
     <section class="card" style="margin-top:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Waiting on a reply</h3><span class="hint">${App.money(val, 0)} across ${waiting.length} estimate${waiting.length === 1 ? '' : 's'}</span></div>
       ${waiting.length ? `<div class="table-scroll"><table class="wtable"><thead><tr><th>Estimate</th><th class="r">Value</th><th>Waiting</th><th>Email</th><th>Progress</th><th>Next</th></tr></thead><tbody>
-      ${waiting.map(x => `<tr><td><a href="#/e/${x.id}"><b>${e(st.displayNumber(x))}</b></a><div class="hint">${e(x.client.company || x.client.name)}</div></td><td class="r"><b>${App.money(App.Track.estValue(x), 0)}</b></td><td>${x.sentDate ? App.daysBetween(x.sentDate, today) + ' days' : '-'}</td><td>${x.openedAt ? `<span class="tag ok">Opened ${App.fmtShort(App.iso(new Date(x.openedAt)))}</span>` : '<span class="tag">Not opened</span>'}</td><td>${track(x)}</td><td class="small">${nextTxt(x)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Nothing out waiting.</p>'}</section>${App.ManualFU ? App.ManualFU.section() : ''}`;
+      ${waiting.map(x => `<tr><td><a href="#/e/${x.id}"><b>${e(st.displayNumber(x))}</b></a><div class="hint">${e(x.client.company || x.client.name)}</div></td><td class="r"><b>${App.money(App.Track.estValue(x), 0)}</b></td><td>${x.sentDate ? App.daysBetween(x.sentDate, today) + ' days' : '-'}</td><td>${x.openedAt ? `<span class="tag ok">Opened ${App.fmtShort(App.iso(new Date(x.openedAt)))}</span>` : '<span class="tag">Not opened</span>'}</td><td>${track(x)}</td><td class="small">${nextTxt(x)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Nothing out waiting.</p>'}</section>${App.Battens ? App.Battens.fuSection() : ''}${App.ManualFU ? App.ManualFU.section() : ''}`;
   };
   App.Track.supplierList = () => {
     const out = []; const today = App.today();
@@ -209,6 +211,8 @@
     const bars = (pairs) => { const mx = Math.max(1, ...pairs.map(p => p[1])); return pairs.map(([k, v]) => `<div class="hbar"><span>${e(k)}</span><div><i style="width:${(v / mx) * 100}%"></i></div><b>${v}</b></div>`).join('') || '<p class="hint">No data yet.</p>'; };
     return `<div class="page-head"><div><h1>Dashboard</h1><p class="sub">How estimating is tracking for 20${y}.</p></div>
       <div class="head-actions"><select data-act-change="dashYear">${App.Track.years().map(v => App.opt(v, '20' + v, y)).join('')}</select></div></div>
+    ${App.Money ? App.Money.section() : ''}${App.Battens && App.Battens.dashSection ? App.Battens.dashSection(y) : ''}
+    <h3 style="margin:22px 0 10px">Framing estimates</h3>
     <div class="stat-strip">
       <div><span>Estimates sent</span><b>${sent.length}</b></div><div><span>Value quoted</span><b>${App.money(sum(sent), 0)}</b></div>
       <div><span>Accepted</span><b>${App.money(sum(won), 0)}</b></div><div><span>Win rate</span><b>${decided.length ? App.pct(won.length / decided.length) : '-'}</b></div>

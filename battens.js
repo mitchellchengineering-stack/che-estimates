@@ -69,6 +69,7 @@
     needs() {
       return B.jobs().filter(x => x.job && x.job.stage === 'accepted').map(x => ({ lvl: 'amber', t: `${x.number}: book the batten measure`, s: B.name(x), b: 'Open', href: `#/battens/job/${x.id}` }))
         .concat(B.jobs().filter(x => x.job && x.job.stage === 'measured').map(x => ({ lvl: 'blue', t: `${x.number}: make the machine file`, s: B.name(x), b: 'Open', href: `#/battens/mf/${x.id}` })))
+        .concat(B.fuDue().map(x => ({ lvl: 'amber', t: `Follow up batten estimate ${x.number}`, s: `${B.who(x)}, ${B.name(x)}${x.openedAt ? ', they opened it' : ''}`, b: 'Follow-ups', href: '#/followups' })))
         .concat(B.jobs().filter(x => x.job && x.job.stage === 'complete' && !x.job.invoiceSentAt).map(x => ({ lvl: 'amber', t: `${x.number}: send the invoice to CH Accounts`, s: B.name(x), b: 'Open', href: `#/battens/job/${x.id}` })));
     }
   };
@@ -178,6 +179,7 @@
     const x = cur(); if (!(await App.confirm(`Delete ${x.number}?`, `It's removed from Battens, and the number won't be used again. You can restore it from Settings, Google and data, for 60 days.`, 'Delete'))) return;
     if (x.job && x.job.installDate) { x.job.installDate = ''; B.syncInstall(x); }
     x.deleted = true; x.deletedAt = Date.now(); x.deletedBy = st.me().name; B.save(x); location.hash = '#/battens/estimates';
+    App.undo(`${x.number} deleted`, () => { x.deleted = false; x.deletedAt = null; st.touch(x); });
   };
 
   /* ---------- Batten clients: their own list, e.g. timber-frame builders who only buy battens ---------- */
@@ -249,9 +251,25 @@
     App.toast('Making the PDF…');
     let extra = []; try { const blob = await App.Docs.toPdf(B.spec(x)); extra = [{ name: `${x.number} - ${B.name(x)} Ceiling Battens.pdf`, mime: 'application/pdf', base64: await App.blobToBase64(blob) }]; } catch (er) { return App.toast('Couldn\'t make the PDF: ' + er.message, 'err'); }
     const first = (x.client.name || '').split(' ')[0] || 'there';
-    App.mail.compose({ title: `Email ${x.number}`, to: x.client.email, subject: `Estimate ${x.number}: ceiling battens, ${B.name(x)}`, extra,
+    const acceptLink = App.Accept && App.Accept.battenLink ? App.Accept.battenLink(x) : '';
+    App.mail.compose({ title: `Email ${x.number}`, to: x.client.email, subject: `Estimate ${x.number}: ceiling battens, ${B.name(x)}`, extra, kind: 'batten', trackId: 'bt:' + x.id, buttonLink: acceptLink, buttonLabel: 'Accept this estimate',
       body: `Hi ${first},\n\nPlease find attached our estimate ${x.number} to supply and install ceiling battens at ${B.name(x)}.\n\nThe pricing is held until ${App.fmtLong(x.expiry)}. Let me know if you have any questions, or if you'd like to go ahead.\n\nCheers,`,
-      onSent: () => { if (x.status === 'draft') { x.status = 'sent'; x.sentDate = App.today(); } B.log(x, 'Emailed to ' + x.client.email); B.save(x); App.refresh(); } });
+      onSent: () => { if (x.status === 'draft') { x.status = 'sent'; x.sentDate = App.today(); } const f = cfg().followup || {}; if (f.on !== false && !x.fu) x.fu = { n: 0, next: App.addDays(App.today(), App.num(f.days1) || 7) }; B.log(x, 'Emailed to ' + x.client.email); B.save(x); App.refresh(); } });
+  };
+  /* ---------- follow-ups for batten estimates (drafted for you, never sent without you) ---------- */
+  B.fuDue = () => live().filter(x => x.status === 'sent' && x.fu && x.fu.next && x.fu.next <= App.today() && x.fu.n < 2 && x.client.email);
+  B.fuSection = () => {
+    const due = B.fuDue(); const waiting = live().filter(x => x.status === 'sent').sort((a, b) => String(a.sentDate).localeCompare(String(b.sentDate)));
+    if (!waiting.length) return '';
+    return `<section class="card" style="margin-top:16px"><h3>Batten estimates waiting on a reply</h3>${due.length ? '' : '<p class="hint">No batten follow-ups due today.</p>'}
+      <table class="wtable"><thead><tr><th>Estimate</th><th>Client</th><th>Sent</th><th>Opened</th><th>Next follow-up</th><th></th></tr></thead><tbody>${waiting.map(x => { const isDue = due.includes(x); return `<tr><td><a href="#/battens/e/${x.id}"><b>${e(x.number)}</b></a><div class="hint">${e(B.name(x))}</div></td><td>${e(B.who(x))}</td><td class="small">${x.sentDate ? App.fmtShort(x.sentDate) : ''}</td><td>${x.openedAt ? `<span class="tag ok">Opened${x.opens > 1 ? ' ' + x.opens + 'x' : ''}</span>` : '<span class="tag">Not yet</span>'}</td><td class="small">${x.fu && x.fu.next && x.fu.n < 2 ? (isDue ? '<span class="tag warn">Due now</span>' : App.fmtShort(x.fu.next)) : 'Done'}</td><td class="r">${isDue ? `<button class="btn small primary" data-act="batFu" data-id="${x.id}">Review and send</button>` : ''}</td></tr>`; }).join('')}</tbody></table></section>`;
+  };
+  A.batFu = el => {
+    const x = B.get(el.dataset.id); const t = (S().emails.templates || {}).batten_fu || { subject: 'Following up: {number}', body: 'Hi {first_name},\n\nJust following up on our ceiling batten estimate.\n\nCheers,' };
+    const v = { first_name: (x.client.name || '').split(' ')[0] || 'there', number: x.number, address: B.name(x), company: B.who(x), expiry: App.fmtLong(x.expiry) };
+    const fill = s2 => String(s2 || '').replace(/\{(\w+)\}/g, (m, k) => v[k] !== undefined ? v[k] : m);
+    App.mail.compose({ title: `Follow up ${x.number}`, to: x.client.email, subject: fill(t.subject), body: fill(t.body), kind: 'batten', trackId: 'bt:' + x.id, buttonLink: App.Accept && App.Accept.battenLink ? App.Accept.battenLink(x) : '', buttonLabel: 'Accept this estimate',
+      onSent: () => { x.fu.n++; x.fu.next = x.fu.n < 2 ? App.addDays(App.today(), App.num((cfg().followup || {}).days2) || 7) : ''; B.log(x, `Follow-up ${x.fu.n} sent`); B.save(x); App.refresh(); } });
   };
 
   /* ---------- jobs ---------- */
@@ -273,7 +291,7 @@
     const mf = j.machine || {}; const filled = (mf.rows || []).filter(r => App.num(r.qty) && App.num(r.len));
     const ex = (j.extras || []).filter(z => z.desc || App.num(z.amount));
     const doneCard = j.stage === 'complete' ? `<section class="card bat-done"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><span><b>Job completed</b> ${j.completedAt ? App.fmtStamp(j.completedAt) : ''}${j.completedBy ? ', ' + e(j.completedBy) : ''}<span class="hint" style="display:block">${j.summaryLink ? `<a href="${e(j.summaryLink)}" target="_blank" rel="noopener">Job summary</a> saved in Battens / Completed jobs and the client's folder.` : 'Filed under Completed jobs and the client\'s jobs.'}</span></span>
-        ${j.invoiceSentAt ? `<span class="tag ok">Invoice sent ${App.fmtStamp(j.invoiceSentAt)}</span><button class="btn small ghost" data-act="batInvoice" data-id="${x.id}">Send again</button>` : `<button class="btn primary" data-act="batInvoice" data-id="${x.id}">Send invoice to CH Accounts</button>`}</div>
+        ${j.invoiceSentAt ? `<span class="row" style="flex:none"><span class="tag ok">Invoice sent ${App.fmtStamp(j.invoiceSentAt)}</span>${j.paidAt ? `<span class="tag ok">Paid ${App.fmtShort(App.iso(new Date(j.paidAt)))}</span>` : `<button class="btn small primary" data-act="markPaid" data-id="${x.id}" data-k="batten">Mark paid</button>`}<button class="btn small ghost" data-act="batInvoice" data-id="${x.id}">Send again</button></span>` : `<button class="btn primary" data-act="batInvoice" data-id="${x.id}">Send invoice to CH Accounts</button>`}</div>
         ${ex.length ? `<div style="margin-top:10px">${ex.map(z => `<div class="kvr2"><span>Extra: ${e(z.desc)}</span><b>${App.money(z.amount)}</b></div>`).join('')}</div>` : ''}</section>`
       : `<section class="card bat-done"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><span><b>Finished on site?</b><span class="hint" style="display:block">Marking it complete files the job under Completed jobs and the client's jobs, saves a job summary to Google Drive, then you can send it to CH Accounts to invoice.</span></span><button class="btn dark" data-act="batComplete">Job complete</button></div></section>`;
     return `<div class="page-head"><div><p class="crumbs"><a href="#/battens/jobs">Battens</a></p><h1>${e(x.number)}</h1><p class="sub">${e([B.who(x), B.name(x)].filter(Boolean).join(', '))}</p></div>
@@ -546,6 +564,18 @@
         App.toast('Downloaded, and saved to Google Drive');
       } catch (er) { App.toast('Downloaded, but saving to Drive didn\'t work: ' + er.message, 'err', 6000); }
     }
+  };
+
+  /* ---------- Battens on the Dashboard ---------- */
+  B.dashSection = yy => {
+    const list = live().filter(x => x.yy === yy); const sent = list.filter(x => x.status !== 'draft'); const won = list.filter(x => x.status === 'accepted'); const lost = list.filter(x => x.status === 'rejected');
+    if (!list.length) return '';
+    const costed = won.filter(x => x.job && x.job.backcost && B.backcost(x).cost > 0); const bc = costed.map(x => B.backcost(x));
+    const months = Array.from({ length: 12 }, (_, i) => { const m = `20${yy}-${String(i + 1).padStart(2, '0')}`; const w = won.filter(x => String(x.acceptedAt || '').startsWith(m)); return { m, n: w.length, v: w.reduce((t, x) => t + B.calc(x).total, 0) }; });
+    const max = Math.max(1, ...months.map(m => m.v));
+    return `<section class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Battens, 20${e(yy)}</h3><a class="btn small" href="#/battens">Open Battens</a></div>
+      <div class="stat-strip" style="margin:12px 0"><div><span>Quoted</span><b>${App.money(sent.reduce((t, x) => t + B.calc(x).total, 0), 0)}</b></div><div><span>Won</span><b>${App.money(won.reduce((t, x) => t + B.calc(x).total, 0), 0)}</b></div><div><span>Win rate</span><b>${won.length + lost.length ? Math.round(won.length / (won.length + lost.length) * 100) + '%' : '-'}</b></div><div><span>m² battened</span><b>${fmt(won.reduce((t, x) => t + App.num(x.houseArea), 0))}</b></div><div><span>Profit (back-costed jobs)</span><b>${costed.length ? App.money(bc.reduce((t, r) => t + r.profit, 0), 0) + ` (${Math.round(bc.reduce((t, r) => t + r.profit, 0) / Math.max(1, bc.reduce((t, r) => t + r.sold, 0)) * 100)}%)` : '-'}</b></div></div>
+      <div class="bat-months">${months.map(m => `<div title="${App.money(m.v, 0)}"><i style="height:${Math.round(m.v / max * 100)}%"></i><span>${App.fmtDate(m.m + '-01', { month: 'short' })}</span></div>`).join('')}</div><p class="hint">Batten work won each month.</p></section>`;
   };
 
   /* ---------- PDF summary of the Battens tab ---------- */

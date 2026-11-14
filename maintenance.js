@@ -113,7 +113,7 @@
       { actions: '<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="ff-ok">Save</button>' });
     m.querySelector('#ff-ok').onclick = () => { Object.assign(f, { status: 'closed', fix: m.querySelector('#ff-n').value.trim(), fixedBy: m.querySelector('#ff-b').value.trim(), fixedAt: App.today(), cost: App.num(m.querySelector('#ff-c').value) }); save(f); App.closeModal(); App.refresh(); };
   };
-  A.logDel = async el => { const l = col('servicelog').find(x => x.id === el.dataset.id); if (!(await App.confirm('Delete this entry from the service log?', '', 'Delete'))) return; l.deleted = true; save(l); App.refresh(); };
+  A.logDel = el => { const l = col('servicelog').find(x => x.id === el.dataset.id); l.deleted = true; save(l); App.refresh(); App.undo('Service log entry deleted', () => { l.deleted = false; st.touch(l); }); };
   A.meterSet = async el => { const a = asset(el.dataset.id); const v = await App.prompt(`${a.name}: ${a.unit} reading now`, a.meter || ''); if (v === null || v === undefined || v === '') return; a.meter = App.num(v); a.meterAt = App.today(); save(a); App.refresh(); };
   A.assetEdit = el => {
     const a = el.dataset.id ? asset(el.dataset.id) : { kind: el.dataset.kind || 'machine', unit: el.dataset.kind === 'vehicle' ? 'km' : 'hours', tasks: [] };

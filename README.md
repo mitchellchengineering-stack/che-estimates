@@ -1,6 +1,16 @@
 # CH Engineering Estimates
 
-## Latest update (version 19): Extras, Job complete and final invoices for frame and truss and General jobs
+## Latest update (version 21)
+
+1. **Upload all the files** (including version.json) and commit. Not the .gs files, except the next step.
+2. **Helper script (needed for Accept online on battens, and the Test button):** open the CH Estimates helper at script.google.com, replace the code with **Code-Mitchell.gs**, Save, then Deploy > Manage deployments > pencil > New version > Deploy. Check it says Execute as: Me, Who has access: Anyone. Do the same with Code-Davin.gs in Davin's helper.
+3. **Settings > Setup checklist:** work through anything not ticked.
+4. **Settings > Company:** add the warranty wording and upload the NASH member statement (for compliance packs).
+5. **Drivers** sign in to the app on their phone with Google (add them in Settings > Team as Staff) and use **Deliveries**.
+
+---
+
+## Earlier update (version 19): Extras, Job complete and final invoices for frame and truss and General jobs
 
 1. **Upload all the files** (including version.json) and commit.
 2. On a job: the **Extras** tab for unquoted extras, **Job complete** on the Overview, then **Send final invoice to CH Accounts** (checklist, then a draft to review).

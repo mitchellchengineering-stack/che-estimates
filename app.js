@@ -9,6 +9,7 @@
     ['followups', 'Follow-ups', '<path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/>'],
     ['sales', 'Sales', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
     ['production', 'Production', '<path d="M3 20V9l6 4V9l6 4V5h6v15z"/>'],
+    ['driver', 'Deliveries', '<path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>'],
     ['battens', 'Battens', '<path d="M3 6h18M3 12h18M3 18h18"/><path d="M6 4v16M18 4v16" opacity=".5"/>'],
     ['detailing', 'Detailing', '<path d="M4 4h10l6 6v10H4z"/><path d="M14 4v6h6"/><path d="M8 14h8M8 17h5"/>'],
     ['calendar', 'Calendar', '<rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
@@ -41,20 +42,55 @@
     const q = (App.state.trk && App.state.trk.search) || '';
     t.innerHTML = `<button class="icon-btn menu-btn" data-act="toggleMenu" aria-label="Menu">☰</button>
       ${App.Care && App.Care.canBack() ? '<button class="back-btn" data-act="goBack" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Back</button>' : ''}
-      <label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="position:absolute;left:-9999px">Search estimates</span><input id="top-q" type="search" placeholder="Search estimates, clients or addresses" value="${e(q)}" data-act-input="topSearch"></label>
+      <label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="position:absolute;left:-9999px">Search everything</span><input id="top-q" type="search" placeholder="Search everything: jobs, clients, battens, coils…" value="" autocomplete="off" data-act-input="topSearch"></label>
       ${App.state.practice ? '<a class="practice-flag" href="#/settings/estimates">Practice mode is on: TEST numbers, kept out of the stats</a>' : ''}
       <div class="top-right">
+        <details class="menu new-menu"><summary class="btn small primary" aria-label="Create something new">+ New</summary><div class="menu-pop">
+          <a href="#/new/general">General estimate</a><a href="#/new/ft">Frame and truss estimate</a><button data-act="batNew">Batten estimate</button>
+          <button data-act="mfAdd">Follow-up reminder</button>${App.cur && App.cur.job && App.route().name === 'job' ? '<button data-act="fxEdit">Extra on this job</button>' : ''}
+          <button data-act="newGo" data-h="#/safety/incidents" data-a="incNew">Incident or near miss</button><a href="#/clients">Client</a><a href="#/battens/clients">Batten client</a></div></details>
         ${App.state.needsReconnect ? '<button class="btn small primary" data-act="reconnect">Reconnect Google</button>' : ''}
         <span id="sync" class="sync">${st.mode === 'drive' ? 'All saved' : 'This browser only'}</span>
       </div>`;
   };
   App.renderSync = txt => { const s = document.getElementById('sync'); if (s) { s.textContent = txt === 'Saved' ? (st.mode === 'drive' ? 'All saved' : 'Saved in this browser') : txt; s.className = 'sync ' + (txt === 'Not saved' ? 'bad' : txt === 'Saving…' ? 'busy' : ''); } };
-  A.topSearch = App.debounce(el => {
-    App.state.trk = App.state.trk || { year: st.yy(), search: '', status: '', type: '', who: '', archived: false, practice: false };
-    App.state.trk.search = el.value;
-    if (App.route().name !== 'tracker') location.hash = '#/tracker'; else App.refresh();
-    setTimeout(() => { const i = document.getElementById('top-q'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 30);
-  }, 250);
+  /* search everything: estimates, jobs, batten jobs, clients, sales contacts, coils, incidents, machines, detailing */
+  App.searchAll = q => {
+    q = q.trim().toLowerCase(); if (q.length < 2) return [];
+    const has = (...v) => v.filter(Boolean).join(' ').toLowerCase().includes(q); const out = [];
+    const add = (g, t, s, href) => out.push({ g, t, s, href });
+    st.live().filter(x => !x.practice || App.state.practice).forEach(x => { if (has(x.number, st.displayNumber(x), x.client.name, x.client.company, x.client.email, x.heading, x.siteAddress, x.clientPo)) add(x.job ? 'Jobs' : 'Estimates', `${st.displayNumber(x)} ${x.client.company || x.client.name || ''}`, [x.heading, x.siteAddress, x.job ? App.stageLabel(x.job.stage) : x.status].filter(Boolean).join(', '), x.job ? `#/job/${x.id}` : `#/e/${x.id}`); });
+    (st.data.battens || []).filter(x => !x.deleted).forEach(x => { if (has(x.number, x.client.name, x.client.company, x.lot, x.address)) add('Battens', `${x.number} ${x.client.company || x.client.name || ''}`, [x.lot, x.address, x.status].filter(Boolean).join(', '), x.status === 'accepted' ? `#/battens/job/${x.id}` : `#/battens/e/${x.id}`); });
+    (st.data.customers || []).filter(c => !c.deleted && (c.regular || c.batten)).forEach(c => { if (has(c.company, c.name, c.email, c.phone)) add('Clients', c.company || c.name, [c.company ? c.name : '', c.phone, c.batten && !c.regular ? 'batten client' : ''].filter(Boolean).join(', '), c.regular ? `#/clients/${c.id}` : `#/battens/client/${c.id}`); });
+    if (App.Sales && App.Sales.S.loadedAt) App.Sales.S.contacts.forEach(c => { const p = App.Sales.primary(c); if (has(c.company, p.name, p.email, p.phone, c.region)) add('Sales contacts', c.company || p.name, [p.name, p.phone, c.region].filter(Boolean).join(', '), `#/sales/c/${c.id}`); });
+    if (App.Coil && App.Coil.S.loadedAt) App.Coil.S.coils.forEach(c => { if (has(c.coilId, c.supplier, (c.jobs || []).join(' '))) add('Coils', c.coilId, `${c.width} × ${App.Coil.bmt(c.thickness)}, ${c.status}`, '#/coils'); });
+    (st.data.incidents || []).filter(i => !i.deleted).forEach(i => { if (has(i.ref, i.type, i.what, i.who, i.where, i.title)) add('Health and safety', `${i.ref} ${i.type}`, (i.title || i.what || '').slice(0, 60), '#/safety/incidents'); });
+    (st.data.assets || []).filter(x => !x.deleted).forEach(x => { if (has(x.name, x.reg)) add('Maintenance', x.name, x.reg || (x.kind === 'vehicle' ? 'Vehicle' : 'Machine'), `#/maintenance/${x.kind === 'vehicle' ? 'vehicles' : 'machines'}`); });
+    (st.data.detailing || []).filter(x => !x.deleted).forEach(x => { if (has(x.desc, (x.files || []).map(f => f.name).join(' '))) add('Detailing', x.desc, (x.files || []).map(f => f.label).join(', '), `#/detailing/${x.id}`); });
+    return out;
+  };
+  App.renderSearch = () => {
+    const i = document.getElementById('top-q'); let box = document.getElementById('top-res'); if (!i) return;
+    const res = App.searchAll(i.value);
+    if (!box) { box = document.createElement('div'); box.id = 'top-res'; box.setAttribute('role', 'listbox'); i.closest('.top-search').appendChild(box); }
+    if (!i.value.trim() || i.value.trim().length < 2) { box.hidden = true; return; }
+    const groups = {}; res.forEach(r => (groups[r.g] = groups[r.g] || []).push(r));
+    box.hidden = false;
+    box.innerHTML = res.length ? Object.entries(groups).map(([g, list]) => `<div class="tr-g"><p>${e(g)}</p>${list.slice(0, 6).map(r => `<a href="${r.href}" class="tr-i" data-act="searchGo"><b>${e(r.t)}</b><span>${e(r.s || '')}</span></a>`).join('')}${list.length > 6 ? `<span class="hint">and ${list.length - 6} more</span>` : ''}</div>`).join('') : '<p class="hint" style="padding:12px">Nothing found.</p>';
+  };
+  A.topSearch = App.debounce(() => App.renderSearch(), 180);
+  A.newGo = el => { const act = el.dataset.a; location.hash = el.dataset.h; setTimeout(() => A[act] && A[act](), 250); };
+  A.searchGo = () => { const i = document.getElementById('top-q'); if (i) i.value = ''; const b = document.getElementById('top-res'); if (b) b.hidden = true; };
+  document.addEventListener('keydown', ev => {
+    if (ev.target && ev.target.id === 'top-q') {
+      if (ev.key === 'Enter') { const f = document.querySelector('#top-res .tr-i'); if (f) { ev.preventDefault(); location.hash = f.getAttribute('href'); A.searchGo(); } }
+      if (ev.key === 'Escape') A.searchGo();
+      if (ev.key === 'ArrowDown') { const f = document.querySelector('#top-res .tr-i'); if (f) { ev.preventDefault(); f.focus(); } }
+    } else if (ev.target && ev.target.classList && ev.target.classList.contains('tr-i') && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')) {
+      const all = [...document.querySelectorAll('#top-res .tr-i')]; const k = all.indexOf(ev.target) + (ev.key === 'ArrowDown' ? 1 : -1); ev.preventDefault(); if (all[k]) all[k].focus(); else if (k < 0) document.getElementById('top-q').focus();
+    }
+  });
+  document.addEventListener('click', ev => { if (!ev.target.closest || !ev.target.closest('.top-search')) { const b = document.getElementById('top-res'); if (b) b.hidden = true; } });
 
   App.render = (keepScroll = false) => {
     if (!st.data) return;
@@ -65,7 +101,7 @@
       const est = st.newEstimate(r.a === 'ft' ? 'ft' : 'general', !!App.state.practice);
       location.replace(`#/e/${est.id}`); return;
     }
-    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'], sales: ['sales', r.a, r.b], pricing: ['pricing'], detailing: ['detailing', r.a], safety: ['safety', r.a], maintenance: ['maintenance', r.a], clients: ['clients', r.a], battens: ['battens', r.a, r.b] }[r.name] || ['home'];
+    const v = { '': ['home'], e: ['estimate', r.a, r.b], job: ['job', r.a, r.b], tracker: ['tracker'], followups: ['followups'], production: ['production'], calendar: ['calendar'], dashboard: ['dashboard'], map: ['map'], settings: ['settings', r.a], help: ['help'], coils: ['coils', r.a], fasteners: ['fasteners'], sales: ['sales', r.a, r.b], pricing: ['pricing'], detailing: ['detailing', r.a], safety: ['safety', r.a], maintenance: ['maintenance', r.a], clients: ['clients', r.a], battens: ['battens', r.a, r.b], driver: ['driver', r.a, r.b] }[r.name] || ['home'];
     if (['tracker', 'followups', 'production', 'calendar', 'dashboard', 'map', 'help', 'home', 'coils', 'fasteners', 'sales', 'detailing', 'safety', 'maintenance', 'clients', 'battens'].includes(v[0])) App.cur = null;
     try { html = App.views[v[0]](...v.slice(1)); mount = App.views[v[0]].mount; }
     catch (er) { console.error(er); html = `<div class="empty"><h2>Something went wrong on this page</h2><p>${e(er.message)}</p><a class="btn" href="#/">Go home</a></div>`; }
@@ -163,6 +199,7 @@
     if (App.ManualFU) App.ManualFU.needs().forEach(a => needs.push(a));
     if (App.Battens) App.Battens.needs().forEach(a => needs.push(a));
     if (App.Finish) App.Finish.needs().forEach(a => needs.push(a));
+    if (App.Care && st.data) { const left = App.Care.setupLeft(); const me = S().users.find(u => (u.email || '').toLowerCase() === (st.me().email || '').toLowerCase()); if (left && (!me || me.admin !== false) && !App.Dismiss.is('setup-' + left)) needs.push({ lvl: 'blue', t: `Setup: ${left} thing${left === 1 ? '' : 's'} still to fill in`, s: 'So everything in the app works properly', b: 'Open checklist', href: '#/settings/setup' }); }
     if (SLs) SLs.needs().forEach(a => needs.push(a));
     App.Jobs.attention().forEach(a => needs.push(a));
     if (App.Safety) App.Safety.needs().forEach(x => needs.push(x));
@@ -182,7 +219,7 @@
       ${kpi('Accepted this month', App.money(sum(wonM), 0), target ? `${Math.round(sum(wonM) / target * 100)}% of ${App.money(target, 0)} target` : `${wonM.length} job${wonM.length === 1 ? '' : 's'} won`)}
       ${kpi('In production', `${live.length} job${live.length === 1 ? '' : 's'}`, `${App.money(live.reduce((t, j) => t + st.totals(j).sub, 0), 0)} of work`)}
       ${salesOn ? kpi('Sales follow-ups due', ssm.today.length + ssm.overdue.length, ssm.overdue.length ? `${ssm.overdue.length} overdue` : 'none overdue') : kpi('Deliveries this week', dels.length, `${new Set(dels.map(d => d.j.id)).size} job(s), ${(dels.reduce((t, d) => t + kgOf(d.j, d.l.frameIds), 0) / 1000).toFixed(1)} t`)}
-      ${salesOn ? kpi('Hot leads', ssm.hot.length, `${ssm.newM.length} new this month`) : kpi('Deposits outstanding', App.money(depOut.reduce((t, j) => t + st.totals(j).deposit, 0), 0), `${depOut.length} job${depOut.length === 1 ? '' : 's'}`)}
+      ${salesOn ? kpi('Hot leads', ssm.hot.length, `${ssm.newM.length} new this month`) : (App.Money ? kpi('Owed to us', App.money(App.Money.total(), 0), (() => { const o = App.Money.owed(); const ov = o.filter(x => x.overdue).length; return `${o.length} invoice${o.length === 1 ? '' : 's'}${ov ? `, ${ov} overdue` : ''}`; })()) : kpi('Deposits outstanding', App.money(depOut.reduce((t, j) => t + st.totals(j).deposit, 0), 0), `${depOut.length} job${depOut.length === 1 ? '' : 's'}`))}
       ${kpi('Coils in stock', cs ? cs.ins.length : '-', cs ? C.kg(cs.ins.reduce((t, c) => t + c.weight, 0)) : '<a href="#/coils">Sign in to coils</a>')}
     </div>
     <section class="hero hero-sm">
@@ -225,8 +262,30 @@
   const STAGE_ORDER = j => App.STAGES.findIndex(s => s.value === j.job.stage);
   A.homeScan = () => { if (App.Coil && App.Coil.ready()) App.Coil.openScan('out'); else location.hash = '#/coils'; };
 
+  App.WHATSNEW = [
+    ['21', 'Nov 2026', ['<b>Deliveries</b> in the menu: the driver\'s day on a phone, with photos, the client signing on screen, and the signed docket emailed for you to send.', '<b>Compliance</b> tab on every job: PS1, mill certificates, NASH statement, detailing, signed dockets and warranty, bundled into one PDF.', '<b>Undo</b> after deleting or changing something.', '<b>+ New</b> button at the top of every page.', 'This What\'s new list and the How to guides.', 'Easier to use on a phone.']],
+    ['20', 'Nov 2026', ['Batten estimates: Accept online, open tracking and follow-ups.', 'Accept online picks up acceptances within a couple of minutes, with a Test button.', 'Search everything from the top bar.', 'Setup checklist in Settings.', 'Mark invoices paid, Owed to us, and overdue reminders.', 'Battens on the Dashboard.']],
+    ['19', 'Nov 2026', ['Extras tab on jobs, Job complete, and Send final invoice to CH Accounts.']],
+    ['18', 'Nov 2026', ['Batten invoices attach the estimate with extras in red. Raking rates per m². Batten back-costing.']],
+    ['17', 'Nov 2026', ['Batten Job complete and Send invoice to CH Accounts.']],
+    ['16', 'Nov 2026', ['An ✕ to hide suggestions and warnings.']],
+    ['15', 'Nov 2026', ['Back button, new version banner, restore from a backup, archive finished years, Report a problem.']]
+  ];
+  App.HOWTO = [
+    ['Send an estimate', ['Home, pick General or Full frame and truss (or + New at the top).', 'Fill in the client, job and what\'s included, then Workings for the price.', 'Click <b>Email estimate</b>, check the email, and Send. The client gets an Accept button.', 'Follow-ups are drafted for you on the Follow-ups page.']],
+    ['When a job is accepted', ['It shows on Needs you (or click Mark accepted on the estimate).', 'Click <b>Email accounts about the deposit</b> on the job.', 'Book the manufacture date, frames and deliveries on the job.', 'Mark the deposit paid when it comes in (Dashboard, Owed to us).']],
+    ['Deliver a load (drivers)', ['Open <b>Deliveries</b> on your phone.', 'Tap the load, then Directions.', 'Take photos of the drop, get the client to sign, and tap <b>Mark delivered</b>.', 'Check the email to the client and tap Send.']],
+    ['Finish a job and get it invoiced', ['Add any extras on the job\'s Extras tab as they happen.', 'On the Overview, click <b>Job complete</b>.', 'Click <b>Send final invoice to CH Accounts</b>, tick each check, then review and send the email.', 'Mark it paid when the money comes in.']],
+    ['Send a compliance pack', ['Open the job, Compliance tab.', 'Upload the PS1 and mill certificates (the rest fills in itself).', 'Click <b>Email to the builder</b>, check it and Send.']],
+    ['Battens, from estimate to invoice', ['Battens, + New batten estimate. Tick the options; the price works itself out.', 'Email it. Follow-ups and Accept online work like the main estimates.', 'When accepted: Print measure sheet, attach plans, assign coils.', 'Type the measure into the Machine file and Download CSV.', 'Job complete, then Send invoice to CH Accounts.']],
+    ['Report an incident', ['+ New, Incident or near miss.', 'Fill it in, add photos, and answer the notifiable question.', 'Add the corrective actions, and close it when they\'re done.']],
+    ['Add a team member', ['Settings, Team, Add a person (their Google email).', 'Pick Admin or Staff. The Drive folder is shared with them.', 'They open the app and sign in with Google.']],
+    ['Fix a mistake', ['Use <b>Undo</b> straight after deleting something.', 'Deleted estimates and contacts can be restored in Settings, Google and data, Recently deleted (60 days).', 'For a bigger problem: Settings, Google and data, Restore from a backup.']]
+  ];
   App.views.help = () => `<div class="page-head"><div><h1>Help</h1><p class="sub">How the app fits together.${App.Care && App.Care.version ? ` Version ${App.Care.version}.` : ''}</p></div><div class="head-actions"><button class="btn" data-act="reportProblem">Report a problem</button></div></div>
     <div class="help">
+    <section class="card"><h3>What's new</h3><div class="whatsnew">${App.WHATSNEW.map(([v, d, items]) => `<details ${v === App.WHATSNEW[0][0] ? 'open' : ''}><summary><b>Version ${v}</b> <span class="hint">${d}</span></summary><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></details>`).join('')}</div></section>
+    <section class="card"><h3>How to…</h3><div class="howto">${App.HOWTO.map(([t, steps]) => `<details><summary><b>${t}</b></summary><ol>${steps.map(s2 => `<li>${s2}</li>`).join('')}</ol></details>`).join('')}</div></section>
     <section class="card"><h3>Making an estimate</h3><ol>
       <li>On the home screen, pick <b>General</b> or <b>Full frame and truss</b>. The number and date fill in automatically.</li>
       <li>Fill in the client, project, sections and gauges, and what's included. Untick delivery if it's not included.</li>

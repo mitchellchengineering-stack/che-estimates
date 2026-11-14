@@ -694,7 +694,9 @@
     const est = cur(); const revs = st.data.estimates.filter(x => !x.deleted && (x.parentId === (est.parentId || est.id) || x.id === (est.parentId || est.id))).length;
     const root = est.parentId ? st.get(est.parentId) || est : est;
     if (!(await App.confirm(`Delete ${st.displayNumber(root)}?`, `${revs > 1 ? `This deletes it and its ${revs - 1} revision${revs > 2 ? 's' : ''}. ` : ''}It's removed from the tracker, follow-ups, production and reports, and the number ${root.number} won't be used again. Its files stay in Google Drive. You can restore it from Settings, Google and data, for 60 days.`, 'Delete it'))) return;
-    App.Est.deleteEsts([root]); location.hash = '#/tracker'; App.toast(`${root.number} deleted`);
+    const before = st.data.estimates.filter(x => !x.deleted).map(x => x.id);
+    App.Est.deleteEsts([root]); location.hash = '#/tracker';
+    App.undo(`${root.number} deleted`, () => st.data.estimates.filter(x => x.deleted && before.includes(x.id)).forEach(x => { x.deleted = false; x.deletedAt = null; st.touch(x); if (x.job && App.Jobs && App.Jobs.syncCal) App.Jobs.syncCal(x); }));
   };
   A.estArchive = () => { cur().archived = !cur().archived; st.log(cur(), cur().archived ? 'Archived' : 'Unarchived'); save(); };
   A.estRevise = async () => {

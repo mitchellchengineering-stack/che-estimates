@@ -10,7 +10,65 @@
     is: key => !!(st.data && mine()[key]),
     x: (keys, label = 'Dismiss') => `<button class="dismiss-x" data-act="dismiss" data-k="${App.esc([].concat(keys).join('|'))}" aria-label="${App.esc(label)}" title="${App.esc(label)}">✕</button>`
   };
-  A.dismiss = el => { el.dataset.k.split('|').forEach(k => { if (k) mine()[k] = Date.now(); }); S().updatedAt = Date.now(); st.touch(S()); st.save(); App.refresh(); };
+  A.dismiss = el => { const ks = el.dataset.k.split('|').filter(Boolean); ks.forEach(k => { mine()[k] = Date.now(); }); S().updatedAt = Date.now(); st.touch(S()); st.save(); App.refresh();
+    App.undo('Hidden', () => { ks.forEach(k => { delete mine()[k]; }); S().updatedAt = Date.now(); st.touch(S()); }); };
+
+  /* ---------- Setup checklist: everything the app needs filled in ---------- */
+  K.setup = () => {
+    const s = S(); const n = v => App.num(v) > 0; const b = s.battens || {}; const r = b.rates || {}; const co = b.costs || {};
+    const L = [
+      ['Google', [
+        ['Signed in to Google Drive', st.mode === 'drive', '#/settings/google', 'Sign in so everything saves and syncs'],
+        ['Shared folder set in config.js', !!(window.CHE_CONFIG && CHE_CONFIG.DRIVE_FOLDER_ID), '', 'Add DRIVE_FOLDER_ID to config.js on GitHub'],
+        ['Team members added', (s.users || []).length > 1, '#/settings/team', 'Add Davin and anyone else'],
+        ['A backup in the last 2 days', !!(s.backup && s.backup.last && Date.now() - s.backup.last < 2 * 864e5), '#/settings/google', 'Click Back up now']]],
+      ['Estimates and emails', [
+        ['Company phone and email', !!(s.company && s.company.phone && s.company.email), '#/settings/company', ''],
+        ['Accounts email (deposits and final invoices)', !!(s.emails && s.emails.accountsEmail), '#/settings/emails', ''],
+        ['Helper web app link (open tracking and Accept online)', !!(s.emails && s.emails.trackingUrl), '#/settings/emails', 'Deploy the helper as a web app and paste its link'],
+        ['Terms and conditions', (s.tcs || []).filter(Boolean).length > 0, '#/settings/tcs', '']]],
+      ['Pricing and delivery', [
+        ['Steel price on every machine', (s.machines || []).length > 0 && (s.machines || []).every(m => n(m.pricePerTonne)), '#/pricing', 'Set the steel $/tonne'],
+        ['Delivery prices', ((s.delivery || {}).prices || []).some(row => (row || []).some(n)), '#/settings/delivery', ''],
+        ['Truck weight limit', n((s.delivery || {}).truckMaxKg), '#/settings/delivery', '']]],
+      ['Coils, fasteners and sales', [
+        ['Coil tracker connected', !!(s.coils && s.coils.apiUrl), '#/settings/stock', ''],
+        ['Fastener sheet connected', !!(s.fasteners && s.fasteners.sheetId), '#/settings/stock', ''],
+        ['Who gets fastener emails', !!(s.fasteners && s.fasteners.lowEmails), '#/settings/stock', ''],
+        ['Sales tracker connected', !!(s.sales && s.sales.apiUrl && s.sales.passcode), '#/settings/sales', '']]],
+      ['Battens', [
+        ['Batten rates per m²', n(r.r600), '#/settings/battens', 'Or leave blank and type prices'],
+        ['Raking and flashing rates per m²', n(r.rakingPerM2) && n(r.flashingsPerM2), '#/settings/battens', ''],
+        ['Who batten invoices go to', !!((b.invoice || {}).to || (s.emails || {}).accountsEmail), '#/settings/battens', ''],
+        ['Back-costing costs (channel, clips, screws, labour)', n(co.channelPerM) && n(co.clipEach) && n(co.screwEach) && n(co.labourPerHour), '#/settings/battens', ''],
+        ['Batten terms and conditions', (b.tcs || []).some(t => t.t || t.d), '#/settings/battens', '']]],
+      ['Health, safety and maintenance', [
+        ['Your team in People and training', (st.data.staff || []).filter(p => !p.deleted).length > 0, '#/safety/people', ''],
+        ['Hours and km entered for machines and vehicles', (st.data.assets || []).filter(a => !a.deleted && a.unit).every(a => n(a.meter)), '#/maintenance/vehicles', 'So service reminders work']]]
+    ];
+    return L;
+  };
+  K.setupLeft = () => K.setup().reduce((t, g) => t + g[1].filter(i => !i[1]).length, 0);
+  App.Set = App.Set || {};
+  K.setupView = () => {
+    const L = K.setup(); const left = K.setupLeft(); const total = L.reduce((t, g) => t + g[1].length, 0);
+    return `<section class="card"><h3>Setup checklist</h3><p class="hint">${left ? `${total - left} of ${total} done. Everything the app needs filled in, so nothing quietly doesn't work.` : 'All done. Everything the app needs is set up.'}</p>
+      <div class="setup-bar"><i style="width:${Math.round((total - left) / total * 100)}%"></i></div>
+      ${L.map(([g, items]) => `<h4 style="margin:18px 0 6px">${e(g)}</h4>${items.map(([l, ok, href, tip]) => `<div class="setup-row ${ok ? 'ok' : ''}"><span class="mk">${ok ? '✓' : ''}</span><span><b>${e(l)}</b>${!ok && tip ? `<span class="hint" style="display:block">${e(tip)}</span>` : ''}</span>${!ok && href ? `<a class="btn small" href="${href}">Set it up</a>` : ''}</div>`).join('')}`).join('')}
+      <div class="row-btns" style="margin-top:16px"><button class="btn small" data-act="acceptTest">Test Accept online</button></div></section>`;
+  };
+
+  /* ---------- Undo: a few seconds to take something back ---------- */
+  App.undo = (msg, fn, ms = 9000) => {
+    const old = document.getElementById('undo-bar'); if (old) old.remove();
+    const d = document.createElement('div'); d.id = 'undo-bar'; d.setAttribute('role', 'status');
+    d.innerHTML = `<span>${e(msg)}</span><button class="btn small primary" type="button">Undo</button>`;
+    document.body.appendChild(d);
+    const t = setTimeout(() => d.remove(), ms);
+    d.querySelector('button').onclick = () => { clearTimeout(t); d.remove(); try { fn(); st.save(); App.refresh(); App.toast('Undone'); } catch (er) { App.toast('Couldn\'t undo: ' + er.message, 'err'); } };
+  };
+  /* snapshot a record, so undo can put it back exactly as it was */
+  App.undoRecord = (msg, rec) => { const snap = JSON.parse(JSON.stringify(rec)); App.undo(msg, () => { Object.keys(rec).forEach(k => delete rec[k]); Object.assign(rec, snap); st.touch(rec); }); };
 
   /* ---------- Back button ---------- */
   K.steps = 0;

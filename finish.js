@@ -42,7 +42,7 @@
       if (!x) { est.job.extras.push(o); st.log(est, `Extra added: ${d}${o.amount ? ' (' + App.money(o.amount) + ')' : ''}`); }
       save(est); App.closeModal(); App.refresh();
     };
-    if (x) m.querySelector('#fx-x').onclick = () => { x.deleted = true; save(est); App.closeModal(); App.refresh(); };
+    if (x) m.querySelector('#fx-x').onclick = () => { x.deleted = true; save(est); App.closeModal(); App.refresh(); App.undo('Extra removed', () => { x.deleted = false; st.touch(est); }); };
   };
 
   /* ---------- Job complete ---------- */
@@ -51,7 +51,7 @@
     if (j.stage !== 'complete') return `<section class="card fin-card"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><span><b>Job finished?</b><span class="hint" style="display:block">Marking it complete moves it to Completed jobs, saves a job summary to Google Drive, then you can send the final invoice to CH Accounts.${F.extras(est).length ? ` It has ${F.extras(est).length} extra${F.extras(est).length === 1 ? '' : 's'} to charge.` : ''}</span></span><button class="btn dark" data-act="jobComplete">Job complete</button></div></section>`;
     const f = j.final || {};
     return `<section class="card fin-card done"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><span><b>Job completed</b> ${j.completedAt ? App.fmtStamp(j.completedAt) : ''}${j.completedBy ? ', ' + e(j.completedBy) : ''}<span class="hint" style="display:block">${j.summaryLink ? `<a href="${e(j.summaryLink)}" target="_blank" rel="noopener">Job summary</a> saved in Completed jobs.` : 'In Completed jobs.'}</span></span>
-      ${f.sentAt ? `<span class="row" style="flex:none"><span class="tag ok">Final invoice sent ${App.fmtStamp(f.sentAt)}</span><button class="btn small ghost" data-act="finalInvoice">Send again</button></span>` : '<button class="btn primary" data-act="finalInvoice">Send final invoice to CH Accounts</button>'}</div></section>`;
+      ${f.sentAt ? `<span class="row" style="flex:none"><span class="tag ok">Final invoice sent ${App.fmtStamp(f.sentAt)}</span>${f.paidAt ? `<span class="tag ok">Paid ${App.fmtShort(App.iso(new Date(f.paidAt)))}</span>` : `<button class="btn small primary" data-act="markPaid" data-id="${est.id}" data-k="final">Mark paid</button>`}<button class="btn small ghost" data-act="finalInvoice">Send again</button></span>` : '<button class="btn primary" data-act="finalInvoice">Send final invoice to CH Accounts</button>'}</div></section>`;
   };
   A.jobComplete = async () => {
     const est = cur();
@@ -130,7 +130,39 @@
     const list = App.Jobs.list().filter(j => j.job.stage === 'complete').sort((a, b) => (b.job.completedAt || 0) - (a.job.completedAt || 0));
     return `<section class="card"><h3>Completed jobs</h3>${list.length ? `<div class="table-scroll"><table class="wtable"><thead><tr><th>Job</th><th>Client</th><th>Site</th><th>Completed</th><th>Final invoice</th><th></th></tr></thead><tbody>
       ${list.map(j => `<tr><td><b>${e(st.displayNumber(j))}</b><div class="hint">${e(j.heading || '')}</div></td><td>${e(j.client.company || j.client.name)}</td><td class="small">${e(j.siteAddress || '')}</td><td class="small">${j.job.completedAt ? App.fmtShort(App.iso(new Date(j.job.completedAt))) : ''}</td>
-        <td>${j.job.final && j.job.final.sentAt ? `<span class="tag ok">Sent ${App.fmtShort(App.iso(new Date(j.job.final.sentAt)))}</span>` : `<button class="btn small primary" data-act="finalInvoice" data-id="${j.id}">Send final invoice</button>`}</td><td class="r"><a class="btn small" href="#/job/${j.id}">Open</a></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Jobs go here when you click Job complete on them.</p>'}</section>`;
+        <td>${j.job.final && j.job.final.sentAt ? `<span class="tag ok">Sent ${App.fmtShort(App.iso(new Date(j.job.final.sentAt)))}</span> ${j.job.final.paidAt ? '<span class="tag ok">Paid</span>' : `<button class="btn small" data-act="markPaid" data-id="${j.id}" data-k="final">Mark paid</button>`}` : `<button class="btn small primary" data-act="finalInvoice" data-id="${j.id}">Send final invoice</button>`}</td><td class="r"><a class="btn small" href="#/job/${j.id}">Open</a></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Jobs go here when you click Job complete on them.</p>'}</section>`;
   };
-  F.needs = () => (App.Jobs ? App.Jobs.list() : []).filter(j => j.job.stage === 'complete' && !(j.job.final && j.job.final.sentAt)).map(j => ({ lvl: 'amber', t: `${st.displayNumber(j)}: send the final invoice to CH Accounts`, s: j.client.company || j.client.name, b: 'Open', href: `#/job/${j.id}` }));
+  /* ---------- Money in: what's owed, and when it's overdue ---------- */
+  const M = App.Money = {};
+  M.terms = () => App.num((S().payments || {}).termsDays) || 20;
+  M.owed = () => {
+    const out = []; const jobs = App.Jobs ? App.Jobs.list() : []; const due = at => App.addDays(App.iso(new Date(at)), M.terms());
+    jobs.forEach(j => {
+      const d = j.job.deposit || {};
+      if (!d.notRequired && !d.received && d.invoiceRequested) out.push({ kind: 'Deposit', id: j.id, ref: st.displayNumber(j), who: j.client.company || j.client.name, amount: F.deposit(j).amount, since: d.invoiceRequested, due: due(d.invoiceRequested), href: `#/job/${j.id}`, pay: 'dep' });
+      const f = j.job.final || {};
+      if (f.sentAt && !f.paidAt) out.push({ kind: 'Final invoice', id: j.id, ref: st.displayNumber(j), who: j.client.company || j.client.name, amount: F.balance(j, f).balance, since: f.sentAt, due: due(f.sentAt), href: `#/job/${j.id}`, pay: 'final' });
+    });
+    (st.data.battens || []).filter(x => !x.deleted && x.job && x.job.invoiceSentAt && !x.job.paidAt).forEach(x => out.push({ kind: 'Battens', id: x.id, ref: x.number, who: x.client.company || x.client.name, amount: (App.Battens ? App.Battens.calc(x).total : 0) + (x.job.extras || []).reduce((t, z) => t + App.num(z.amount), 0), since: x.job.invoiceSentAt, due: due(x.job.invoiceSentAt), href: `#/battens/job/${x.id}`, pay: 'batten' }));
+    out.forEach(o => { o.overdue = o.due < App.today(); });
+    return out.sort((a, b) => String(a.due).localeCompare(String(b.due)));
+  };
+  M.total = () => M.owed().reduce((t, o) => t + o.amount, 0);
+  M.section = () => {
+    const list = M.owed(); const over = list.filter(o => o.overdue);
+    return `<section class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap"><h3 style="margin:0">Owed to us</h3><span class="hint">Invoices asked for and not marked paid. Overdue after ${M.terms()} days (Settings, Estimates).</span></div>
+      <div class="stat-strip" style="margin:12px 0"><div><span>Owed to us (excl GST)</span><b>${App.money(M.total(), 0)}</b></div><div><span>Overdue</span><b class="${over.length ? 'neg' : ''}">${App.money(over.reduce((t, o) => t + o.amount, 0), 0)}</b></div><div><span>Invoices</span><b>${list.length}</b></div></div>
+      ${list.length ? `<div class="table-scroll"><table class="wtable"><thead><tr><th>Job</th><th>Client</th><th>What</th><th class="r">Amount excl GST</th><th>Asked for</th><th>Due</th><th></th></tr></thead><tbody>${list.map(o => `<tr><td><a href="${o.href}"><b>${e(o.ref)}</b></a></td><td>${e(o.who || '')}</td><td>${e(o.kind)}</td><td class="r">${App.money(o.amount)}</td><td class="small">${App.fmtShort(App.iso(new Date(o.since)))}</td><td>${o.overdue ? `<span class="tag bad">Overdue ${App.daysBetween(o.due, App.today())} days</span>` : `<span class="small">${App.fmtShort(o.due)}</span>`}</td><td class="r"><button class="btn small" data-act="markPaid" data-id="${o.id}" data-k="${o.pay}">Mark paid</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Nothing owed. Everything invoiced has been marked paid.</p>'}</section>`;
+  };
+  A.markPaid = async el => {
+    const k = el.dataset.k; const id = el.dataset.id;
+    const date = await App.prompt('Date it was paid', App.today()); if (date === null || date === undefined) return;
+    const when = Date.parse(date) ? Date.parse(date) : Date.now();
+    if (k === 'batten') { const x = (st.data.battens || []).find(z => z.id === id); x.job.paidAt = when; (x.activity = x.activity || []).push({ at: Date.now(), by: st.me().name, text: 'Marked paid' }); st.touch(x); }
+    else { const est = st.get(id); if (k === 'dep') { est.job.deposit.received = true; est.job.deposit.receivedAt = when; st.log(est, 'Deposit marked paid'); } else { est.job.final.paidAt = when; st.log(est, 'Final invoice marked paid'); } st.touch(est); }
+    st.save(); App.refresh();
+    App.undo('Marked paid', () => { if (k === 'batten') { const x = (st.data.battens || []).find(z => z.id === id); x.job.paidAt = null; st.touch(x); } else { const est = st.get(id); if (k === 'dep') { est.job.deposit.received = false; est.job.deposit.receivedAt = null; } else est.job.final.paidAt = null; st.touch(est); } });
+  };
+  F.needs = () => (App.Jobs ? App.Jobs.list() : []).filter(j => j.job.stage === 'complete' && !(j.job.final && j.job.final.sentAt)).map(j => ({ lvl: 'amber', t: `${st.displayNumber(j)}: send the final invoice to CH Accounts`, s: j.client.company || j.client.name, b: 'Open', href: `#/job/${j.id}` }))
+    .concat(M.owed().filter(o => o.overdue).map(o => ({ lvl: 'red', t: `${o.ref}: ${o.kind.toLowerCase()} overdue ${App.daysBetween(o.due, App.today())} days`, s: `${o.who || ''}, ${App.money(o.amount)}. Mark it paid, or chase it`, b: 'Open', href: o.href })));
 })();

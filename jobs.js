@@ -326,8 +326,8 @@
     const est = st.get(id);
     if (!est || !est.job) return `<div class="empty"><h2>That job doesn't exist yet</h2><p>Jobs appear once an estimate is accepted.</p><a class="btn" href="#/production">Production board</a></div>`;
     App.cur = est;
-    const tabs = [['overview', 'Overview'], ['estimate', 'Estimate'], ['variations', 'Variations'], ['extras', 'Extras'], ['workings', 'Workings'], ['files', 'Plans and files'], ['deliveries', 'Frames and deliveries'], ['coils', 'Coils'], ['checklist', 'Factory checklist'], ['backcost', 'Back-costing'], ['pos', 'Purchase orders']];
-    const body = { overview: App.Jobs.overview, estimate: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/preview">Open estimate</a></div><div class="doc-preview" id="job-doc"></div>`, workings: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/workings">Open workings</a></div><div class="doc-preview" id="job-doc"></div>`, files: App.Jobs.filesTab, deliveries: App.Jobs.delTab, checklist: App.Jobs.checkTab, backcost: App.Jobs.backTab, pos: App.Jobs.poTab, coils: x => App.Coil.jobTab(x), variations: x => App.Var.tab(x), extras: x => App.Finish.extrasTab(x) }[tab] || App.Jobs.overview;
+    const tabs = [['overview', 'Overview'], ['estimate', 'Estimate'], ['variations', 'Variations'], ['extras', 'Extras'], ['workings', 'Workings'], ['files', 'Plans and files'], ['deliveries', 'Frames and deliveries'], ['coils', 'Coils'], ['checklist', 'Factory checklist'], ['compliance', 'Compliance'], ['backcost', 'Back-costing'], ['pos', 'Purchase orders']];
+    const body = { overview: App.Jobs.overview, estimate: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/preview">Open estimate</a></div><div class="doc-preview" id="job-doc"></div>`, workings: x => `<div class="row-btns" style="margin:0 0 14px"><a class="btn" href="#/e/${x.id}/workings">Open workings</a></div><div class="doc-preview" id="job-doc"></div>`, files: App.Jobs.filesTab, deliveries: App.Jobs.delTab, checklist: App.Jobs.checkTab, backcost: App.Jobs.backTab, pos: App.Jobs.poTab, coils: x => App.Coil.jobTab(x), variations: x => App.Var.tab(x), extras: x => App.Finish.extrasTab(x), compliance: x => App.Driver.compTab(x) }[tab] || App.Jobs.overview;
     return `<div class="page-head"><div><div class="crumbs"><a href="#/production">Production</a></div>
       <h1>${e(st.displayNumber(est))} <span class="pill stage">${e(App.stageLabel(est.job.stage))}</span></h1>
       <p class="sub">${e(est.client.company || est.client.name)}, ${e(est.heading)}${est.siteAddress ? ', ' + e(est.siteAddress) : ''}</p></div>
@@ -344,8 +344,10 @@
   A.jobDelete = async () => {
     const est = App.cur;
     if (!(await App.confirm(`Delete job ${st.displayNumber(est)}?`, `It comes off the production board, calendar, coils, reports and the estimate tracker, and the number ${est.number} won't be used again. Its files stay in Google Drive. You can restore it from Settings, Google and data, for 60 days.`, 'Delete job'))) return;
+    const before = st.data.estimates.filter(x => !x.deleted).map(x => x.id);
     App.Est.deleteEsts([est.parentId ? st.get(est.parentId) || est : est], 'Job deleted');
-    location.hash = '#/production'; App.toast(`Job ${est.number} deleted`);
+    location.hash = '#/production';
+    App.undo(`Job ${est.number} deleted`, () => st.data.estimates.filter(x => x.deleted && before.includes(x.id)).forEach(x => { x.deleted = false; x.deletedAt = null; st.touch(x); if (x.job && App.Jobs.syncCal) { x.job.cal = {}; App.Jobs.syncCal(x); } }));
   };
   App.views.job.mount = (id, tab) => { const est = st.get(id); if (!est) return; if (tab === 'files') App.Jobs.loadFiles(est); if (tab === 'estimate') App.Docs.ensureImage(est).then(() => App.Docs.fill(document.getElementById('job-doc'), App.Docs.estimate(est))); if (tab === 'workings') App.Docs.fill(document.getElementById('job-doc'), App.Docs.workings(est)); if (tab === 'coils') { if (!App.Coil.S.token) App.Coil.mountLogin(); else if (!App.Coil.S.loadedAt) App.Coil.load().then(() => App.refresh()).catch(er => App.toast(er.message, 'err')); } };
 

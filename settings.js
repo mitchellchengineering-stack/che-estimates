@@ -1,7 +1,7 @@
 /* Settings */
 (() => {
   const e = App.esc, S = () => App.store.s(), st = App.store, A = App.actions;
-  const SECTIONS = [['company', 'Company'], ['team', 'Team'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['battens', 'Battens'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['sales', 'Sales'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
+  const SECTIONS = [['setup', 'Setup checklist'], ['company', 'Company'], ['team', 'Team'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['battens', 'Battens'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['sales', 'Sales'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
   const inp = (path, val, attrs = '') => `<input data-bind="${path}" value="${e(val ?? '')}" ${attrs}>`;
   const list = (path, items, ph, rows = 1) => `<div class="list-ed">${items.map((it, i) => `<div class="row">${rows > 1 ? `<textarea data-bind="${path}.${i}" rows="${rows}" placeholder="${e(ph)}">${e(it)}</textarea>` : `<input data-bind="${path}.${i}" value="${e(it)}" placeholder="${e(ph)}">`}
     <span class="move"><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="-1" aria-label="Move up">↑</button><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="1" aria-label="Move down">↓</button></span>
@@ -22,6 +22,9 @@
     <div class="grid2">${App.field('Company name', inp('company.name', s.company.name))}${App.field('Address', inp('company.address', s.company.address))}
     ${App.field('Phone', inp('company.phone', s.company.phone))}${App.field('Email', inp('company.email', s.company.email))}
     ${App.field('Website', inp('company.website', s.company.website))}${App.field('Footer line', inp('company.ccaLine', s.company.ccaLine))}</div></section>
+    <section class="card"><h3>Compliance pack</h3><p class="hint">Used in every job's compliance pack.</p>
+      ${App.field('Warranty wording (goes on the pack\'s cover page)', `<textarea data-bind="company.warranty" rows="5" placeholder="e.g. CH Engineering Ltd warrants the steel frames supplied for {heading} at {site_address}…">${App.esc(s.company.warranty || '')}</textarea>`)}
+      <div class="fld"><span>NASH member statement (PDF)</span><div class="row">${s.company.nashFile ? `<span class="tag ok">${App.esc(s.company.nashName || 'Uploaded')}</span>` : '<span class="tag warn">Not uploaded</span>'}<label class="btn small">Upload<input type="file" accept="application/pdf" hidden data-act-change="nashUp"></label></div></div></section>
 `;
 
   /* ---------- Team: who can use the app, and the shared Drive folder ---------- */
@@ -62,8 +65,9 @@
     <section class="card"><h3>Morning brief</h3><p class="hint">The first time you open the app after this time each day, it walks you through today, what to follow up and anything that needs a look. You can always open it again from the home page.</p>
       <div class="row" style="flex-wrap:wrap;gap:18px">${App.field('Show it from', `<select data-bind="brief.hour" data-type="num" style="width:auto">${[6, 7, 8, 9, 10, 11, 12].map(h => App.opt(h, h < 12 ? h + 'am' : '12pm', (s.brief || {}).hour ?? 9)).join('')}</select>`)}
       <label class="check"><input type="checkbox" data-bind="brief.off" ${(s.brief || {}).off ? 'checked' : ''}> Turn the morning brief off</label></div></section>
+    <section class="card"><h3>Payments</h3><p class="hint">Invoices asked for through the app (deposits, final invoices, battens) show as owed until you mark them paid, and as overdue after this many days.</p>${App.field('Overdue after (days)', inp('payments.termsDays', (s.payments || {}).termsDays, 'data-type="num" inputmode="numeric" style="max-width:120px"'))}</section>
     <section class="card"><h3>Accept online</h3><label class="check"><input type="checkbox" data-bind="estimate.acceptOnline" ${s.estimate.acceptOnline !== false ? 'checked' : ''}> Add an "Accept this estimate" button to estimate emails</label>
-      <p class="hint">${s.emails.trackingUrl ? 'The client accepts on a page run by your helper script, and the job is accepted in the app automatically.' : 'Needs the helper web app link in Settings, Emails (the same one used for open tracking).'}</p></section>
+      <p class="hint">${s.emails.trackingUrl ? 'The client accepts on a page run by your helper script, and the job is accepted in the app within a couple of minutes.' : 'Needs the helper web app link in Settings, Emails (the same one used for open tracking).'}</p><button class="btn small" data-act="acceptTest">Test Accept online</button></section>
     <section class="card"><h3>Revisions</h3><label class="check"><input type="checkbox" data-bind="estimate.revRed" ${s.estimate.revRed !== false ? 'checked' : ''}> On Rev 1, Rev 2 and so on, show anything new or changed since the previous version in red</label><p class="hint">Anything taken out is simply left off. A short line at the top tells the client what the red means.</p></section>
     <section class="card"><h3>Numbering</h3>
       <div class="grid3">${App.field('Prefix', inp('numbering.prefix', s.numbering.prefix))}
@@ -89,6 +93,8 @@
   };
 
   /* ---------- Battens ---------- */
+  App.Set.setup = () => App.Care ? App.Care.setupView() : '';
+  A.nashUp = async el => { const f = el.files[0]; if (!f) return; if (st.mode !== 'drive') return App.toast('Connect Google first', 'err'); try { const up = await App.G.uploadOrReplace({ name: 'NASH member statement.pdf', parent: await App.G.folder('Compliance', st.rootId), blob: f, mime: 'application/pdf' }); S().company.nashFile = up.id; S().company.nashName = f.name; save(); App.refresh(); } catch (er) { App.toast(er.message, 'err'); } };
   App.Set.battens = s => {
     const b = s.battens; const yy = App.today().slice(2, 4);
     const coilOpts = (path, val) => `<select data-bind="${path}">${['135|0.55', '135|0.75', '135|0.95', '120|0.55', '150|0.55'].concat([val]).filter((v, i, a) => v && a.indexOf(v) === i).map(v => App.opt(v, v.replace('|', ' mm × ') + ' BMT', val)).join('')}</select>`;
@@ -98,6 +104,8 @@
     return `<section class="card"><h3>Batten estimates</h3><div class="grid3">${App.field('Numbers start with', inp('battens.prefix', b.prefix))}${App.field(`Next number this year (${yy})`, `<input data-bind="battens.startSeq.${yy}" data-type="num" value="${e((b.startSeq || {})[yy] || '')}" inputmode="numeric">`)}${App.field('Valid for (days)', inp('battens.validDays', b.validDays, 'data-type="num" inputmode="numeric"'))}</div>
       <p class="hint">The next number goes up by itself. Set it here once so it carries on from your current batten quotes (e.g. 58 makes the next one ${e(b.prefix || 'CHIB')}${yy}058).</p>
       ${App.field('Profile line on the estimate', inp('battens.profileLabel', b.profileLabel))}</section>
+    <section class="card"><h3>Batten follow-ups</h3><p class="hint">After a batten estimate is emailed, a follow-up is drafted for you to review and send (Follow-ups page, Needs you). The wording is in Settings, Emails.</p>
+      <div class="row" style="flex-wrap:wrap;gap:16px"><label class="check"><input type="checkbox" data-bind="battens.followup.on" ${(b.followup || {}).on !== false ? 'checked' : ''}> Remind me to follow up</label>${App.field('First follow-up after (days)', inp('battens.followup.days1', (b.followup || {}).days1, 'data-type="num" inputmode="numeric" style="max-width:120px"'))}${App.field('Second follow-up after another (days)', inp('battens.followup.days2', (b.followup || {}).days2, 'data-type="num" inputmode="numeric" style="max-width:120px"'))}</div></section>
     <section class="card"><h3>Batten rates</h3><p class="hint">Used to work out the price from the house area. Raking and flashings use the raked ceiling area on the estimate (or the house area if it's left blank). Leave them blank if you'd rather type the price on each estimate.</p>
       <div class="grid3">${App.field('Per m² at 600 centres ($)', inp('battens.rates.r600', b.rates.r600, 'data-type="num" inputmode="decimal"'))}${App.field('Per m² at 400 centres ($)', inp('battens.rates.r400', b.rates.r400, 'data-type="num" inputmode="decimal"'))}${App.field('Acoustic clips, extra per m² ($)', inp('battens.rates.acousticPerM2', b.rates.acousticPerM2, 'data-type="num" inputmode="decimal"'))}
       ${App.field('Raking ceilings, extra per m² ($)', inp('battens.rates.rakingPerM2', b.rates.rakingPerM2, 'data-type="num" inputmode="decimal"'))}${App.field('Raked ceiling flashings, per m² ($)', inp('battens.rates.flashingsPerM2', b.rates.flashingsPerM2, 'data-type="num" inputmode="decimal"'))}${App.field('Supply only, % of the full rate', inp('battens.rates.supplyOnlyPct', b.rates.supplyOnlyPct, 'data-type="num" inputmode="decimal"'))}</div></section>
@@ -209,7 +217,7 @@
   };
 
   App.Set.emails = s => {
-    const em = s.emails; const names = { estimate: 'Sending an estimate', fu1: 'First follow-up (1 week)', fu2: 'Second follow-up (2 weeks)', expiry: 'Expiry reminder (3 days before)', thanks: 'Thank you on acceptance', accounts: 'To accounts on acceptance', delivery: 'Delivery booked', review: 'Review request', po: 'Purchase order', manual: 'Your own follow-ups (use {about} and {first_name})', final: 'Final invoice to accounts (job complete)' };
+    const em = s.emails; const names = { estimate: 'Sending an estimate', fu1: 'First follow-up (1 week)', fu2: 'Second follow-up (2 weeks)', expiry: 'Expiry reminder (3 days before)', thanks: 'Thank you on acceptance', accounts: 'To accounts on acceptance', delivery: 'Delivery booked', review: 'Review request', po: 'Purchase order', manual: 'Your own follow-ups (use {about} and {first_name})', final: 'Final invoice to accounts (job complete)', batten_fu: 'Batten estimate follow-up (use {number}, {address}, {first_name}, {expiry})' };
     return `<section class="card"><h3>Email settings</h3><div class="grid2">
       ${App.field('Accounts email (for deposit invoices in Xero)', inp('emails.accountsEmail', em.accountsEmail, 'type="email"'))}
       ${App.field('Helper web app link (for open tracking and online acceptance)', inp('emails.trackingUrl', em.trackingUrl, 'placeholder="https://script.google.com/macros/s/…/exec"'))}</div>

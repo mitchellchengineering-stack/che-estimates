@@ -7,6 +7,12 @@
   const AC = App.Accept = {
     url() { return S().emails && S().emails.trackingUrl; },
     on() { return !!AC.url() && S().estimate.acceptOnline !== false; },
+    battenLink(x) {
+      if (!AC.on()) return '';
+      if (!x.acceptToken) x.acceptToken = token();
+      x.acceptInfo = { total: App.Battens ? App.Battens.calc(x).total : App.num(x.price) }; st.touch(x); st.save();
+      return `${AC.url()}?a=accept&e=${encodeURIComponent(x.id)}&t=${x.acceptToken}`;
+    },
     link(est) {
       if (!AC.on()) return '';
       if (!est.acceptToken) { est.acceptToken = token(); st.touch(est); st.save(); }
@@ -19,6 +25,12 @@
     apply(list) {
       let changed = false;
       (list || []).forEach(r => {
+        const bx = !st.get(r.estId) && (st.data.battens || []).find(x => x.id === r.estId);
+        if (bx && r.type === 'accept') {
+          if (bx.onlineAccept && bx.onlineAccept.at === r.at) return; if (bx.status === 'accepted') return;
+          bx.status = 'accepted'; bx.acceptedAt = App.iso(new Date(r.at)); bx.clientPo = r.po || ''; bx.job = bx.job || { stage: 'accepted', plans: [], machine: { rows: [], frameset: bx.address || '' }, rooms: 30 };
+          bx.onlineAccept = { name: r.name, po: r.po, at: r.at, ack: false }; (bx.activity = bx.activity || []).push({ at: Date.now(), by: r.name, text: `Accepted online. PO/reference: ${r.po || '-'}` }); st.touch(bx); changed = true; return;
+        }
         const est = st.get(r.estId); if (!est) return;
         if (r.type === 'accept') {
           if (est.onlineAccept && est.onlineAccept.at === r.at) return;
@@ -39,6 +51,7 @@
     },
     needs() {
       const out = [];
+      (st.data.battens || []).filter(x => !x.deleted && x.onlineAccept && !x.onlineAccept.ack).forEach(x => out.push({ lvl: 'blue', t: `${x.onlineAccept.name} accepted ${x.number} online`, s: `Batten job, PO ${x.onlineAccept.po || '-'}`, b: 'Open job', href: `#/battens/job/${x.id}` }));
       st.live().forEach(x => {
         if (x.onlineAccept && !x.onlineAccept.ack) out.push({ lvl: 'blue', t: `${x.onlineAccept.name} accepted ${st.displayNumber(x)} online`, s: `PO ${x.onlineAccept.po || '-'}. Check the deposit and email accounts`, b: 'Open job', href: `#/job/${x.id}` });
         (x.variations || []).filter(v => v.online && !v.ack && !v.deleted).forEach(v => out.push({ lvl: v.status === 'approved' ? 'blue' : 'amber', t: `${v.approvedBy} ${v.status} V${v.n} on ${st.displayNumber(x)}`, s: v.title, b: 'Open', href: `#/job/${x.id}/variations` }));
@@ -52,6 +65,16 @@
     const o = est.onlineAccept; if (!o || o.ack) return '';
     return `<div class="banner accept-banner"><span><b>${e(o.name)} accepted this online</b> on ${App.fmtStamp(o.at)}, PO/reference <b>${e(o.po || '-')}</b>. The deposit is set to ${S().estimate.depositPct}%: change it below if this job is different.</span>
       <span class="row-btns" style="margin:0">${S().emails.accountsEmail ? '<button class="btn small primary" data-act="accountsEmail">Email accounts</button>' : ''}${est.client.email ? '<button class="btn small" data-act="acceptThanks">Send thank-you email</button>' : ''}<button class="btn small ghost" data-act="acceptAck">Done</button></span></div>`;
+  };
+  /* is the helper set up for Accept online? opens its test page */
+  A.acceptTest = async () => {
+    const u = AC.url(); if (!u) return App.toast('Add the helper web app link first (Settings, Emails)', 'err', 6000);
+    App.toast('Checking the helper…');
+    try {
+      const r = await fetch(`${u}?a=ping&t=${Date.now()}`); const txt = await r.text(); let j = null; try { j = JSON.parse(txt); } catch (er) { /* old helper */ }
+      if (j && j.acceptOnline) App.modal('Accept online is ready', `<p>Your helper is set up${j.version ? ` (version ${e(j.version)})` : ''}${j.folder ? ' and can see the app\'s data' : ', but it <b>can\'t find the app\'s data file</b>. Check the FOLDER_ID in the helper'}.</p><p class="hint">When a client accepts, it shows on Needs you within a couple of minutes.</p>`, {});
+      else App.modal('The helper needs updating', `<p>The link works, but the helper is an older version without Accept online.</p><ol><li>Open your <b>CH Estimates helper</b> at script.google.com.</li><li>Replace everything in Code.gs with <b>Code-Mitchell.gs</b> and Save.</li><li><b>Deploy &gt; Manage deployments</b>, the pencil, <b>Version: New version</b>, <b>Deploy</b>.</li><li>Check the deployment says <b>Execute as: Me</b> and <b>Who has access: Anyone</b>.</li></ol>`, {});
+    } catch (er) { App.modal('Couldn\'t reach the helper', `<p>The browser couldn't open the helper link. Check the link in Settings, Emails ends in <b>/exec</b>, and that the deployment's <b>Who has access</b> is <b>Anyone</b> (not "Anyone with a Google account").</p><p class="hint">${e(er.message)}</p>`, {}); }
   };
   A.acceptAck = () => { const est = App.cur; est.onlineAccept.ack = true; st.touch(est); st.save(); App.refresh(); };
   A.acceptThanks = () => { const est = App.cur; const t = App.mail.tpl('thanks', est); App.mail.compose({ title: 'Thank-you email', est, kind: 'thanks', to: est.client.email, subject: t.subject, body: t.body, onSent: () => { st.log(est, 'Thank-you email sent'); st.save(); } }); };

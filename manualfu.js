@@ -32,7 +32,7 @@
       <p class="hint" style="margin-top:-6px">It reads "Just following up on …", so write it to finish that sentence.</p>
       ${users.length > 1 ? App.field('Whose follow-up', `<select id="mf-o">${users.map(u => App.opt(u.email, u.name, x.owner || st.me().email)).join('')}</select>`) : ''}`,
       { wide: true, actions: `${x.id ? '<button class="btn ghost danger" id="mf-del">Delete</button>' : ''}<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="mf-ok">${x.id ? 'Save' : 'Add follow-up'}</button>` });
-    if (x.id) m.querySelector('#mf-del').onclick = () => { x.deleted = true; st.touch(x); st.save(); App.closeModal(); App.refresh(); };
+    if (x.id) m.querySelector('#mf-del').onclick = () => { x.deleted = true; st.touch(x); st.save(); App.closeModal(); App.refresh(); App.undo('Follow-up deleted', () => { x.deleted = false; st.touch(x); }); };
     m.querySelector('#mf-ok').onclick = () => {
       const v = id => m.querySelector(id).value.trim(); if (!v('#mf-n') || !v('#mf-a')) return App.toast('Add their name and what it\'s about', 'err');
       Object.assign(x, { name: v('#mf-n'), email: v('#mf-e'), company: v('#mf-c'), due: v('#mf-d') || App.addDays(App.today(), 7), about: v('#mf-a'), owner: m.querySelector('#mf-o') ? m.querySelector('#mf-o').value : st.me().email, status: 'open' });

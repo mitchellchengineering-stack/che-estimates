@@ -98,6 +98,7 @@ App.defaultSettings = () => ({
     widths: [92, 135, 166, 182], thicknesses: [0.55, 0.75, 0.95, 1.15], defaultGrade: 'G550', lowPerGauge: 1
   },
   brief: { hour: 9, off: false },
+  payments: { termsDays: 20 },
   battens: {
     prefix: 'CHIB', startSeq: { '26': 58 }, validDays: 30, profileLabel: '30 mm top hat, 0.55 BMT', kgPerM: 0.59,
     rates: { r600: '', r400: '', acousticPerM2: '', rakingPerM2: '', flashingsPerM2: '', supplyOnlyPct: 100 },
@@ -105,6 +106,7 @@ App.defaultSettings = () => ({
     acousticLine: 'Acoustic clips to suit', flashingLine: 'Custom angle flashings for raked ceiling',
     tcs: [{ t: 'Validity', d: 'This estimate is valid for 30 days from the date of issue.' }, { t: 'Pricing', d: 'Pricing is based on the plans supplied. Final lengths are confirmed by our site measure.' }, { t: 'Site readiness', d: 'The ceiling framing must be complete and ready, with clear access, before we start.' }, { t: 'Payment', d: 'Payment is due on completion unless agreed otherwise in writing.' }],
     coils: { batten: '135|0.55', purlin: '135|0.75' }, clips: { batten: 'Batten clips', acoustic: 'Acoustic clips' },
+    followup: { on: true, days1: 7, days2: 7 },
     invoice: { to: '', name: '', cc: '', subject: '{number}, {lot}, {address}, {company}', body: 'Hi {name},\n\nPlease invoice this job out:\n\nJob: {number}\nCompany: {company}\nLot: {lot}\nAddress: {address}\nExtras added during the job:\n{extras}\n\nThe estimate is attached, with any extras added in red.\n\nCheers,' },
     costs: { battenPerM: '', channelPerM: '', clipEach: '', screwEach: '', labourPerHour: '' }
   },
@@ -124,6 +126,7 @@ App.defaultSettings = () => ({
       fu1: { subject: 'Following up: Estimate {number}, {heading}', body: 'Hi {first_name},\n\nI hope you\'re well. I just wanted to check in on the estimate we sent through last week for {heading}. If you have any questions, or if anything needs adjusting, I\'m happy to go through it with you. Just reply to this email or give me a call.\n\nCheers,' },
       fu2: { subject: 'Estimate {number}, {heading}', body: 'Hi {first_name},\n\nJust one last check-in on our estimate for {heading}. Your pricing is held until {expiry}, so if you\'d like to go ahead, or if your plans have changed and you\'d like us to revise anything, just let me know.\n\nIf now isn\'t the right time, no worries at all, and I won\'t keep following up. We\'d love to help whenever you\'re ready.\n\nCheers,' },
       expiry: { subject: 'Your pricing is held until {expiry}: Estimate {number}', body: 'Hi {first_name},\n\nJust a quick heads-up that the pricing on our estimate for {heading} is held until {expiry}. If you\'d like to lock it in, just reply to this email and we\'ll get things moving.\n\nCheers,' },
+      batten_fu: { subject: 'Following up: ceiling battens, {address}', body: 'Hi {first_name},\n\nJust following up on our estimate {number} for the ceiling battens at {address}. Have you had a chance to look it over? Happy to answer any questions.\n\nIt\'s valid until {expiry}, and you can accept it online with the button below.\n\nCheers,' },
       final: { subject: 'Job complete: {number}, {client_name}. Final invoice needed', body: 'Hi,\n\n{number} for {client_name} ({heading}) is complete. Please invoice the balance:\n\nClient PO / reference: {po_ref}{company_line}\nSite: {site_address}\n\nJob total (excl GST): {job_total}\n{variation_lines}{extra_lines}Already invoiced at the start: {deposit_line}\n\nBalance to invoice (excl GST): {balance}\n\nThe estimate and a summary are attached (extras in red).\n\nCheers,' },
       manual: { subject: 'Following up: {about}', body: 'Hi {first_name},\n\nJust following up on {about}. Have you had a chance to have a look? Happy to answer any questions, or to price it up for you.\n\nCheers,' },
       thanks: { subject: 'Thanks for going ahead: {number}, {heading}', body: 'Hi {first_name},\n\nThanks for choosing us for {heading}. Here\'s what happens next:\n\n1. We\'ll send through the {deposit_pct}% deposit invoice ({deposit}).\n2. Once the deposit and final plans are in, we\'ll start detailing.\n3. We\'ll confirm manufacture and delivery dates with you.\n\nIf you have any questions along the way, just reply to this email.\n\nCheers,' },
@@ -175,6 +178,8 @@ App.store = {
     /* batten invoices: the old wording had prices in it */
     if (d.settings.battens && d.settings.battens.invoice && /\{price\}|\{total\}/.test(d.settings.battens.invoice.body || '')) d.settings.battens.invoice.body = App.defaultSettings().battens.invoice.body;
     if (d.settings.battens && !d.settings.battens.costs) d.settings.battens.costs = {};
+    if (!d.settings.payments) d.settings.payments = { termsDays: 20 };
+    if (d.settings.battens && !d.settings.battens.followup) d.settings.battens.followup = { on: true, days1: 7, days2: 7 };
     /* new email templates get their default wording if they're missing */
     if (d.settings.emails && d.settings.emails.templates) { const dt = App.defaultSettings().emails.templates; Object.keys(dt).forEach(k => { if (!d.settings.emails.templates[k]) d.settings.emails.templates[k] = dt[k]; }); }
     if (d.settings.fasteners && /marked to reorder/.test(d.settings.fasteners.monthlyIntro || '')) d.settings.fasteners.monthlyIntro = 'Here\'s our fastener stock at the end of {month}, and what we used this month.';
@@ -258,6 +263,9 @@ App.store = {
   },
   async poll() {
     if (this.mode !== 'drive' || this.saving || this.pending || !App.G.signedIn()) return;
+    /* client answers (Accept online), email opens and follow-up logs are written by the helper, not the app,
+       so check them every couple of minutes even when nothing else has changed */
+    if (Date.now() - (this.logsAt || 0) > 110000) { this.logsAt = Date.now(); try { await this.loadLogs(); } catch (e) { /* quiet */ } }
     try {
       const m = await App.G.meta(this.fileId);
       if (new Date(m.modifiedTime).getTime() <= this.lastSync) return;
@@ -294,8 +302,11 @@ App.store = {
     const so = {};
     this.logs.filter(l => l.kind === 'open' && String(l.estId || '').startsWith('sm:')).forEach(l => { const k = l.estId.slice(3); const o = so[k] = so[k] || { first: l.at, last: l.at, n: 0 }; o.n++; o.first = Math.min(o.first, l.at); o.last = Math.max(o.last, l.at); });
     (this.data.salesMail || []).forEach(m => { const o = so[m.id]; if (o && (m.opens !== o.n || m.openedAt !== o.first)) { m.openedAt = o.first; m.lastOpenAt = o.last; m.opens = o.n; this.touch(m); changed = true; } });
+    const bo = {};
+    this.logs.filter(l => l.kind === 'open' && String(l.estId || '').startsWith('bt:')).forEach(l => { const k = l.estId.slice(3); const o = bo[k] = bo[k] || { first: l.at, n: 0 }; o.n++; o.first = Math.min(o.first, l.at); });
+    (this.data.battens || []).forEach(x => { const o = bo[x.id]; if (o && (x.opens !== o.n)) { x.openedAt = o.first; x.opens = o.n; this.touch(x); changed = true; } });
     this.logs.forEach(l => {
-      if (String(l.estId || '').startsWith('sm:')) return;
+      if (String(l.estId || '').startsWith('sm:') || String(l.estId || '').startsWith('bt:')) return;
       const est = this.get(l.estId); if (!est) return;
       est.followups = est.followups || {};
       if (l.kind === 'open') { if (!est.openedAt || l.at < est.openedAt) { est.openedAt = l.at; } return; }
