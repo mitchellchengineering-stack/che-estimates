@@ -1,6 +1,13 @@
 # CH Engineering Estimates
 
-## Latest update (version 17): batten jobs complete, and invoices to CH Accounts
+## Latest update (version 18): batten invoices with the estimate attached, raking rates per m², back-costing
+
+1. **Upload all the files** (including version.json) and commit.
+2. **Settings > Battens:** set raking and flashing rates per m², and your Back-costing costs (channel, clips, screws, labour).
+
+---
+
+## Earlier update (version 17): batten jobs complete, and invoices to CH Accounts
 
 1. **Upload all the files** (including version.json) and commit.
 2. **Settings > Battens > Batten invoices:** add who invoices go to, their name, and check the email wording.

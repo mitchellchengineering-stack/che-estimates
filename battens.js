@@ -34,8 +34,9 @@
       const r = cfg().rates || {}; const a = App.num(x.houseArea); const lines = [];
       if (a) lines.push([`Battens, ${fmt(a)} m² at ${x.centres} crs${x.install ? '' : ' (supply only)'}`, a * App.num(x.centres === 400 ? r.r400 : r.r600) * (x.install ? 1 : (App.num(r.supplyOnlyPct) || 100) / 100)]);
       if (x.acoustic && a) lines.push(['Acoustic clips', a * App.num(r.acousticPerM2)]);
-      if (x.raking && x.flashings) lines.push(['Raked ceiling flashings', App.num(r.flashings)]);
-      if (x.raking) lines.push(['Raking ceilings', App.num(r.raking)]);
+      const ra = App.num(x.rakingArea) || a;
+      if (x.raking) lines.push([`Raking ceilings, ${fmt(ra)} m²`, ra * App.num(r.rakingPerM2)]);
+      if (x.raking && x.flashings) lines.push([`Raked ceiling flashings, ${fmt(ra)} m²`, ra * App.num(r.flashingsPerM2)]);
       const calc = lines.filter(l => l[1]).reduce((t, l) => t + l[1], 0);
       const total = x.priceManual ? App.num(x.price) : calc;
       return { lines: lines.filter(l => l[1]), calc, total, gst: total * 0.15, incl: total * 1.15 };
@@ -145,7 +146,7 @@
         <div class="grid2">${fc('Company', 'company')}${fc('Contact name', 'name')}${fc('Email', 'email', 'type="email"')}${fc('Phone', 'phone', 'type="tel"')}${f('Lot number', 'lot', 'placeholder="e.g. Lot 35"')}${f('Address', 'address')}</div></section>
       <section class="card"><h3>The house</h3><div class="grid2">${f('House area (m²)', 'houseArea', 'inputmode="decimal"')}${App.field('Stud height', `<select data-bk="stud" data-act-change="batSet">${['2.4', '2.55', '2.7', '3.0', 'Other'].map(v => App.opt(v, v === 'Other' ? 'Other' : v + ' m', x.stud)).join('')}</select>`)}</div></section>
       <section class="card"><h3>What we're doing</h3><div class="fld"><span>Batten centres</span><div class="seg">${[600, 400].map(v => `<label><input type="radio" name="bc" value="${v}" data-bk="centres" data-act-change="batSet" ${x.centres === v ? 'checked' : ''}><span>${v} mm centres</span></label>`).join('')}</div></div>
-        <div class="bat-ticks">${tick('install', 'Supply and install', 'Untick for supply only')}${tick('acoustic', 'Acoustic clips', 'Rarely used')}${tick('raking', 'Raking ceilings', 'Some ceilings are raked')}${x.raking ? tick('flashings', 'Custom angle flashings for the raked ceiling', 'We make and supply them') : ''}${tick('perimeter', 'Perimeter channel')}${tick('delivery', 'Delivery to site')}</div></section>
+        <div class="bat-ticks">${tick('install', 'Supply and install', 'Untick for supply only')}${tick('acoustic', 'Acoustic clips', 'Rarely used')}${tick('raking', 'Raking ceilings', 'Some ceilings are raked')}${x.raking ? tick('flashings', 'Custom angle flashings for the raked ceiling', 'We make and supply them') : ''}${x.raking ? `<label class="fld" style="margin:0">Raked ceiling area (m²)<input data-bk="rakingArea" value="${e(x.rakingArea || '')}" inputmode="decimal" placeholder="${e(x.houseArea || '')} (the house area if blank)" data-act-change="batSet"></label>` : ''}${tick('perimeter', 'Perimeter channel')}${tick('delivery', 'Delivery to site')}</div></section>
       <section class="card"><h3>Notes on the estimate</h3><textarea data-bk="notes" rows="3" data-act-change="batSet" placeholder="Optional">${e(x.notes || '')}</textarea></section>
     </div><aside class="bat-side">
       <section class="bat-price"><p class="k">${e(x.number)}</p><p class="l">Total excl GST</p><p class="v">${App.money(p.total)}</p>
@@ -220,21 +221,26 @@
   A.bcNewEst = el => { const c = (st.data.customers || []).find(z => z.id === el.dataset.id); const x = B.create({ clientId: c.id, client: { name: c.name || '', company: c.company || '', email: c.email || '', phone: c.phone || '' } }); location.hash = `#/battens/e/${x.id}`; };
 
   /* ---------- the estimate PDF ---------- */
-  B.spec = x => {
+  B.spec = (x, opts = {}) => {
     const D = App.Docs; const p = B.calc(x); const c = cfg();
+    const extras = opts.withExtras ? (x.job && x.job.extras || []).filter(z => z.desc || App.num(z.amount)) : [];
+    const exTot = extras.reduce((s2, z) => s2 + App.num(z.amount), 0);
     const meta = [['Date', App.fmtLong(x.date)], ['Valid until', App.fmtLong(x.expiry)], ['Prepared by', x.createdBy || st.me().name]];
     const card = (l, v, sub) => `<div class="card"><p class="l">${e(l)}</p><p class="v">${e(v || '-')}</p>${sub ? `<p class="s">${e(sub)}</p>` : ''}</div>`;
     const stats = [['House area', x.houseArea ? fmt(x.houseArea) + ' m²' : ''], ['Stud height', x.stud && x.stud !== 'Other' ? x.stud + ' m' : ''], ['Batten centres', x.centres + ' mm'], [x.install ? 'Supply and install' : 'Supply only', c.profileLabel || '30 mm top hat, 0.55 BMT']].filter(s2 => s2[1]);
     const flow = [
       D.blk(`<div class="cards3">${card('Client', B.who(x), x.client.company && x.client.name ? x.client.name : '')}${card('Lot', x.lot)}${card('Site', x.address)}</div>`),
       D.blk(`${D.h2('The job')}<div class="stats" style="grid-template-columns:repeat(${stats.length - 1},minmax(0,1fr)) 1.6fr">${stats.map((s2, i) => `<div class="stat${i === stats.length - 1 ? ' prof' : ''}"><p class="l">${e(s2[0])}</p><p class="v">${e(s2[1])}</p></div>`).join('')}</div>`),
-      D.blk(`${D.h2('What\'s included')}<div class="inclist" data-items>${B.included(x).map(t => `<div class="inc">${e(t)}</div>`).join('')}</div>`)
+      D.blk(`${D.h2('What\'s included')}<div class="inclist" data-items>${B.included(x).map(t => `<div class="inc">${e(t)}</div>`).join('')}${extras.map(z => `<div class="inc rv">${e(z.desc)}${App.num(z.amount) ? ` <span class="ex-amt">${App.money(z.amount)}</span>` : ''} <span class="ex-tag">Added during the job</span></div>`).join('')}</div>`)
     ];
     const notes = x.notes ? `<div class="note"><p class="t">Notes</p><p>${App.textToHtml(x.notes)}</p></div>` : '';
-    const price = `<div class="price"><p class="lbl">Total excl GST</p><p class="big">${App.money(p.total)}</p><div class="gstl"><span>GST 15%</span><b>${App.money(p.gst)}</b></div><div class="gstl"><span>Total incl GST</span><b>${App.money(p.incl)}</b></div></div>`;
+    const tot = p.total + exTot;
+    const price = extras.length ? `<div class="price"><div class="gstl first"><span>Original estimate</span><b>${App.money(p.total)}</b></div><div class="gstl rvx"><span>Extras during the job</span><b>${App.money(exTot)}</b></div><p class="lbl" style="margin-top:6px">Total excl GST</p><p class="big">${App.money(tot)}</p><div class="gstl"><span>GST 15%</span><b>${App.money(tot * 0.15)}</b></div><div class="gstl"><span>Total incl GST</span><b>${App.money(tot * 1.15)}</b></div></div>`
+      : `<div class="price"><p class="lbl">Total excl GST</p><p class="big">${App.money(p.total)}</p><div class="gstl"><span>GST 15%</span><b>${App.money(p.gst)}</b></div><div class="gstl"><span>Total incl GST</span><b>${App.money(p.incl)}</b></div></div>`;
     const bottom = `<div class="bottom"><div class="left">${notes}<p class="nl">${e(S().estimate.notListed)}</p></div>${price}</div>`;
     const tcs = (c.tcs || []).filter(t => t.t || t.d);
     const after = tcs.length ? [`<section class="blk tcs"><h1 class="h1" data-title="Terms and conditions">Terms and conditions</h1><ol data-items>${tcs.map(t => `<li>${t.t ? `<b>${e(t.t)}.</b> ` : ''}${e(t.d || '')}</li>`).join('')}</ol></section>`] : [];
+    if (extras.length) meta.push(['Extras added', App.fmtLong(App.today())]);
     return { batten: true, head: D.fullHead('Ceiling batten estimate', x.number, meta), run: D.runHead(x.number, B.name(x)), foot: D.footFull(true, true), flow, bottom, after, number: x.number };
   };
   A.batPdf = () => { const x = cur(); App.Docs.preview(`${x.number} batten estimate`, B.spec(x), { pdfName: `${x.number} - ${B.name(x)} Ceiling Battens.pdf` }); };
@@ -279,6 +285,7 @@
         <section class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Plans</h3><label class="btn small">+ Attach plans<input type="file" accept="application/pdf,image/*" multiple hidden data-act-change="batPlans"></label></div>
           ${(j.plans || []).length ? j.plans.map((p, i) => `<div class="du-row" style="margin-top:8px"><b class="pdf">PDF</b><span>${e(p.name)}<span class="hint" style="display:block">Added ${App.fmtShort(App.iso(new Date(p.at)))}${p.by ? ' by ' + e(p.by) : ''}</span></span>${p.link ? `<a class="btn small" href="${e(p.link)}" target="_blank" rel="noopener">Open</a>` : ''}<button class="icon-btn" data-act="batPlanDel" data-i="${i}" aria-label="Remove">✕</button></div>`).join('') : '<p class="hint">No plans attached yet. They\'re saved in Google Drive under this job, so the boys know where to find them.</p>'}</section>
         <section class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Machine file</h3>${filled.length ? `<span class="tag ok">${filled.length} rooms filled in</span>` : ''}</div><p>Type in what the boys measured, room by room, and download the CSV for the machine.</p><a class="btn primary" href="#/battens/mf/${x.id}">Open machine file</a>${mf.madeAt ? `<span class="hint" style="margin-left:10px">Last made ${App.fmtStamp(mf.madeAt)}</span>` : ''}</section>
+        ${B.backcostCard(x)}
         <section class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Coils on this job</h3>${App.Coil && App.Coil.ready() ? '<button class="btn small" data-act="batCoilAdd">+ Assign a coil</button>' : ''}</div>
           ${!App.Coil || !App.Coil.ready() ? '<p class="hint">Sign in on the Coils page to assign coils.</p>' : !coils ? '<p class="hint">Loading coils…</p>' : coils.length ? `<table class="wtable"><tbody>${coils.map(c => `<tr><td><b>${e(c.coilId)}</b></td><td>${c.width} × ${App.Coil.bmt(c.thickness)}</td><td class="r">${App.Coil.kg(c.weight)}</td><td>${e(c.status)}</td><td class="r"><button class="icon-btn" data-act="coilUnassign" data-key="${e(c.key)}" data-job="${e(x.number)}" aria-label="Take off the job">✕</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">No coils assigned yet.</p>'}</section>
       </div><aside class="bat-side"><section class="card"><h3>Details</h3>${[['Client', B.who(x)], ['Contact', [x.client.name, x.client.phone].filter(Boolean).join(', ')], ['Lot', x.lot], ['Address', x.address], ['House area', x.houseArea ? fmt(x.houseArea) + ' m²' : ''], ['Batten centres', x.centres + ' mm'], ['Raking ceilings', x.raking ? (x.flashings ? 'Yes, with custom angle flashings' : 'Yes') : 'No'], ['Acoustic clips', x.acoustic ? 'Yes' : 'No'], ['Stud height', x.stud ? x.stud + ' m' : ''], ['Price', App.money(B.calc(x).total) + ' excl GST']].filter(r => r[1]).map(r => `<div class="kvr2"><span class="hint">${r[0]}</span><b>${e(r[1])}</b></div>`).join('')}</section>
@@ -300,6 +307,39 @@
     Object.assign(ev, { title: `Batten install ${x.number}, ${B.name(x)}`, date: x.job.installDate, notes: `${B.who(x)}${x.houseArea ? ', ' + fmt(x.houseArea) + ' m²' : ''}`, deleted: false });
     st.touch(ev); if (App.Jobs && App.Jobs.syncEvent) App.Jobs.syncEvent(ev);
   };
+  /* ---------- Back-costing: what the job actually cost against what it was sold for ---------- */
+  B.battenCost = () => { const c = cfg().costs || {}; if (App.num(c.battenPerM)) return App.num(c.battenPerM); const p = App.Pricing && App.Pricing.get('Top hat batten|0.55'); return p ? p.cost : 0; };
+  B.backcost = x => {
+    const j = x.job; const bc = j.backcost = j.backcost || {}; const c = cfg().costs || {}; const t = B.mfTotals(x);
+    const lm = bc.lm !== undefined && bc.lm !== '' ? App.num(bc.lm) : t.lm;
+    const rows = [
+      ['batten', `Battens, ${lm.toFixed(1)} LM`, lm * B.battenCost(), bc.lm !== undefined && bc.lm !== '' ? 'typed in' : t.lm ? 'from the machine file' : 'no machine file yet'],
+      ['channel', `Perimeter channel, ${fmt(bc.channel || 0)} m`, App.num(bc.channel) * App.num(c.channelPerM), ''],
+      ['clips', `Clips, ${fmt(bc.clips || 0)}`, App.num(bc.clips) * App.num(c.clipEach), ''],
+      ['screws', `Screws, ${fmt(bc.screws || 0)}`, App.num(bc.screws) * App.num(c.screwEach), ''],
+      ['labour', `Labour, ${App.num(bc.hours) || 0} hours`, App.num(bc.hours) * App.num(c.labourPerHour), '']
+    ].concat((bc.other || []).filter(o => o.desc || App.num(o.amount)).map(o => ['other', o.desc || 'Other', App.num(o.amount), '']));
+    const cost = rows.reduce((s2, r) => s2 + r[2], 0);
+    const sold = B.calc(x).total + (j.extras || []).reduce((s2, z) => s2 + App.num(z.amount), 0);
+    return { rows, cost, sold, profit: sold - cost, margin: sold ? (sold - cost) / sold : 0, lm };
+  };
+  B.backcostCard = x => {
+    const j = x.job; const bc = j.backcost || {}; const r = B.backcost(x); const c = cfg().costs || {};
+    const inp2 = (k, l, ph, unit) => App.field(l, `<span class="unit-in"><input data-bc="${k}" value="${e(bc[k] ?? '')}" inputmode="decimal" placeholder="${e(ph)}" data-act-change="batBcSet"><em>${unit}</em></span>`);
+    const missing = [['channelPerM', 'channel'], ['clipEach', 'clips'], ['screwEach', 'screws'], ['labourPerHour', 'labour']].filter(([k]) => !App.num(c[k])).map(z => z[1]);
+    return `<details class="card bat-bc" ${j.backcostOpen || j.stage === 'complete' ? 'open' : ''}><summary><h3 style="margin:0">Back-costing</h3><span class="hint">${r.cost ? `Cost ${App.money(r.cost, 0)}, profit ${App.money(r.profit, 0)} (${Math.round(r.margin * 100)}%)` : 'What the job actually cost'}</span></summary>
+      <div class="grid3" style="margin-top:12px">${inp2('lm', 'Batten used', r.lm ? r.lm.toFixed(1) : '0', 'LM')}${inp2('channel', 'Perimeter channel', '0', 'm')}${inp2('clips', 'Clips', '0', 'clips')}${inp2('screws', 'Screws', '0', 'screws')}${inp2('hours', 'Labour', '0', 'hours')}</div>
+      <p class="hint">Batten metres come from the machine file; type a number to change it. ${missing.length ? `Set the cost of ${missing.join(', ')} in Settings, Battens, Back-costing.` : 'Costs from Settings, Battens, Back-costing.'}</p>
+      <div class="fld"><span>Other costs</span>${(bc.other || []).map((o, i) => `<div class="row" style="margin-bottom:6px"><input data-bo="${i}" data-f="desc" value="${e(o.desc || '')}" placeholder="e.g. Scaffold hire" data-act-change="batBcOther" style="flex:2"><input data-bo="${i}" data-f="amount" value="${e(o.amount || '')}" inputmode="decimal" placeholder="$" data-act-change="batBcOther" style="flex:1"><button class="icon-btn" data-act="batBcOtherDel" data-i="${i}" aria-label="Remove">✕</button></div>`).join('')}<button class="btn small" data-act="batBcOtherAdd">+ Add a cost</button></div>
+      <table class="wtable" style="margin-top:12px"><tbody>${r.rows.map(row => `<tr><td>${e(row[1])}${row[3] ? `<span class="hint"> · ${e(row[3])}</span>` : ''}</td><td class="r">${App.money(row[2])}</td></tr>`).join('')}
+        <tr class="tot"><td><b>Total cost</b></td><td class="r"><b>${App.money(r.cost)}</b></td></tr><tr><td>Sold for (price${(j.extras || []).length ? ' and extras' : ''}, excl GST)</td><td class="r">${App.money(r.sold)}</td></tr>
+        <tr class="tot"><td><b>Profit</b></td><td class="r ${r.profit < 0 ? 'neg' : 'pos'}"><b>${App.money(r.profit)} (${Math.round(r.margin * 100)}%)</b></td></tr></tbody></table></details>`;
+  };
+  A.batBcSet = el => { const x = cur(); x.job.backcost = x.job.backcost || {}; x.job.backcost[el.dataset.bc] = el.value.trim() === '' ? '' : App.num(el.value); x.job.backcostOpen = true; B.save(x); App.refresh(); };
+  A.batBcOther = el => { const x = cur(); const o = x.job.backcost.other[+el.dataset.bo]; o[el.dataset.f] = el.dataset.f === 'amount' ? App.num(el.value) : el.value; B.save(x); App.refresh(); };
+  A.batBcOtherAdd = () => { const x = cur(); x.job.backcost = x.job.backcost || {}; (x.job.backcost.other = x.job.backcost.other || []).push({ desc: '', amount: '' }); x.job.backcostOpen = true; B.save(x); App.refresh(); };
+  A.batBcOtherDel = el => { const x = cur(); x.job.backcost.other.splice(+el.dataset.i, 1); B.save(x); App.refresh(); };
+
   /* ---------- Job complete: file it, and save a summary of the whole job ---------- */
   B.summarySpec = x => {
     const R = App.Reports, D = App.Docs; const j = x.job; const p = B.calc(x); const t = B.mfTotals(x); const ex = (j.extras || []).filter(z => z.desc || App.num(z.amount));
@@ -362,13 +402,16 @@
       B.save(x); App.closeModal(); B.invoiceEmail(x);
     };
   };
-  B.invoiceEmail = x => {
-    const inv = cfg().invoice || {}; const p = B.calc(x); const ex = (x.job.extras || []);
-    const exTot = ex.reduce((s2, z) => s2 + App.num(z.amount), 0);
+  B.invoiceEmail = async x => {
+    const inv = cfg().invoice || {}; const ex = (x.job.extras || []).filter(z => z.desc || App.num(z.amount));
     const v = { number: x.number, lot: x.lot || '', address: x.address || '', company: B.who(x), name: (inv.name || '').split(' ')[0] || 'there',
-      price: App.money(p.total), extras: ex.length ? ex.map(z => `${z.desc}: ${App.money(z.amount)}`).join('\n') : 'None', total: App.money(p.total + exTot) };
-    const fill = s2 => String(s2 || '').replace(/\{(\w+)\}/g, (mm, k) => v[k] !== undefined ? v[k] : mm);
-    App.mail.compose({ title: `Send ${x.number} to CH Accounts`, to: inv.to || S().emails.accountsEmail, cc: inv.cc || '', subject: fill(inv.subject), body: fill(inv.body), kind: 'accounts',
+      extras: ex.length ? ex.map(z => '- ' + z.desc).join('\n') : 'None' };
+    const fill = s2 => String(s2 || '').replace(/\{(\w+)\}/g, (mm, k) => v[k] !== undefined ? v[k] : '');
+    App.toast('Attaching the estimate…');
+    let extra = [];
+    try { const blob = await App.Docs.toPdf(B.spec(x, { withExtras: true })); extra = [{ name: `${x.number} - ${B.name(x)} Ceiling Battens${ex.length ? ' (with extras)' : ''}.pdf`.replace(/[\\/:*?"<>|]+/g, '-'), mime: 'application/pdf', base64: await App.blobToBase64(blob) }]; }
+    catch (er) { App.toast('Couldn\'t attach the estimate: ' + er.message, 'err', 6000); }
+    App.mail.compose({ title: `Send ${x.number} to CH Accounts`, to: inv.to || S().emails.accountsEmail, cc: inv.cc || '', subject: fill(inv.subject), body: fill(inv.body), kind: 'accounts', extra,
       onSent: () => { x.job.invoiceSentAt = Date.now(); x.job.invoiceSentBy = st.me().name; B.log(x, 'Sent to CH Accounts to invoice'); B.save(x); App.refresh(); App.toast('Sent to CH Accounts'); } });
   };
   B.folder = async (x, sub) => {

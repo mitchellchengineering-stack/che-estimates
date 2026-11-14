@@ -100,12 +100,13 @@ App.defaultSettings = () => ({
   brief: { hour: 9, off: false },
   battens: {
     prefix: 'CHIB', startSeq: { '26': 58 }, validDays: 30, profileLabel: '30 mm top hat, 0.55 BMT', kgPerM: 0.59,
-    rates: { r600: '', r400: '', acousticPerM2: '', raking: '', flashings: '', supplyOnlyPct: 100 },
+    rates: { r600: '', r400: '', acousticPerM2: '', rakingPerM2: '', flashingsPerM2: '', supplyOnlyPct: 100 },
     lines: ['Ceiling battens 30mm (0.55BMT)', 'Installed level with a laser at {centres} centres and suspended on clips', 'All screws for installation included', 'All batten lengths cut to size', 'Perimeter channel installation', 'Delivery of battens to site'],
     acousticLine: 'Acoustic clips to suit', flashingLine: 'Custom angle flashings for raked ceiling',
     tcs: [{ t: 'Validity', d: 'This estimate is valid for 30 days from the date of issue.' }, { t: 'Pricing', d: 'Pricing is based on the plans supplied. Final lengths are confirmed by our site measure.' }, { t: 'Site readiness', d: 'The ceiling framing must be complete and ready, with clear access, before we start.' }, { t: 'Payment', d: 'Payment is due on completion unless agreed otherwise in writing.' }],
     coils: { batten: '135|0.55', purlin: '135|0.75' }, clips: { batten: 'Batten clips', acoustic: 'Acoustic clips' },
-    invoice: { to: '', name: '', cc: '', subject: '{number}, {lot}, {address}, {company}', body: 'Hi {name},\n\nPlease invoice this job out:\n\nJob: {number}\nCompany: {company}\nLot: {lot}\nAddress: {address}\nPrice (excl GST): {price}\nExtras: {extras}\nTotal to invoice (excl GST): {total}\n\nCheers,' }
+    invoice: { to: '', name: '', cc: '', subject: '{number}, {lot}, {address}, {company}', body: 'Hi {name},\n\nPlease invoice this job out:\n\nJob: {number}\nCompany: {company}\nLot: {lot}\nAddress: {address}\nExtras added during the job:\n{extras}\n\nThe estimate is attached, with any extras added in red.\n\nCheers,' },
+    costs: { battenPerM: '', channelPerM: '', clipEach: '', screwEach: '', labourPerHour: '' }
   },
   helper: { studSpacing: 0.6, trussSpacing: 0.9, joistSpacing: 0.45, wallExtra: 15, waste: 5, internalPerM2: 0.3, keys: { walls: '89x41|0.75', trusses: '89x41|0.75', joists: '150x41|0.95' } },
   sales: { apiUrl: 'https://script.google.com/macros/s/AKfycbwayHN0oCE9qnWFcYadC4uGoMexbirj-kqBCDp8bp8Zf_dTN5bwrMGs97eVzu5x6LRMYA/exec', passcode: '', sheetId: '' },
@@ -170,6 +171,9 @@ App.store = {
       d.settings.v6 = true; const at = d.settings.emails && d.settings.emails.templates && d.settings.emails.templates.accounts;
       if (at && at.body && !at.body.includes('{company_line}') && at.body.includes('Client email: {client_email}')) at.body = at.body.replace('Client email: {client_email}', 'Client email: {client_email}{company_line}');
     }
+    /* batten invoices: the old wording had prices in it */
+    if (d.settings.battens && d.settings.battens.invoice && /\{price\}|\{total\}/.test(d.settings.battens.invoice.body || '')) d.settings.battens.invoice.body = App.defaultSettings().battens.invoice.body;
+    if (d.settings.battens && !d.settings.battens.costs) d.settings.battens.costs = {};
     if (d.settings.fasteners && /marked to reorder/.test(d.settings.fasteners.monthlyIntro || '')) d.settings.fasteners.monthlyIntro = 'Here\'s our fastener stock at the end of {month}, and what we used this month.';
     if (!d.settings.v4) {
       d.settings.v4 = true; const c = d.settings.coils;

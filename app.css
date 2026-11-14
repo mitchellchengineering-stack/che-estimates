@@ -1250,3 +1250,13 @@ a.practice-flag { text-decoration: none; }
 .inv-check.on { border-color: var(--green); background: var(--green-bg); }
 .inv-check > input { width: 22px; height: 22px; flex: none; accent-color: var(--ink); margin-top: 2px; }
 .inv-check > span { flex: 1; min-width: 0; }
+
+/* batten extras in red, back-costing */
+.pg .inc.rv .ex-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border: 1px solid #b3261e; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: #b3261e; vertical-align: 2px; }
+.pg .inc.rv .ex-amt { font-weight: 800; color: #b3261e; }
+.pg .price .gstl.rvx span, .pg .price .gstl.rvx b { color: #ff8a80; }
+.pg.batten .price .gstl.first { border-top: 0; margin-top: 0; padding-top: 0; }
+.bat-bc > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.bat-bc > summary::-webkit-details-marker { display: none; }
+.bat-bc > summary::after { content: '▾'; margin-left: auto; color: var(--ink-3); } .bat-bc[open] > summary::after { content: '▴'; }
+.bat-bc tr.tot td { border-top: 2px solid var(--ink); }
