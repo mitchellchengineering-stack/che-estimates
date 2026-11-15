@@ -1,0 +1,8 @@
+{
+  "company": { "name": "CH Engineering Ltd", "website": "https://www.chengineering.co.nz", "address": "8 Wickham Street, Frankton, Hamilton 3024", "about": "Light gauge steel framing, frame and truss, ceiling battens" },
+  "people": [
+    { "id": "mitchell", "first": "Mitchell", "last": "Hodgson", "title": "Project Manager", "phone": "021 176 5869", "email": "mitchell.chengineering@gmail.com" },
+    { "id": "davin", "first": "Davin", "last": "Barham", "title": "Operations Manager", "phone": "022 609 0176", "email": "operations.chengineering@gmail.com" },
+    { "id": "jamie", "first": "Jamie", "last": "Hodgson", "title": "Director", "phone": "021 772 976", "email": "jamie@chengineering.co.nz" }
+  ]
+}

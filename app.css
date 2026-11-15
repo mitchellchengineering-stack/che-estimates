@@ -1330,3 +1330,9 @@ a.practice-flag { text-decoration: none; }
   .wtable td, .wtable th { padding-left: 6px; padding-right: 6px; }
   #undo-bar, #ver-banner { width: calc(100vw - 24px); justify-content: space-between; }
 }
+
+/* business cards */
+.bc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+.bc-card { margin: 0; display: grid; grid-template-columns: 130px 1fr; gap: 16px; align-items: start; border-left: 6px solid var(--yellow); }
+.bc-qr svg { width: 130px; height: 130px; display: block; }
+.bc-n { margin: 0; font-size: 1.2rem; font-weight: 800; }

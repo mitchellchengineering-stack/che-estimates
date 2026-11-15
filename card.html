@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CH Engineering</title>
+<meta name="theme-color" content="#f4f4f2">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="ch-apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #15171a; --ink3: #5c636b; --lab: #8a8f94; --yellow: #f5c400; --bg: #f4f4f2; --line: #eeefec; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: Archivo, -apple-system, "Segoe UI", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+  .wrap { max-width: 440px; margin: 0 auto; padding: 36px 18px 40px; }
+  .card { background: linear-gradient(160deg, #f1f1ef 0%, #ececea 55%, #e3e3e0 100%); border-left: 6px solid var(--yellow); border-radius: 20px; padding: 24px 22px 26px; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 12px 30px rgba(0,0,0,.07); }
+  .card img { width: 160px; display: block; }
+  h1 { margin: 34px 0 0; font-size: 34px; font-weight: 700; font-stretch: 106%; letter-spacing: -.01em; line-height: 1.05; }
+  .bar { display: block; width: 30px; height: 3px; background: var(--yellow); border-radius: 2px; margin-top: 12px; }
+  .role { margin: 12px 0 0; font-size: 15px; font-weight: 600; }
+  .co { margin: 3px 0 0; font-size: 13.5px; color: var(--ink3); }
+  .save { margin-top: 18px; height: 54px; width: 100%; border: 0; border-radius: 14px; background: var(--ink); color: #fff; font: inherit; font-size: 16px; font-weight: 700; letter-spacing: .02em; cursor: pointer; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+  .save:active { transform: scale(.99); }
+  .list { margin-top: 12px; background: #fff; border-radius: 16px; }
+  .list a { display: block; padding: 14px 18px; text-decoration: none; color: var(--ink); }
+  .list a + a { border-top: 1px solid var(--line); }
+  .list span { display: block; font-size: 10px; font-weight: 700; letter-spacing: .15em; color: var(--lab); text-transform: uppercase; }
+  .list b { display: block; margin-top: 2px; font-size: 15px; font-weight: 600; word-break: break-word; }
+  .share { margin-top: 12px; height: 46px; width: 100%; border: 1px solid #dcdedb; border-radius: 14px; background: transparent; font: inherit; font-weight: 600; font-size: 14.5px; color: var(--ink); cursor: pointer; }
+  .about { margin: 18px 0 0; text-align: center; font-size: 12.5px; color: var(--ink3); line-height: 1.5; }
+  .missing { text-align: center; padding-top: 80px; color: var(--ink3); }
+  :focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main class="wrap" id="app" aria-live="polite"></main>
+<script>
+(async () => {
+  const app = document.getElementById('app');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let data;
+  try { data = await (await fetch('cards.json?t=' + Date.now(), { cache: 'no-store' })).json(); } catch (e) { app.innerHTML = '<p class="missing">This card couldn\u2019t load. Check your connection and try again.</p>'; return; }
+  const id = (new URLSearchParams(location.search).get('p') || '').toLowerCase();
+  const p = (data.people || []).find(x => x.id === id);
+  const co = data.company || {};
+  if (!p) { app.innerHTML = '<p class="missing">Card not found.</p>'; return; }
+  const full = `${p.first} ${p.last}`.trim();
+  document.title = `${full}, ${co.name}`;
+  const tel = p.phone.replace(/[^\d+]/g, '').replace(/^0/, '+64');
+  const site = (co.website || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+  /* the contact file phones read: name, job title, company, mobile, email, website, address */
+  const vcf = ['BEGIN:VCARD', 'VERSION:3.0', `N:${p.last};${p.first};;;`, `FN:${full}`, `ORG:${co.name}`, `TITLE:${p.title}`, `TEL;TYPE=CELL,VOICE:${tel}`, `EMAIL;TYPE=WORK,INTERNET:${p.email}`, co.website ? `URL:${co.website}` : '', co.address ? `ADR;TYPE=WORK:;;${co.address.replace(/,/g, '\\,')};;;;New Zealand` : '', 'END:VCARD'].filter(Boolean).join('\r\n');
+  const vurl = URL.createObjectURL(new Blob([vcf], { type: 'text/vcard;charset=utf-8' }));
+  app.innerHTML = `
+    <section class="card" aria-label="Business card">
+      <img src="logo.png" alt="${esc(co.name)}">
+      <h1>${esc(full)}</h1><span class="bar" aria-hidden="true"></span>
+      <p class="role">${esc(p.title)}</p><p class="co">${esc(co.name)}, Hamilton</p>
+    </section>
+    <a class="save" href="${vurl}" download="${esc(full)}.vcf">Save my contact</a>
+    <nav class="list" aria-label="Contact details">
+      <a href="tel:${esc(tel)}"><span>Call</span><b>${esc(p.phone)}</b></a>
+      <a href="mailto:${esc(p.email)}"><span>Email</span><b>${esc(p.email)}</b></a>
+      ${co.website ? `<a href="${esc(co.website)}" target="_blank" rel="noopener"><span>Website</span><b>${esc(site)}</b></a>` : ''}
+      ${co.address ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(co.address)}" target="_blank" rel="noopener"><span>Find us</span><b>${esc(co.address)}</b></a>` : ''}
+    </nav>
+    ${navigator.share ? '<button class="share" id="share" type="button">Share this card</button>' : ''}
+    <p class="about">${esc(co.about || '')}</p>`;
+  const sh = document.getElementById('share');
+  if (sh) sh.onclick = () => navigator.share({ title: full, text: `${full}, ${p.title}, ${co.name}`, url: location.href }).catch(() => {});
+})();
+</script>
+</body>
+</html>

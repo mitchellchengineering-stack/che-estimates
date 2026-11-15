@@ -1,7 +1,7 @@
 /* Settings */
 (() => {
   const e = App.esc, S = () => App.store.s(), st = App.store, A = App.actions;
-  const SECTIONS = [['setup', 'Setup checklist'], ['company', 'Company'], ['team', 'Team'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['battens', 'Battens'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['sales', 'Sales'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
+  const SECTIONS = [['setup', 'Setup checklist'], ['company', 'Company'], ['team', 'Team'], ['estimates', 'Estimates'], ['tcs', 'Terms and conditions'], ['ft', 'Frame and truss defaults'], ['battens', 'Battens'], ['cards', 'Business cards'], ['pricing', 'Pricing'], ['delivery', 'Delivery'], ['production', 'Production'], ['sales', 'Sales'], ['stock', 'Coils and fasteners'], ['emails', 'Emails'], ['google', 'Google and data']];
   const inp = (path, val, attrs = '') => `<input data-bind="${path}" value="${e(val ?? '')}" ${attrs}>`;
   const list = (path, items, ph, rows = 1) => `<div class="list-ed">${items.map((it, i) => `<div class="row">${rows > 1 ? `<textarea data-bind="${path}.${i}" rows="${rows}" placeholder="${e(ph)}">${e(it)}</textarea>` : `<input data-bind="${path}.${i}" value="${e(it)}" placeholder="${e(ph)}">`}
     <span class="move"><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="-1" aria-label="Move up">↑</button><button class="icon-btn" data-act="rowMove" data-path="${path}" data-i="${i}" data-d="1" aria-label="Move down">↓</button></span>
@@ -221,6 +221,7 @@
     return `<section class="card"><h3>Email settings</h3><div class="grid2">
       ${App.field('Accounts email (for deposit invoices in Xero)', inp('emails.accountsEmail', em.accountsEmail, 'type="email"'))}
       ${App.field('Helper web app link (for open tracking and online acceptance)', inp('emails.trackingUrl', em.trackingUrl, 'placeholder="https://script.google.com/macros/s/…/exec"'))}</div>
+      ${em.trackingUrl && !App.helperOk(em.trackingUrl) ? `<div class="banner warn">That isn't a helper link, so the Accept button and open tracking are switched off until it's fixed. It should look like <b>https://script.google.com/macros/s/…/exec</b>. In the helper, <b>Deploy &gt; Manage deployments</b>, copy the <b>Web app URL</b> and paste it here.</div>` : ''}
       <h4>Brochure or capability statement</h4>
       ${em.brochureId ? `<p>${e(em.brochureName)} <button class="btn small ghost" data-act="brochureDel">Remove</button></p>` : ''}
       ${st.mode === 'drive' ? `<label class="drop small">${em.brochureId ? 'Replace' : 'Upload'} PDF<input type="file" accept="application/pdf" data-act-change="brochureUp" hidden></label>` : '<p class="hint">Connect Google Drive to upload a brochure.</p>'}</section>
