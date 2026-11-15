@@ -162,7 +162,7 @@
     if (App.Coil && App.Coil.ready() && App.Coil.S.loadedAt) App.Coil.summary().low.forEach(x => out.push({ lvl: 'amber', t: `${App.Coil.bmt(x.t)} BMT coils low`, s: `${x.n} coil${x.n === 1 ? '' : 's'} left in stock`, b: 'Coils', href: '#/coils' }));
     return out;
   };
-  App.Track.alertHtml = a => `<div class="alert"><span class="dotbar ${a.lvl}"></span><span class="txt"><b>${e(a.t)}</b><span>${e(a.s)}</span></span><a class="btn small" href="${a.href}">${a.b}</a></div>`;
+  App.Track.alertHtml = a => `<div class="alert"><span class="dotbar ${a.lvl}"></span><span class="txt"><b>${e(a.t)}</b><span>${e(a.s)}</span></span>${a.act ? `<span class="row" style="flex:none;gap:6px"><button class="btn small primary" data-act="${a.act}"${Object.entries(a.data || {}).map(([k, v]) => ` data-${k}="${e(v)}"`).join('')}>${a.b}</button>${a.act === 'drvReview' ? `<button class="btn small ghost" data-act="drvSkip"${Object.entries(a.data || {}).map(([k, v]) => ` data-${k}="${e(v)}"`).join('')}>Don't send</button>` : ''}</span>` : `<a class="btn small" href="${a.href}">${a.b}</a>`}</div>`;
   App.Track.supplierFollowups = () => {
     const list = App.Track.supplierList();
     return `<section class="card"><h3>Waiting on suppliers</h3>${list.map(App.Track.alertHtml).join('') || '<p class="hint">Nothing waiting on suppliers. Purchase orders show here once they\'ve been emailed and not confirmed after 2 days, or go past their due date.</p>'}</section>`;

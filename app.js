@@ -199,6 +199,7 @@
     if (App.ManualFU) App.ManualFU.needs().forEach(a => needs.push(a));
     if (App.Battens) App.Battens.needs().forEach(a => needs.push(a));
     if (App.Finish) App.Finish.needs().forEach(a => needs.push(a));
+    if (App.Driver && App.Driver.needs) App.Driver.needs().forEach(a => needs.push(a));
     if (App.Care && st.data) { const left = App.Care.setupLeft(); const me = S().users.find(u => (u.email || '').toLowerCase() === (st.me().email || '').toLowerCase()); if (left && (!me || me.admin !== false) && !App.Dismiss.is('setup-' + left)) needs.push({ lvl: 'blue', t: `Setup: ${left} thing${left === 1 ? '' : 's'} still to fill in`, s: 'So everything in the app works properly', b: 'Open checklist', href: '#/settings/setup' }); }
     if (SLs) SLs.needs().forEach(a => needs.push(a));
     App.Jobs.attention().forEach(a => needs.push(a));

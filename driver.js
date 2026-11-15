@@ -64,11 +64,12 @@
   D.signedSpec = (j, l) => {
     const spec = App.Docs.docket(j, l, 'customer'); const s2 = l.signed || {};
     const photos = (s2.photos || []).slice(0, 4);
+    const behalf = s2.type === 'driver';
     spec.flow = spec.flow.concat([
-      App.Docs.blk(`<div class="signed-stamp">Delivered and signed</div>`),
+      App.Docs.blk(behalf ? `<div class="signed-stamp amber">Left on site, no one present</div>${s2.where ? `<p class="left-where"><b>Where it was left:</b> ${e(s2.where)}</p>` : ''}` : `<div class="signed-stamp">Delivered and signed</div>`),
       photos.length ? App.Docs.blk(`${App.Docs.h2('Photos of the drop')}<div class="inc-photos">${photos.map(p => `<img src="${p}" alt="">`).join('')}</div>`) : ''
     ].filter(Boolean));
-    spec.bottom = `<div class="signed-box"><div><p class="l">Received by</p><p class="v">${e(s2.name || '')}</p><p class="s">Signed on site, ${App.fmtStamp(s2.at)}${s2.by ? `. Delivered by ${e(s2.by)}` : ''}</p></div><div class="sig">${s2.sig ? `<img src="${s2.sig}" alt="Signature">` : ''}</div></div>`;
+    spec.bottom = `<div class="signed-box"><div><p class="l">${behalf ? 'Signed for the client by the driver' : 'Received by'}</p><p class="v">${e(behalf ? (s2.by || s2.name || '') : (s2.name || ''))}</p><p class="s">${behalf ? `No one on site. Signed ${App.fmtStamp(s2.at)}` : `Signed on site, ${App.fmtStamp(s2.at)}${s2.by ? `. Delivered by ${e(s2.by)}` : ''}`}</p></div><div class="sig">${s2.sig ? `<img src="${s2.sig}" alt="Signature">` : ''}</div></div>`;
     return spec;
   };
   A.drvDone = async el => {
@@ -102,6 +103,105 @@
         extra: [{ name: fname, mime: 'application/pdf', base64: await App.blobToBase64(blob) }], onSent: () => { st.log(j, `Signed docket for load ${l.n} emailed to ${j.client.email}`); st.save(); } });
     }
     App.refresh();
+  };
+
+  /* ---------- CH Delivery app: drivers, and deliveries coming back from it ---------- */
+  D.hash = async (name, pin) => { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(name).trim().toLowerCase() + ':' + String(pin).trim())); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); };
+  D.appLink = () => { const u = (S().emails && S().emails.trackingUrl) || ''; const m = u.match(/\/s\/([^/]+)\/exec/); const base = location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, ''); return m ? `${base}delivery.html?h=${m[1]}` : ''; };
+  D.teamCard = () => {
+    const list = (S().drivers || []).filter(x => !x.deleted); const link = D.appLink(); const cfg = S().driverApp || {};
+    return `<section class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap"><h3 style="margin:0">Drivers (CH Delivery app)</h3><button class="btn small primary" data-act="drvAdd">+ Add a driver</button></div>
+      <p class="hint">Drivers use the CH Delivery app with their name and a PIN. They only see their deliveries: no prices, clients' money or settings, and no Google account is needed.</p>
+      ${list.length ? `<table class="wtable"><thead><tr><th>Driver</th><th>PIN</th><th></th></tr></thead><tbody>${list.map(x => `<tr><td><b>${e(x.name)}</b>${x.active === false ? ' <span class="tag">Turned off</span>' : ''}</td><td>••••</td><td class="r nowrap"><button class="btn small" data-act="drvPin" data-id="${x.id}">Change PIN</button><button class="btn small ghost" data-act="drvToggle" data-id="${x.id}">${x.active === false ? 'Turn on' : 'Turn off'}</button><button class="icon-btn" data-act="drvDel" data-id="${x.id}" aria-label="Remove">✕</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">No drivers yet.</p>'}
+      <div class="fld" style="margin-top:12px"><span>The app link to send drivers</span>${link ? `<div class="row"><input readonly value="${e(link)}" onclick="this.select()"><button class="btn small" data-act="drvCopy">Copy</button></div><p class="hint">They open it on their phone, then Add to Home Screen (iPhone: Share, Add to Home Screen. Samsung: menu, Add to home screen). It works through your helper script.</p>` : '<div class="banner warn">Set up the helper web app link in Settings, Emails first. The driver app runs through it.</div>'}</div>
+      <label class="check" style="margin-top:10px"><input type="checkbox" data-bind="driverApp.review" ${cfg.review !== false ? 'checked' : ''}> Let me check the signed docket email before it goes to the client</label>
+      <p class="hint">Ticked: each delivery shows on Needs you with Review and send. Unticked: the docket is emailed to the client automatically once the app has filed it.</p></section>`;
+  };
+  const drvSave = () => { S().updatedAt = Date.now(); st.touch(S()); st.save(); App.refresh(); };
+  A.drvAdd = () => {
+    const m = App.modal('Add a driver', `${App.field('Name (what they type to sign in)', '<input id="dv-n" autocomplete="off">')}${App.field('PIN (4 to 6 numbers)', '<input id="dv-p" inputmode="numeric" maxlength="6" autocomplete="off">')}<p class="hint">Tell them their PIN in person or by text. It isn't shown again.</p>`, { actions: '<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="dv-ok">Add</button>' });
+    m.querySelector('#dv-ok').onclick = async () => {
+      const n = m.querySelector('#dv-n').value.trim(), p = m.querySelector('#dv-p').value.trim();
+      if (!n) return App.toast('Add their name', 'err'); if (!/^\d{4,6}$/.test(p)) return App.toast('The PIN should be 4 to 6 numbers', 'err');
+      if ((S().drivers || []).some(x => !x.deleted && x.name.toLowerCase() === n.toLowerCase())) return App.toast('There\'s already a driver with that name', 'err');
+      (S().drivers = S().drivers || []).push({ id: App.uid(), name: n, pinHash: await D.hash(n, p), active: true, addedAt: Date.now() }); App.closeModal(); drvSave(); App.toast(`${n} added`);
+    };
+  };
+  A.drvPin = el => {
+    const x = S().drivers.find(z => z.id === el.dataset.id);
+    const m = App.modal(`New PIN for ${x.name}`, App.field('PIN (4 to 6 numbers)', '<input id="dv-p" inputmode="numeric" maxlength="6" autocomplete="off">'), { actions: '<button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" id="dv-ok">Save</button>' });
+    m.querySelector('#dv-ok').onclick = async () => { const p = m.querySelector('#dv-p').value.trim(); if (!/^\d{4,6}$/.test(p)) return App.toast('The PIN should be 4 to 6 numbers', 'err'); x.pinHash = await D.hash(x.name, p); App.closeModal(); drvSave(); App.toast('PIN changed'); };
+  };
+  A.drvToggle = el => { const x = S().drivers.find(z => z.id === el.dataset.id); x.active = x.active === false; drvSave(); };
+  A.drvDel = async el => { const x = S().drivers.find(z => z.id === el.dataset.id); if (!(await App.confirm(`Remove ${x.name}?`, 'They won\'t be able to sign in to CH Delivery any more.', 'Remove'))) return; x.deleted = true; drvSave(); };
+  A.drvCopy = async () => { try { await navigator.clipboard.writeText(D.appLink()); App.toast('Link copied'); } catch (er) { App.toast(D.appLink()); } };
+
+  /* deliveries finished in the CH Delivery app: mark the load delivered, then file the signed docket */
+  D.applyLog = list => {
+    let changed = false;
+    (list || []).forEach(r => {
+      const est = st.get(r.jobId); const l = est && est.job && (est.job.loads || []).find(x => x.id === r.loadId); if (!l) return;
+      if (l.signed && l.signed.recId === r.uid) return;
+      l.delivered = true; l.deliveredAt = r.at;
+      l.signed = { recId: r.uid, name: r.signer.name, type: r.signer.type, where: r.signer.where || '', at: r.at, by: r.driver, sigId: r.sigId, photoIds: r.photoIds || [], folderId: r.folderId, emailState: 'filing' };
+      st.log(est, r.signer.type === 'driver' ? `Load ${l.n} left on site by ${r.driver} (no one there): ${r.signer.where}` : `Load ${l.n} delivered by ${r.driver}, signed for by ${r.signer.name}`);
+      if (est.job.loads.every(x => x.delivered) && ['delivery', 'yard', 'manufacturing', 'scheduled'].includes(est.job.stage)) { est.job.stage = 'delivered'; (est.job.stageLog = est.job.stageLog || []).push({ stage: 'delivered', at: Date.now(), by: r.driver }); }
+      st.touch(est); changed = true;
+    });
+    if (changed) { st.save(); App.refresh(); }
+    setTimeout(D.fileAll, 500);
+  };
+  const toData = async id => { const b = await App.G.getBlob(id); return new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }); };
+  D.fileAll = async () => {
+    if (D.filing || st.mode !== 'drive') return; D.filing = true;
+    try {
+      for (const est of (App.Jobs ? App.Jobs.list() : [])) for (const l of (est.job.loads || [])) {
+        const s2 = l.signed; if (!s2 || s2.emailState !== 'filing') continue;
+        if (s2.claim && s2.claim.by !== st.me().email && Date.now() - s2.claim.at < 5 * 60000) continue;
+        s2.claim = { by: st.me().email, at: Date.now() }; st.touch(est); st.save();
+        try {
+          const sig = s2.sigId ? await toData(s2.sigId) : ''; const photos = []; for (const id of (s2.photoIds || []).slice(0, 6)) { try { photos.push(await toData(id)); } catch (er) { /* skip */ } }
+          const view = Object.assign({}, l, { signed: Object.assign({}, s2, { sig, photos }) });
+          const blob = await App.Docs.toPdf(D.signedSpec(est, view));
+          const fname = `${st.displayNumber(est)} Delivery ${l.n} signed.pdf`;
+          const up = await App.G.uploadOrReplace({ name: fname, parent: await st.subFolder(est, 'Dockets and checklists'), blob, mime: 'application/pdf' });
+          s2.pdfId = up.id; s2.link = up.webViewLink || `https://drive.google.com/file/d/${up.id}/view`;
+          const pf = await st.subFolder(est, 'Delivery photos');
+          for (const id of (s2.photoIds || [])) { try { await App.G.api(`${App.G.D}/${id}?addParents=${pf}${s2.folderId ? '&removeParents=' + s2.folderId : ''}&supportsAllDrives=true`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' }); } catch (er) { /* leave it in Deliveries */ } }
+          s2.emailState = !est.client.email ? 'noemail' : (S().driverApp || {}).review === false ? 'auto' : 'review';
+          st.touch(est); st.save();
+          if (s2.emailState === 'auto') await D.sendDocket(est, l, blob, true);
+        } catch (er) { s2.claim = null; st.touch(est); st.save(); console.error(er); }
+      }
+    } finally { D.filing = false; App.refresh(); }
+  };
+  D.docketEmail = (est, l) => { const s2 = l.signed; const first = (est.client.name || '').split(' ')[0] || 'there';
+    return { to: est.client.email, subject: `Delivered: ${st.displayNumber(est)}, load ${l.n} of ${est.job.loads.length}`,
+      body: `Hi ${first},
+
+Your delivery for ${est.heading || 'your job'} at ${est.siteAddress || 'site'} (load ${l.n} of ${est.job.loads.length}) was dropped off ${s2.type === 'driver' ? `with no one on site. ${s2.by} left it ${s2.where ? s2.where.charAt(0).toLowerCase() + s2.where.slice(1) : 'on site'} and signed for it` : `and signed for by ${s2.name}`}. The signed docket and photos are attached.
+
+Please check the frames within 2 working days and let us know if anything's missing or damaged.
+
+Cheers,` }; };
+  D.sendDocket = async (est, l, blob, auto) => {
+    const s2 = l.signed; const em = D.docketEmail(est, l);
+    blob = blob || (s2.pdfId ? await App.G.getBlob(s2.pdfId) : null); if (!blob) return App.toast('The signed docket isn\'t saved yet', 'err');
+    const att = [{ name: `${st.displayNumber(est)} Delivery ${l.n} signed.pdf`, mime: 'application/pdf', base64: await App.blobToBase64(blob) }];
+    const done = () => { s2.emailState = 'sent'; s2.emailedAt = Date.now(); st.log(est, `Signed docket for load ${l.n} emailed to ${est.client.email}`); st.touch(est); st.save(); App.refresh(); };
+    if (auto) { try { await App.G.send({ to: em.to, subject: em.subject, html: await App.mail.html(em.body, est, 'docket'), attachments: att }); done(); } catch (er) { s2.emailState = 'review'; st.touch(est); st.save(); } return; }
+    App.mail.compose({ title: 'Email the signed docket', est, kind: 'docket', to: em.to, subject: em.subject, body: em.body, extra: att, onSent: done });
+  };
+  A.drvReview = async el => { const est = st.get(el.dataset.j); const l = est.job.loads.find(x => x.id === el.dataset.l); App.cur = est; App.toast('Getting the signed docket…'); try { await D.sendDocket(est, l, null, false); } catch (er) { App.toast(er.message, 'err'); } };
+  A.drvSkip = el => { const est = st.get(el.dataset.j); const l = est.job.loads.find(x => x.id === el.dataset.l); l.signed.emailState = 'skipped'; st.touch(est); st.save(); App.refresh(); };
+  D.needs = () => {
+    const out = [];
+    (App.Jobs ? App.Jobs.list() : []).forEach(est => (est.job.loads || []).forEach(l => {
+      const s2 = l.signed; if (!s2 || !s2.recId) return;
+      if (s2.emailState === 'review') out.push({ lvl: s2.type === 'driver' ? 'amber' : 'blue', t: s2.type === 'driver' ? `${st.displayNumber(est)} load ${l.n} left on site, signed by ${s2.by} for the client` : `${st.displayNumber(est)} load ${l.n} delivered, signed by ${s2.name}`, s: `${s2.by}, ${App.fmtStamp(s2.at)}. ${(s2.photoIds || []).length} photos. Email the signed docket to ${est.client.company || est.client.name}?`, b: 'Review and send', act: 'drvReview', data: { j: est.id, l: l.id } });
+      if (s2.emailState === 'noemail') out.push({ lvl: 'blue', t: `${st.displayNumber(est)} load ${l.n} delivered`, s: `Signed docket saved to the job. There's no client email to send it to.`, b: 'Open job', href: `#/job/${est.id}` });
+    }));
+    return out;
   };
 
   /* ---------- Compliance pack ---------- */

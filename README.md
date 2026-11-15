@@ -1,6 +1,24 @@
 # CH Engineering Estimates
 
-## Latest update (version 21)
+## Latest update (version 25): CH Delivery, the driver's app
+
+1. **Upload all the files** (including delivery.html, delivery.webmanifest, the chd- icons and version.json) and commit.
+2. **Update the helper script:** replace its code with **Code-Mitchell.gs**, Save, then Deploy > Manage deployments > pencil > New version > Deploy. (Davin's helper: Code-Davin.gs.) The driver app runs through it.
+3. **Check the helper link** in Settings > Emails is the helper's Web app URL, then click Test Accept online.
+4. **Settings > Team > Drivers:** add each driver with a PIN, copy the app link and text it to them. They open it and Add to Home Screen.
+5. Tick or untick **Let me check the signed docket email before it goes to the client**.
+
+---
+
+## Earlier update (version 24): business cards
+
+1. **Upload all the files** (including card.html, cards.json and version.json) and commit.
+2. **Settings > Business cards** shows each person's QR code. Open card, Download QR (for printing or email signatures), Copy link.
+3. **To change someone's details:** edit cards.json on GitHub and commit.
+
+---
+
+## Earlier update (version 21)
 
 1. **Upload all the files** (including version.json) and commit. Not the .gs files, except the next step.
 2. **Helper script (needed for Accept online on battens, and the Test button):** open the CH Estimates helper at script.google.com, replace the code with **Code-Mitchell.gs**, Save, then Deploy > Manage deployments > pencil > New version > Deploy. Check it says Execute as: Me, Who has access: Anyone. Do the same with Code-Davin.gs in Davin's helper.

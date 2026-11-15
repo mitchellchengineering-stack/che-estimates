@@ -294,6 +294,8 @@ App.store = {
       this.applyLogs();
       const resp = await App.G.find('client-responses.json', this.rootId);
       if (resp && App.Accept) { try { const j = JSON.parse(await App.G.getText(resp.id)); App.Accept.apply(j.responses || []); } catch (e) {} }
+      const dl = await App.G.find('deliveries-log.json', this.rootId);
+      if (dl && App.Driver && App.Driver.applyLog) { try { const j = JSON.parse(await App.G.getText(dl.id)); App.Driver.applyLog(j.entries || []); } catch (e) {} }
     } catch (e) {}
   },
   applyLogs() {

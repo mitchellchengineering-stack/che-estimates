@@ -1336,3 +1336,6 @@ a.practice-flag { text-decoration: none; }
 .bc-card { margin: 0; display: grid; grid-template-columns: 130px 1fr; gap: 16px; align-items: start; border-left: 6px solid var(--yellow); }
 .bc-qr svg { width: 130px; height: 130px; display: block; }
 .bc-n { margin: 0; font-size: 1.2rem; font-weight: 800; }
+
+.pg .signed-stamp.amber { background: #8a5a00; }
+.pg .left-where { margin: 8px 0 0; font-size: 13px; }

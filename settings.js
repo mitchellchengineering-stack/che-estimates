@@ -28,7 +28,8 @@
 `;
 
   /* ---------- Team: who can use the app, and the shared Drive folder ---------- */
-  App.Set.team = s => {
+  App.Set.team = s => (App.Driver && App.Driver.teamCard ? '' : '') + App.Set.teamMain(s) + (App.Driver && App.Driver.teamCard ? App.Driver.teamCard() : '');
+  App.Set.teamMain = s => {
     const shared = App.state.teamShared; const me = st.me().email;
     const status = u => { if (!shared) return '<span class="hint">-</span>'; const p = shared.find(x => x.email === (u.email || '').toLowerCase()); return p ? `<span class="tag ok">${p.role === 'owner' ? 'Owner' : 'Shared'}</span>` : '<span class="tag warn">Not shared</span>'; };
     return `<section class="card"><h3>Team members</h3><p class="hint">Everyone here signs in with their Google account and sees the same estimates, jobs and everything else. The shared CH Engineering Estimates folder shows up in their Google Drive. Staff can't change Settings or Pricing.</p>

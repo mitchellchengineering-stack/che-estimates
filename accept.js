@@ -5,7 +5,7 @@
   const e = App.esc, A = App.actions, st = App.store, S = () => st.s();
   const token = () => Array.from(crypto.getRandomValues(new Uint8Array(18)), b => b.toString(16).padStart(2, '0')).join('');
   const AC = App.Accept = {
-    url() { return S().emails && S().emails.trackingUrl; },
+    url() { const u = (S().emails && S().emails.trackingUrl || '').trim(); return App.helperOk(u) ? u : ''; },
     on() { return !!AC.url() && S().estimate.acceptOnline !== false; },
     battenLink(x) {
       if (!AC.on()) return '';
@@ -68,6 +68,8 @@
   };
   /* is the helper set up for Accept online? opens its test page */
   A.acceptTest = async () => {
+    const raw = (S().emails.trackingUrl || '').trim();
+    if (raw && !App.helperOk(raw)) return App.modal('That isn\'t the helper link', `<p>Settings, Emails has <b>${e(raw)}</b> as the helper web app link, so the Accept button was going there instead of to your helper.</p><ol><li>Open the <b>CH Estimates helper</b> at script.google.com.</li><li><b>Deploy &gt; Manage deployments</b>, and copy the <b>Web app URL</b>. It looks like https://script.google.com/macros/s/…/exec</li><li>Paste it into <b>Settings, Emails, Helper web app link</b>, then click Test again.</li></ol>`, {});
     const u = AC.url(); if (!u) return App.toast('Add the helper web app link first (Settings, Emails)', 'err', 6000);
     const dep = (u.match(/\/s\/([^/]+)\/exec/) || [])[1] || '';
     const depLine = dep ? `<p class="hint">The link in Settings, Emails is for deployment <b>…${e(dep.slice(-10))}</b>. In <b>Deploy &gt; Manage deployments</b>, the Deployment ID should end the same way. If it doesn't, copy the Web app URL from there into Settings, Emails.</p>` : '';

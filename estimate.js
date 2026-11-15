@@ -8,7 +8,7 @@
       const sig = await App.G.signature();
       const btn = button && button.link && App.Accept ? App.Accept.button(button.link, button.label) : '';
       const tid = trackId || (est && est.id);
-      const pixel = S().emails.trackingUrl && tid ? `<img src="${e(S().emails.trackingUrl)}?e=${encodeURIComponent(tid)}&k=${kind || 'mail'}&t=${Date.now()}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">` : '';
+      const pixel = App.helperOk(S().emails.trackingUrl) && tid ? `<img src="${e(S().emails.trackingUrl)}?e=${encodeURIComponent(tid)}&k=${kind || 'mail'}&t=${Date.now()}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">` : '';
       /* the Accept or Approve button goes just above the sign-off */
       let main = App.textToHtml(body);
       if (btn) { const i = main.lastIndexOf('Cheers,'); main = i >= 0 ? main.slice(0, i) + btn + main.slice(i) : main + btn; }

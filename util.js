@@ -112,3 +112,6 @@ App.imgToDataUrl = src => new Promise(res => {
   img.onload = () => { const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight; c.getContext('2d').drawImage(img, 0, 0); res(c.toDataURL('image/png')); };
   img.onerror = () => res(null); img.src = src;
 });
+
+/* the helper's web app link must be a Google Apps Script /exec link, or clients get a broken page */
+App.helperOk = u => /^https:\/\/script\.google\.com\/(a\/macros\/[^/]+|macros)\/s\/[\w-]{20,}\/exec\/?$/.test(String(u || '').trim());

@@ -25,7 +25,7 @@
       ['Estimates and emails', [
         ['Company phone and email', !!(s.company && s.company.phone && s.company.email), '#/settings/company', ''],
         ['Accounts email (deposits and final invoices)', !!(s.emails && s.emails.accountsEmail), '#/settings/emails', ''],
-        ['Helper web app link (open tracking and Accept online)', !!(s.emails && s.emails.trackingUrl), '#/settings/emails', 'Deploy the helper as a web app and paste its link'],
+        ['Helper web app link (open tracking and Accept online)', App.helperOk(s.emails && s.emails.trackingUrl), '#/settings/emails', 'Deploy the helper as a web app and paste its link'],
         ['Terms and conditions', (s.tcs || []).filter(Boolean).length > 0, '#/settings/tcs', '']]],
       ['Pricing and delivery', [
         ['Steel price on every machine', (s.machines || []).length > 0 && (s.machines || []).every(m => n(m.pricePerTonne)), '#/pricing', 'Set the steel $/tonne'],
