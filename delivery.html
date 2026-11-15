@@ -60,6 +60,8 @@
   .login h1 { margin: 20px 0 4px; font-size: 26px; } .login p { margin: 0 0 24px; color: #c9ced3; font-size: 14px; text-align: center; }
   .login .box { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px; }
   .login input { width: 100%; height: 54px; border-radius: 12px; border: 0; background: #2b2d31; color: #fff; padding: 0 16px; font-size: 17px; }
+  .login .sel { position: relative; display: block; } .login .sel::after { content: '\25BE'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--y); pointer-events: none; font-size: 18px; }
+  .login select { width: 100%; height: 54px; border-radius: 12px; border: 0; background: #2b2d31; color: #fff; padding: 0 44px 0 16px; font-size: 17px; -webkit-appearance: none; appearance: none; }
   .login input.pin { text-align: center; letter-spacing: .5em; font-size: 24px; font-weight: 800; }
   .done { text-align: center; padding-top: 50px; }
   .tick { width: 88px; height: 88px; border-radius: 50%; background: var(--green); color: #fff; font-size: 46px; font-weight: 900; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
@@ -133,19 +135,22 @@
     return listView();
   }
   function loginView() {
-    const names = LS.get('names') || [];
+    const names = LS.get('names') || []; const last = LS.get('lastName') || '';
     $app.innerHTML = `<div class="login"><img src="chd-icon-192.png" alt=""><h1>CH Delivery</h1><p>Sign in to see your deliveries</p>
       <div class="box">${!S.helper ? '<div class="err">Open this app from the link the office sent you, so it can connect.</div>' : ''}
-      <input id="ln" placeholder="Your name" autocomplete="username" value="${esc(names[0] || '')}" aria-label="Your name">
+      <label class="sel"><select id="ln" aria-label="Your name">${names.length ? `<option value="">Pick your name</option>${names.map(n => `<option ${n === last ? 'selected' : ''}>${esc(n)}</option>`).join('')}` : '<option value="">Loading names…</option>'}</select></label>
       <input id="lp" class="pin" placeholder="PIN" inputmode="numeric" type="password" maxlength="6" autocomplete="current-password" aria-label="PIN">
-      <button class="big y" id="lb">Sign in</button><div id="le"></div><p style="font-size:12.5px">Your name and PIN. The office sets these up.</p></div></div>`;
+      <button class="big y" id="lb">Sign in</button><div id="le"></div><p style="font-size:12.5px">Pick your name and type your PIN. The office sets these up.</p></div></div>`;
     document.getElementById('lb').onclick = async () => {
       const name = document.getElementById('ln').value.trim(), pin = document.getElementById('lp').value.trim();
-      if (!name || !pin) return;
+      if (!name) return document.getElementById('le').innerHTML = '<div class="err">Pick your name first.</div>';
+      if (!pin) return;
       S.me = { name, pin }; document.getElementById('lb').disabled = true;
-      try { const r = await api('dlogin'); S.me.name = r.name; LS.set('me', S.me); LS.set('names', [r.name]); S.view = 'list'; load(); }
+      try { const r = await api('dlogin'); S.me.name = r.name; LS.set('me', S.me); LS.set('lastName', r.name); S.view = 'list'; load(); }
       catch (er) { S.me = null; document.getElementById('le').innerHTML = `<div class="err">${esc(er.message)}</div>`; document.getElementById('lb').disabled = false; }
     };
+    /* the list of drivers comes from the office (Settings, Team, Drivers) */
+    if (S.helper && !S.namesAsked) { S.namesAsked = true; api('dnames').then(r => { LS.set('names', r.names || []); if (!S.me) loginView(); }).catch(() => { if (!names.length) { const sel = document.getElementById('ln'); if (sel) sel.outerHTML = '<input id="ln" placeholder="Your name" autocomplete="username" aria-label="Your name">'; } }); }
   }
   async function load() {
     S.loading = true; S.error = ''; render();
@@ -163,7 +168,7 @@
         <span class="h"><span>${esc(l.number)} \u00b7 Load ${l.n} of ${l.of}</span>${l.delivered ? '<span class="pill ok">Delivered</span>' : p ? '<span class="pill blue">Sending</span>' : '<span class="pill">To go</span>'}</span>
         <p class="addr">${esc(l.site || 'No site address')}</p><p class="mut">${esc(l.client)}${l.contact && l.contact !== l.client ? ', ' + esc(l.contact) : ''}<br>${l.count} item${l.count === 1 ? '' : 's'}${l.kg ? ' \u00b7 ' + l.kg.toLocaleString('en-NZ') + ' kg' : ''}</p></button>`; }).join('') : '<p class="empty">No deliveries booked for this day.</p>'}
       <button class="big w" id="rf">Refresh</button></main>`;
-    document.getElementById('out').onclick = () => { if (confirm('Sign out of CH Delivery?')) { S.me = null; LS.del('me'); render(); } };
+    document.getElementById('out').onclick = () => { if (confirm('Sign out of CH Delivery?')) { S.me = null; S.namesAsked = false; LS.del('me'); render(); } };
     document.getElementById('rf').onclick = load;
     $app.querySelectorAll('[data-day]').forEach(b => b.onclick = () => { S.day = b.dataset.day; render(); });
     $app.querySelectorAll('[data-load]').forEach(b => b.onclick = () => { const [j, l] = b.dataset.load.split('|'); S.cur = S.loads.find(x => x.jobId === j && x.loadId === l); S.photos = (LS.get('ph.' + l) || []); S.view = 'load'; render(); scrollTo(0, 0); });
